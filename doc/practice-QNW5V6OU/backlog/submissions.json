@@ -1,0 +1,72 @@
+{
+  "BUG-02": {
+    "clientSubmissionId": "c9fae4b6-50ef-4fe5-9150-913fafbbe93f",
+    "bodySha": "94a547da5f11ea04c668c8d0f70f073b5814002230ff86c8b47bece95c3e3699",
+    "gitRevision": "d7884b0df938e8e28b31fffb36d556cd3053bfd2",
+    "receipt": {
+      "id": "be919f1b-4457-48cb-95c7-1a5f77579921",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T11:24:14.123Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "BUG-01": {
+    "clientSubmissionId": "0eb83b13-e217-4218-984c-69f7abd2213b",
+    "bodySha": "bfae3e04addae43e54929a03d5b4ac6c336c44dd79d4f50e78eaf0f6f61fae88",
+    "gitRevision": "d56b153a2f3f23ecdbf0c23b3c1d8360ce134d54",
+    "receipt": {
+      "id": "7a10dbdd-0277-4633-915a-4e15589bba31",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T11:30:28.923Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "CR-01": {
+    "clientSubmissionId": "01dce309-abb5-4183-b0b0-0e3831d66a63",
+    "bodySha": "e081dbafd08e95279c72db141054de3ea3b9365e5869efdc0ce47ad07aa4e310",
+    "gitRevision": "1cd211b0c0982035d49427848d59d4b243f982bd",
+    "receipt": {
+      "id": "8e9b329a-7283-47c4-8b1f-f3c96958f3e2",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T11:35:04.493Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "TASK-02": {
+    "clientSubmissionId": "664f4f90-8768-42f4-a2c4-948ab0becfcb",
+    "bodySha": "bc184427852f7ec9b78df3868d1055acaedeeaad42380ed4cec81be48b82f9eb",
+    "gitRevision": "7423c124deda9d2107da2f30bd587f725177d1ed",
+    "receipt": {
+      "id": "32945812-ffc6-447c-a590-2a4f02e82ee3",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T11:38:56.027Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "TASK-01": {
+    "clientSubmissionId": "798d63f8-3b13-4484-b89f-1c4b0c01798f",
+    "bodySha": "d01e256543d8470dbf132e7b3da23638932690b2cf3e019dbb070c846c2dbcf8",
+    "gitRevision": "9cdd83863b04ea3835db9c77431c79c07123ef52",
+    "receipt": {
+      "id": "ff3616a6-a94b-432a-b74c-75e20fa7542e",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T11:47:53.851Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  }
+}

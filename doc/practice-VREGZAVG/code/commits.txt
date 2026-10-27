@@ -1,0 +1,79 @@
+--- 02a207a MLD Digital Cuder 2026-10-26 22:05:49 +0700
+TASK-01: record card position trace and source revision limitation
+
+ VREGZAVG/answers/TASK-01/evidence/reproduction.txt | 18 ++++++++++++++++++
+ VREGZAVG/answers/TASK-01/evidence/source-trace.txt | 15 +++++++++++++++
+ VREGZAVG/answers/TASK-01/submit.json               | 10 ++++++++++
+ 3 files changed, 43 insertions(+)
+--- 15e076f MLD Digital Cuder 2026-10-26 21:56:35 +0700
+TASK-02: patch production dependency vulnerabilities
+
+ VREGZAVG/answers/TASK-02/evidence/audit.log        |   3 +
+ VREGZAVG/answers/TASK-02/evidence/auth-smoke.txt   |   5 +
+ VREGZAVG/answers/TASK-02/evidence/install.log      |   7 +
+ .../TASK-02/evidence/installed-versions.json       | 232 ++++++++++
+ .../TASK-02/evidence/tc-05-login-dashboard.png     | Bin 0 -> 149542 bytes
+ .../answers/TASK-02/evidence/tc-05-signed-out.png  | Bin 0 -> 866703 bytes
+ VREGZAVG/answers/TASK-02/evidence/test.log         |  99 +++++
+ VREGZAVG/answers/TASK-02/evidence/typecheck.log    |   3 +
+ VREGZAVG/answers/TASK-02/submit.json               |  73 ++++
+ VREGZAVG/src/package.json                          |   6 +-
+ VREGZAVG/src/pnpm-lock.yaml                        | 470 +++++++++++----------
+ VREGZAVG/src/pnpm-workspace.yaml                   |   7 +
+ 12 files changed, 679 insertions(+), 226 deletions(-)
+--- fdb9f7c MLD Digital Cuder 2026-10-26 21:53:06 +0700
+CR-01: export filtered invoices using accounting CSV standard
+
+ VREGZAVG/answers/CR-01/evidence/after-invoices.png | Bin 0 -> 201507 bytes
+ .../answers/CR-01/evidence/before-invoices.png     | Bin 0 -> 200100 bytes
+ .../answers/CR-01/evidence/cr-01-test-data.json    | 114 +++++++++++++++++++++
+ .../answers/CR-01/evidence/csv-verification.txt    |   4 +
+ .../answers/CR-01/evidence/tc-01-all-invoices.csv  |   8 ++
+ .../answers/CR-01/evidence/tc-01-all-invoices.png  | Bin 0 -> 201633 bytes
+ .../CR-01/evidence/tc-02-filtered-invoices.csv     |   5 +
+ .../CR-01/evidence/tc-02-filtered-invoices.png     | Bin 0 -> 195759 bytes
+ .../CR-01/evidence/tc-03-special-company.csv       |   3 +
+ .../CR-01/evidence/tc-03-special-company.png       | Bin 0 -> 189770 bytes
+ .../CR-01/evidence/tc-04-signed-out-request.txt    |   4 +
+ .../answers/CR-01/evidence/tc-04-signed-out.png    | Bin 0 -> 1232735 bytes
+ .../answers/CR-01/evidence/tc-05-empty-export.csv  |   1 +
+ .../answers/CR-01/evidence/tc-05-empty-export.png  | Bin 0 -> 169191 bytes
+ VREGZAVG/answers/CR-01/evidence/test.log           | 104 +++++++++++++++++++
+ VREGZAVG/answers/CR-01/evidence/typecheck.log      |   3 +
+ VREGZAVG/answers/CR-01/submit.json                 |  87 ++++++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |  13 +++
+ VREGZAVG/src/src/lib/invoice-csv.ts                |  38 +++++++
+ VREGZAVG/src/tests/invoice-csv.test.ts             |  46 +++++++++
+ 20 files changed, 430 insertions(+)
+--- 63b4b1c MLD Digital Cuder 2026-10-26 21:46:35 +0700
+BUG-01: reserve desktop space beside fixed sidebar
+
+ VREGZAVG/answers/BUG-01/evidence/build.log         |  46 ++++++++++
+ .../BUG-01/evidence/dashboard_before_fixing.png    | Bin 0 -> 279158 bytes
+ .../BUG-01/evidence/development-geometry.json      |  58 +++++++++++++
+ .../BUG-01/evidence/production-geometry.json       |  46 ++++++++++
+ .../BUG-01/evidence/tc-01-desktop-dashboard.png    | Bin 0 -> 290773 bytes
+ .../BUG-01/evidence/tc-02-production-boards.png    | Bin 0 -> 134322 bytes
+ .../BUG-01/evidence/tc-02-production-layout.png    | Bin 0 -> 131373 bytes
+ .../BUG-01/evidence/tc-03-mobile-accounting.png    | Bin 0 -> 54066 bytes
+ .../BUG-01/evidence/tc-03-mobile-dashboard.png     | Bin 0 -> 100275 bytes
+ VREGZAVG/answers/BUG-01/evidence/test.log          |  94 +++++++++++++++++++++
+ VREGZAVG/answers/BUG-01/evidence/typecheck.log     |   1 +
+ VREGZAVG/answers/BUG-01/submit.json                |  64 ++++++++++++++
+ VREGZAVG/src/src/app/(app)/layout.tsx              |   2 +-
+ VREGZAVG/src/src/components/layout/topbar.tsx      |   2 +-
+ VREGZAVG/src/src/styles/globals.css                |   7 ++
+ 15 files changed, 318 insertions(+), 2 deletions(-)
+--- 5ef78c9 MLD Digital Cuder 2026-10-26 21:40:32 +0700
+BUG-02: use client currency for invoice and payment entry
+
+ .../answers/BUG-02/evidence/bug-02-test-data.json  |  41 +++++++++
+ .../answers/BUG-02/evidence/currency-report.txt    |  11 +++
+ .../answers/BUG-02/evidence/tc-01-vnd-invoice.png  | Bin 0 -> 127276 bytes
+ .../answers/BUG-02/evidence/tc-02-vnd-payment.png  | Bin 0 -> 130721 bytes
+ .../answers/BUG-02/evidence/tc-03-usd-invoice.png  | Bin 0 -> 138660 bytes
+ VREGZAVG/answers/BUG-02/evidence/test.log          | 100 +++++++++++++++++++++
+ VREGZAVG/answers/BUG-02/submit.json                |  63 +++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |   9 +-
+ .../src/src/components/accounting/payments-tab.tsx |   7 +-
+ 9 files changed, 225 insertions(+), 6 deletions(-)

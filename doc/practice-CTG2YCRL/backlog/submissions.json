@@ -1,0 +1,44 @@
+{
+  "BUG-02": {
+    "clientSubmissionId": "b000696e-f274-4dc3-8ad3-df43848e7239",
+    "bodySha": "a81afefb300c744c268880cb7a9e649adc8ffdbde2406e975515aab000ebd0b8",
+    "gitRevision": "15452ce9e99a939cb92ff65bf31aab8640e32d06",
+    "receipt": {
+      "id": "ee869884-3255-4e48-9e66-c75eab7b8c37",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T16:28:54.532Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "BUG-01": {
+    "clientSubmissionId": "2cdfaa33-4df5-4058-b701-e0e2e429e4a3",
+    "bodySha": "43069c410c832934b2995b01dd3a2ea52b7da2cbc0f0d14877941470de833d3b",
+    "gitRevision": "3042e4a59ffc3b90bb1ae3363ccf60019dbb6651",
+    "receipt": {
+      "id": "5530b022-dec0-449d-9eb5-9a460deae3c6",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T16:35:48.226Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  },
+  "TASK-02": {
+    "clientSubmissionId": "25140954-6c67-4340-9cb6-3140f2f4a065",
+    "bodySha": "44fdedad3b86501b59099c561ca537d62f7e43a300b6ddcb44b260145dde0992",
+    "gitRevision": "9d3de80fb9234d1f5cfa16b50b54873905048ca7",
+    "receipt": {
+      "id": "868e9927-24d2-4e3a-a80f-28ea8e362f54",
+      "status": "ACCEPTED",
+      "scoreStatus": "PENDING",
+      "receivedAt": "2026-10-26T16:42:08.033Z",
+      "attemptNo": 1,
+      "replay": false
+    },
+    "outcome": "ACCEPTED"
+  }
+}

@@ -1,0 +1,209 @@
+<title>Practice QNW5V6OU Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column of report sections; tables scroll inside their own frames. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --ink: #18202b; --muted: #5b6676; --line: #dde2e9;
+  --accent: #0f6d7a; --accent-soft: #e2f1f2;
+  --ok: #1d7a45; --ok-soft: #e3f3ea; --warn: #9a6200; --warn-soft: #fbf0d9; --bad: #b3261e; --bad-soft: #fbe5e3;
+  --bar: #9fb4c7; --bar-idle: #d7dde5;
+  --f-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161d; --surface: #18202a; --ink: #e6ebf1; --muted: #9aa6b5; --line: #2a3542;
+  --accent: #5cc4cf; --accent-soft: #163339; --ok: #63c98d; --ok-soft: #173326; --warn: #e6b04f; --warn-soft: #3a2d12;
+  --bad: #f08a80; --bad-soft: #3d1c1a; --bar: #4f6880; --bar-idle: #2c3846; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --ink: #e6ebf1; --muted: #9aa6b5; --line: #2a3542;
+  --accent: #5cc4cf; --accent-soft: #163339; --ok: #63c98d; --ok-soft: #173326; --warn: #e6b04f; --warn-soft: #3a2d12;
+  --bad: #f08a80; --bad-soft: #3d1c1a; --bar: #4f6880; --bar-idle: #2c3846; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 36px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: 30px; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; text-wrap: balance; }
+h2 .q { font: 600 13px var(--f-mono); color: var(--muted); margin-right: 8px; }
+.sub { color: var(--muted); max-width: 70ch; margin: 0; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.tile b { font: 600 26px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 13px; }
+.tile.bad b { color: var(--bad); } .tile.ok b { color: var(--ok); }
+.frame { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11.5px var(--f-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+code, .mono { font-family: var(--f-mono); font-size: 13px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font: 600 11.5px/1.7 var(--f-mono); white-space: nowrap; }
+.p-ok { background: var(--ok-soft); color: var(--ok); } .p-bad { background: var(--bad-soft); color: var(--bad); }
+.p-warn { background: var(--warn-soft); color: var(--warn); } .p-info { background: var(--accent-soft); color: var(--accent); }
+ul.findings { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; max-width: 80ch; }
+.note { color: var(--muted); font-size: 13px; margin: 0; }
+svg text { fill: var(--muted); font: 11px var(--f-mono); }
+svg .lbl { fill: var(--ink); font: 600 11.5px var(--f-body); }
+.chart { padding: 12px; }
+@media (max-width: 520px) { h1 { font-size: 24px; } .tile b { font-size: 22px; } }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">MTM 2026 · Practice · Team MLD (Megalodon)</div>
+  <h1>Trận practice QNW5V6OU</h1>
+  <p class="sub">26/10/2026, 18:12–19:17 (giờ VN). Sản phẩm: Solova (Next.js, Prisma, PostgreSQL). Cấu hình agent: agent-test-0, Codex <span class="mono">gpt-6.1-sol</span>, reasoning effort low, một agent. Nguồn số liệu: trang <span class="mono">/match/QNW5V6OU</span> đã lưu, progress log, session Codex, lịch sử git của repo đội.</p>
+</header>
+
+<section>
+  <div class="tiles">
+    <div class="tile"><b>3 / 5</b><span>wave / item đã mở</span></div>
+    <div class="tile ok"><b>5 / 5</b><span>item đã nộp, receipt ACCEPTED</span></div>
+    <div class="tile ok"><b>0</b><span>lần bị block, vào máy hay restart</span></div>
+    <div class="tile bad"><b>400 / 1000</b><span>điểm có nguy cơ mất: 2 answer sai schema</span></div>
+    <div class="tile"><b>22,85M</b><span>token tổng (99,4% input là cache)</span></div>
+    <div class="tile bad"><b>48%</b><span>token tiêu lúc chỉ chờ hết trận</span></div>
+  </div>
+  <p class="note">Điểm chính thức chưa hiển thị cho đội: trang match ghi "Latest attempt #1 · GRADED" nhưng <span class="mono">scoreVerdict</span> là null. Con số 400 điểm dựa trên luật in trên trang: "a file that does not validate scores 0", đối chiếu với kết quả kiểm schema của từng bài đã nộp.</p>
+</section>
+
+<section>
+  <h2><span class="q">Q1</span>Đã xử lý gì: wave, item, kết quả, tech stack, issue</h2>
+  <div class="frame"><table>
+    <thead><tr><th>Wave</th><th>Item</th><th>Loại</th><th class="num">Điểm tối đa</th><th>Nộp</th><th>Schema</th><th>Test tự chạy</th><th>Issue và phần sửa</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">W1 18:17</td><td class="mono">BUG-02</td><td>Bug, deadline 18′</td><td class="num">150</td><td><span class="pill p-ok">ACCEPTED</span></td><td><span class="pill p-bad">SAI</span></td><td class="num">4/4 PASS</td><td>Hóa đơn và thanh toán của khách VND bị ×100. Sửa đơn vị tiền theo tiền tệ của khách (invoices-tab, payments-tab, accounting router). Agent sửa luôn test <span class="mono">cascade.test.ts</span> có sẵn. Evidence TC-04 ghi chuỗi thay vì mảng.</td></tr>
+      <tr><td class="mono">W1 18:17</td><td class="mono">BUG-01</td><td>Bug</td><td class="num">200</td><td><span class="pill p-ok">ACCEPTED</span></td><td><span class="pill p-ok">ĐÚNG</span></td><td class="num">3/3 PASS</td><td>Sidebar che nội dung trên desktop. Class Tailwind 4 <span class="mono">md:ms-sidebar</span> không sinh CSS; sửa layout.tsx, topbar.tsx, globals.css. Có ảnh trước và sau ở dev, production và mobile 390px.</td></tr>
+      <tr><td class="mono">W2 18:31</td><td class="mono">CR-01</td><td>Change Request</td><td class="num">300</td><td><span class="pill p-ok">ACCEPTED</span></td><td><span class="pill p-ok">ĐÚNG</span></td><td class="num">5/5 PASS</td><td>Xuất danh sách hóa đơn đã lọc ra CSV theo chuẩn kế toán (UTF-8 BOM, ký tự đặc biệt, VOID và DRAFT). Thêm <span class="mono">lib/invoice-csv.ts</span> kèm unit test.</td></tr>
+      <tr><td class="mono">W2 18:31</td><td class="mono">TASK-02</td><td>Task</td><td class="num">250</td><td><span class="pill p-ok">ACCEPTED</span></td><td><span class="pill p-bad">SAI</span></td><td class="num">5/5 PASS</td><td>Vá lỗ hổng dependency production (Next.js, Auth.js, Zod và gói phụ thuộc gián tiếp) bằng nâng version và pnpm overrides. Audit sạch, login smoke pass. Agent tra GitHub Advisories trên web. Evidence TC-01..04 ghi chuỗi.</td></tr>
+      <tr><td class="mono">W3 18:46</td><td class="mono">TASK-01</td><td>Task</td><td class="num">100</td><td><span class="pill p-ok">ACCEPTED</span></td><td><span class="pill p-ok">ĐÚNG</span></td><td class="num">1/1 PASS</td><td>Truy vị trí card sau khi kéo thả: trả lời <span class="mono">"98304"</span>. Đề yêu cầu xét tại commit <span class="mono">571c531</span>, nhưng commit này không có trên remote nên agent tính theo code hiện tại. Đề so khớp chuỗi tuyệt đối.</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="findings">
+    <li><b>Tổng:</b> 3 wave, 5 item (2 BUG, 1 CR, 2 TASK, không có PI). Accepted 5, blocked 0, bị server từ chối 0. Tổng điểm tối đa của trận là 1000.</li>
+    <li><b>Tech stack:</b> Next.js 15 (App Router), React 19, TypeScript 5.9, tRPC 11, Prisma 6, PostgreSQL 16 (cổng 5433), Auth.js (next-auth v5 beta), Tailwind CSS 4, Zod 3, Vitest 3, Playwright, pnpm 11.9.0, Node 24, chạy trên Windows.</li>
+    <li><b>Company Tools:</b> 18 lần gọi. <span class="mono">get_test_data</span> trả <span class="mono">TEST_DATA_NOT_FOUND</span> ở BUG-01, TASK-02 và TASK-01: server báo không có dữ liệu test cho các item này, không phải lỗi của đội.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="q">Q2</span>Thời gian và token theo từng giai đoạn</h2>
+  <div class="frame chart">
+    <svg viewBox="0 0 880 250" width="100%" role="img" aria-label="Dòng thời gian trận: chuẩn bị, ba wave, năm item và thời gian chờ">
+      <g>
+        <line x1="60" y1="215" x2="845" y2="215" stroke="var(--line)"/>
+        <g text-anchor="middle">
+          <text x="60" y="232">18:12</text><text x="180" y="232">18:22</text><text x="300" y="232">18:32</text><text x="420" y="232">18:42</text><text x="540" y="232">18:52</text><text x="660" y="232">19:02</text><text x="780" y="232">19:12</text>
+        </g>
+        <line x1="124" y1="10" x2="124" y2="215" stroke="var(--accent)" stroke-dasharray="3 3"/><text x="128" y="20" class="lbl" style="fill:var(--accent)">W1</text>
+        <line x1="293" y1="10" x2="293" y2="215" stroke="var(--accent)" stroke-dasharray="3 3"/><text x="297" y="20" class="lbl" style="fill:var(--accent)">W2</text>
+        <line x1="472" y1="10" x2="472" y2="215" stroke="var(--accent)" stroke-dasharray="3 3"/><text x="476" y="20" class="lbl" style="fill:var(--accent)">W3</text>
+        <line x1="340" y1="48" x2="340" y2="72" stroke="var(--bad)" stroke-width="2"/><text x="344" y="58" style="fill:var(--bad)">hạn BUG-02</text>
+        <rect x="68" y="34" width="57" height="14" rx="3" fill="var(--bar)"/><text x="8" y="45" class="lbl">Chuẩn bị</text>
+        <rect x="135" y="56" width="72" height="14" rx="3" fill="var(--bad)"/><text x="8" y="67" class="lbl">BUG-02</text>
+        <rect x="206" y="78" width="76" height="14" rx="3" fill="var(--ok)"/><text x="8" y="89" class="lbl">BUG-01</text>
+        <rect x="295" y="100" width="42" height="14" rx="3" fill="var(--ok)"/><text x="8" y="111" class="lbl">CR-01</text>
+        <rect x="336" y="122" width="47" height="14" rx="3" fill="var(--bad)"/><text x="8" y="133" class="lbl">TASK-02</text>
+        <rect x="383" y="144" width="89" height="14" rx="3" fill="var(--warn)"/><text x="8" y="155" class="lbl">Kiểm tra</text>
+        <rect x="474" y="166" width="17" height="14" rx="3" fill="var(--ok)"/><text x="8" y="177" class="lbl">TASK-01</text>
+        <rect x="491" y="188" width="354" height="14" rx="3" fill="var(--bar-idle)"/><text x="8" y="199" class="lbl">Chờ</text>
+        <text x="497" y="199" style="fill:var(--muted)">29,5 phút chỉ chờ hết trận</text>
+      </g>
+    </svg>
+    <p class="note">Đỏ: đã nộp nhưng answer sai schema. Xanh: đã nộp, answer đúng schema. Vàng: agent tự kiểm tra lại bài sau khi nộp.</p>
+  </div>
+  <div class="frame"><table>
+    <thead><tr><th>Giai đoạn</th><th>Khung giờ</th><th class="num">Phút</th><th class="num">Input</th><th class="num">Input không cache</th><th class="num">Output</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Chuẩn bị</td><td class="mono">18:12–18:17</td><td class="num">4,7</td><td class="num">0,61M</td><td class="num">17,6k</td><td class="num">4,0k</td><td>Clone, pnpm 11.9.0, migrate và seed, doctor READY, build, login</td></tr>
+      <tr><td>W1 · BUG-02</td><td class="mono">18:17–18:24</td><td class="num">6,9</td><td class="num">1,63M</td><td class="num"><b>36,4k</b></td><td class="num"><b>8,0k</b></td><td>Nhiều lớp code tiền tệ, lỗi typecheck, kiểm UI bằng Playwright, sửa test</td></tr>
+      <tr><td>W1 · BUG-01</td><td class="mono">18:24–18:30</td><td class="num">6,2</td><td class="num"><b>2,25M</b></td><td class="num">20,9k</td><td class="num">6,6k</td><td>2 lần sửa CSS, dev server trùng cổng 3000, chụp ảnh ở 3 môi trường</td></tr>
+      <tr><td>Chờ W2</td><td class="mono">18:30–18:31</td><td class="num">0,9</td><td class="num">0,39M</td><td class="num">2,2k</td><td class="num">0,2k</td><td></td></tr>
+      <tr><td>W2 · CR-01</td><td class="mono">18:31–18:35</td><td class="num">3,6</td><td class="num">1,21M</td><td class="num">14,7k</td><td class="num">5,9k</td><td>Một lượt là xong, không có lệnh nào lỗi</td></tr>
+      <tr><td>W2 · TASK-02</td><td class="mono">18:35–18:39</td><td class="num">3,9</td><td class="num">1,80M</td><td class="num">14,1k</td><td class="num">4,7k</td><td>Audit, tra web, cài lại dependency, chạy 23 test và smoke login</td></tr>
+      <tr><td>Kiểm tra sau nộp</td><td class="mono">18:39–18:46</td><td class="num">7,5</td><td class="num">2,93M</td><td class="num">6,5k</td><td class="num">2,6k</td><td>Cài jsonschema, phát hiện lỗi schema khi đã nộp xong</td></tr>
+      <tr><td>W3 · TASK-01</td><td class="mono">18:46–18:48</td><td class="num">1,5</td><td class="num">0,87M</td><td class="num">6,9k</td><td class="num">2,1k</td><td>Truy code, chạy tái hiện</td></tr>
+      <tr><td>Chờ hết trận</td><td class="mono">18:48–19:17</td><td class="num">29,5</td><td class="num"><b>10,94M</b></td><td class="num">11,5k</td><td class="num">3,8k</td><td>38 lần chờ, mỗi phút một thông báo "không có gì mới"</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="findings">
+    <li><b>Thời gian mỗi wave</b> (từ lúc mở đến lần nộp cuối): W1 13,1 phút (2 bug, làm tuần tự), W2 7,5 phút, W3 1,5 phút. BUG-02 nộp 6,9 phút sau khi mở, còn 11 phút trước hạn.</li>
+    <li><b>Tốn thời gian nhất:</b> BUG-02 (6,9 phút). Lỗi nằm ở cả UI lẫn router, phải chạy kiểm UI bằng Playwright cùng script báo cáo của đề, và agent dừng để sửa test cascade.</li>
+    <li><b>Tốn token nhất:</b> trong các item là BUG-01 với 2,25M input: sửa CSS hai lần, khởi động lại dev server, chụp ảnh ở 3 môi trường, mỗi vòng lại gửi lại toàn bộ ngữ cảnh. Phần token mới thật sự nhiều nhất là BUG-02 (36,4k input không cache, 8,0k output). Cả trận, khoảng chờ cuối trận chiếm 10,94M (48%) và phần kiểm tra sau nộp chiếm 2,93M (13%).</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="q">Q3</span>Có gì thất bại hoặc ghi log không thành công</h2>
+  <div class="frame"><table>
+    <thead><tr><th>Hạng mục</th><th>Kết quả</th><th>Chi tiết</th></tr></thead>
+    <tbody>
+      <tr><td>Lệnh gọi Game Master</td><td><span class="pill p-ok">40/40 OK</span></td><td>Login 1, refresh 9, Start Work 5, Submit 5; mỗi lệnh đều có cặp REQUESTED và SUCCEEDED.</td></tr>
+      <tr><td>Progress log</td><td><span class="pill p-ok">101/101 hợp lệ</span></td><td>Không event nào bị Player từ chối. Thiếu <span class="mono">ORCHESTRATOR_ENDED</span>: Player dừng agent ngay khi trận FINISHED.</td></tr>
+      <tr><td>Answer theo schema</td><td><span class="pill p-bad">2/5 sai</span></td><td>BUG-02 (1 dòng) và TASK-02 (4 dòng): <span class="mono">evidence: expected array, got string</span>. Theo luật, bài sai schema bị 0 điểm.</td></tr>
+      <tr><td>Blocker</td><td><span class="pill p-warn">1 mở, chưa đóng</span></td><td><span class="mono">SUBMITTED_ANSWER_SCHEMA_ERROR</span> lúc 18:44. Đã sửa ở commit <span class="mono">a71419a</span>, nhưng bài đã nộp vẫn giữ bản sai.</td></tr>
+      <tr><td>Company Tools</td><td><span class="pill p-info">3 lỗi nghiệp vụ</span></td><td><span class="mono">TEST_DATA_NOT_FOUND</span> cho BUG-01, TASK-02, TASK-01: đề không cấp dữ liệu test cho các item này, đúng như mong đợi.</td></tr>
+      <tr><td>Lệnh shell</td><td><span class="pill p-info">18/149 lỗi</span></td><td>Phần lớn là vòng sửa và test: test đỏ, typecheck, layout chưa đạt, cổng 3000 bị chiếm, thiếu file .gitignore, thiếu thư viện jsonschema.</td></tr>
+      <tr><td>Bước chuẩn bị</td><td><span class="pill p-ok">5/5 xong</span></td><td>Có 1 test đã fail sẵn từ trước (cascade) khi chạy baseline.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="q">Q4</span>Có gì phải thử lại nhiều lần</h2>
+  <ul class="findings">
+    <li><b>Lệnh gọi API:</b> không có lần thử lại nào. Mỗi item Start Work 1 lần, Submit 1 lần; không retry, không restart agent, không cần người vào máy.</li>
+    <li><b>BUG-01:</b> sửa CSS 2 lần (<span class="mono">md:ms-60</span> không có tác dụng, rồi đổi sang rule CSS riêng), chạy kiểm layout fail 2 lần, khởi động lại dev server vì trùng cổng 3000.</li>
+    <li><b>BUG-02:</b> 5 lệnh lỗi trong lúc sửa (test, typecheck do kiểu <span class="mono">string | null</span>, kiểm UI) trước khi xanh hết.</li>
+    <li><b>Kiểm tra sau nộp:</b> chạy kiểm schema 2 lần vì phải cài jsonschema trước.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="q">Q5</span>Pattern lặp lại</h2>
+  <div class="frame"><table>
+    <thead><tr><th>Pattern</th><th>Gặp ở</th><th>Hệ quả</th></tr></thead>
+    <tbody>
+      <tr><td>Ghi JSON bằng PowerShell: mảng 1 phần tử bị biến thành chuỗi</td><td class="mono">BUG-02, TASK-02 (5 dòng)</td><td><span class="pill p-bad">mất tới 400đ</span></td></tr>
+      <tr><td>Chỉ kiểm schema sau khi đã nộp, không kiểm trước</td><td class="mono">4 item đầu</td><td><span class="pill p-bad">không sửa kịp</span></td></tr>
+      <tr><td>Commit script phụ (seed, run-checks, verify) vào <span class="mono">src/</span></td><td class="mono">BUG-02, BUG-01, CR-01, TASK-01</td><td><span class="pill p-warn">làm bẩn source</span></td></tr>
+      <tr><td>Sửa test cho xanh thay vì sửa code</td><td class="mono">BUG-02 (cascade.test.ts)</td><td><span class="pill p-warn">có thể fail test ẩn</span></td></tr>
+      <tr><td>Chờ ồn ào: mỗi phút một lượt kèm thông báo</td><td class="mono">29,5 phút cuối</td><td><span class="pill p-warn">48% token</span></td></tr>
+      <tr><td>Quy trình mỗi item ổn định: đọc đề → Company Tool → sửa → test → evidence → nộp</td><td class="mono">cả 5 item</td><td><span class="pill p-ok">1,5–6,9 phút/item</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="q">Q6</span>Insight</h2>
+  <ul class="findings">
+    <li><b>Hệ thống chạy được trọn trận mà không cần người:</b> chuẩn bị, 3 wave, 5 lần nộp, 0 block. Nộp xong mọi item trước giờ kết thúc khoảng 30 phút. Tốc độ không phải điểm nghẽn.</li>
+    <li><b>Điểm mất lớn nhất đến từ khâu đóng gói answer, không phải code:</b> 2 bài làm đúng nhưng file submit sai schema, có nguy cơ mất 40% tổng điểm.</li>
+    <li><b>Chi phí nằm ở lúc rảnh, không phải lúc làm:</b> riêng phần chờ và phần kiểm tra sau nộp đã chiếm 61% token. Token thật sự mới cho công việc chỉ khoảng 147k input không cache và 38k output.</li>
+    <li><b>Có rủi ro luật và rủi ro điểm ẩn:</b> sửa test có sẵn (đề BUG-02 cấm làm yếu test, và "bảo vệ lịch sử tài chính" nghiêng về phía test đúng); tra web ngoài các origin được khai báo (TASK-02); TASK-01 so khớp chuỗi tuyệt đối nhưng không xét được ở commit đề yêu cầu.</li>
+    <li><b>Effort low là đủ nhanh</b> cho đề cỡ này. Điểm cần cải thiện là kỷ luật quy trình, không phải sức suy luận.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="q">Q7</span>Kế hoạch xử lý từng điểm yếu</h2>
+  <div class="frame"><table>
+    <thead><tr><th>#</th><th>Điểm yếu</th><th>Cách sửa</th><th>Sửa ở đâu</th><th>Ưu tiên</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td>Answer sai schema</td><td><span class="mono">submit_work</span> kiểm <span class="mono">answers/&lt;ID&gt;/submit.json</span> theo <span class="mono">challenge/&lt;ID&gt;-submit.schema.json</span> trên đúng revision và từ chối gửi nếu sai; kiểm thêm: dòng PASS phải có evidence, evidence là mảng. Bộ kiểm schema (<span class="mono">src/schema.mjs</span>) đã viết và đã kiểm chứng trên 5 bài thật.</td><td>Helper</td><td><span class="pill p-bad">Cao nhất</span></td></tr>
+      <tr><td class="mono">2</td><td>Ghi JSON bằng PowerShell</td><td>Skill: ghi hoặc sửa submit.json bằng Node (<span class="mono">JSON.stringify</span>), cấm <span class="mono">ConvertTo-Json</span>.</td><td>Skill</td><td><span class="pill p-bad">Cao</span></td></tr>
+      <tr><td class="mono">3</td><td>Sửa test có sẵn</td><td>Skill: không làm yếu, bỏ qua hay xóa test có sẵn. Nếu test mâu thuẫn với code thì phân định theo yêu cầu nghiệp vụ trong đề; chỉ sửa test khi đề cho phép và phải ghi lý do vào engineering record. Helper cảnh báo khi diff đụng file test có sẵn.</td><td>Skill + Helper</td><td><span class="pill p-bad">Cao</span></td></tr>
+      <tr><td class="mono">4</td><td>Tra web ngoài origin được khai báo</td><td>Tắt <span class="mono">web_search</span> trong config của workspace. Skill: chỉ dùng mạng cho package registry và Game Master; dùng Company Tools và source để tra cứu.</td><td>Config + Skill</td><td><span class="pill p-bad">Cao</span></td></tr>
+      <tr><td class="mono">5</td><td>Token khi chờ</td><td>Mỗi lần <span class="mono">wait_for_update</span> chờ tới ~4 phút (tăng <span class="mono">tool_timeout_sec</span>), không viết thông báo khi rảnh, bỏ bước kiểm tra lại sau nộp vì đã kiểm trước khi nộp. Ước tính giảm khoảng 50–60% token.</td><td>Helper + Skill</td><td><span class="pill p-warn">Trung bình</span></td></tr>
+      <tr><td class="mono">6</td><td>Script phụ trong <span class="mono">src/</span></td><td>Skill: script seed, kiểm tra, báo cáo của đề để ngoài source (thư mục làm việc trong <span class="mono">.git/mtm/&lt;ID&gt;/</span>); chỉ commit code sản phẩm, test và answers.</td><td>Skill</td><td><span class="pill p-warn">Trung bình</span></td></tr>
+      <tr><td class="mono">7</td><td>Không có commit đề tham chiếu</td><td>Skill: thử <span class="mono">git fetch origin &lt;sha&gt;</span> và Company Tools để lấy lịch sử; nếu vẫn không có thì ghi rõ trong answer và đặt status theo template (PARTIAL), thay vì trả lời như chắc chắn.</td><td>Skill</td><td><span class="pill p-info">Thấp</span></td></tr>
+      <tr><td class="mono">8</td><td>Chưa thấy điểm chính thức</td><td>Xem <span class="mono">/spectator/QNW5V6OU</span> hoặc hỏi BTC kết quả Grader để xác nhận ước tính mất 400 điểm.</td><td>Vận hành</td><td><span class="pill p-info">Thấp</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+</div>

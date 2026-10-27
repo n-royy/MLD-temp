@@ -1,0 +1,141 @@
+<title>Practice VREGZAVG Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; comparison tables put the earlier match beside this one. */
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --ink: #18202b; --muted: #5b6676; --line: #dde2e9;
+  --accent: #0f6d7a; --accent-soft: #e2f1f2;
+  --ok: #1d7a45; --ok-soft: #e3f3ea; --warn: #9a6200; --warn-soft: #fbf0d9; --bad: #b3261e; --bad-soft: #fbe5e3;
+  --f-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161d; --surface: #18202a; --ink: #e6ebf1; --muted: #9aa6b5; --line: #2a3542;
+  --accent: #5cc4cf; --accent-soft: #163339; --ok: #63c98d; --ok-soft: #173326; --warn: #e6b04f; --warn-soft: #3a2d12;
+  --bad: #f08a80; --bad-soft: #3d1c1a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #18202a; --ink: #e6ebf1; --muted: #9aa6b5; --line: #2a3542;
+  --accent: #5cc4cf; --accent-soft: #163339; --ok: #63c98d; --ok-soft: #173326; --warn: #e6b04f; --warn-soft: #3a2d12;
+  --bad: #f08a80; --bad-soft: #3d1c1a; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 36px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-size: 30px; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); max-width: 72ch; margin: 0; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.tile b { font: 600 24px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.tile s { color: var(--muted); font: 400 13px var(--f-mono); }
+.tile span { color: var(--muted); font-size: 13px; }
+.tile.ok b { color: var(--ok); } .tile.bad b { color: var(--bad); } .tile.warn b { color: var(--warn); }
+.frame { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 11.5px var(--f-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.mono { font-family: var(--f-mono); font-size: 13px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font: 600 11.5px/1.7 var(--f-mono); white-space: nowrap; }
+.p-ok { background: var(--ok-soft); color: var(--ok); } .p-bad { background: var(--bad-soft); color: var(--bad); }
+.p-warn { background: var(--warn-soft); color: var(--warn); } .p-info { background: var(--accent-soft); color: var(--accent); }
+ul.findings { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; max-width: 82ch; }
+.note { color: var(--muted); font-size: 13px; margin: 0; max-width: 82ch; }
+.better { color: var(--ok); font-weight: 600; } .worse { color: var(--bad); font-weight: 600; }
+@media (max-width: 520px) { h1 { font-size: 24px; } }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">MTM 2026 · Practice lần 2 · Team MLD</div>
+  <h1>Trận practice VREGZAVG</h1>
+  <p class="sub">26/10/2026, 21:33–22:35 (giờ VN). Cùng đề Solova với trận QNW5V6OU, chạy với pack đã sửa (kiểm schema, cấm sửa test, tắt web, chờ yên lặng, bài học tĩnh). Tài khoản Codex cá nhân, <span class="mono">gpt-6.1-sol</span>, effort low. Điểm chính thức chưa hiển thị cho đội.</p>
+</header>
+
+<section>
+  <h2>So với trận trước</h2>
+  <div class="tiles">
+    <div class="tile ok"><b>5 / 5</b><s>trước: 3 / 5</s><span>bài nộp qua schema</span></div>
+    <div class="tile ok"><b>0</b><s>trước: 1 file test</s><span>test có sẵn bị sửa</span></div>
+    <div class="tile ok"><b>0</b><s>trước: 1 lần</s><span>tra web</span></div>
+    <div class="tile ok"><b>15,7M</b><s>trước: 22,8M</s><span>token session chính (−31%)</span></div>
+    <div class="tile warn"><b>10,6M</b><s>trước: 9,8M</s><span>token guardian tự duyệt</span></div>
+    <div class="tile warn"><b>5 / 5</b><s>trước: 0 / 5</s><span>bài để status PARTIAL</span></div>
+  </div>
+  <p class="note">Hai trận cùng đề, nên tốc độ nhanh hơn một phần là nhờ agent quen đề. Các mục về schema, test, web và token chờ là do quy trình mới; đề không ảnh hưởng tới chúng.</p>
+</section>
+
+<section>
+  <h2>Từng item</h2>
+  <div class="frame"><table>
+    <thead><tr><th>Item</th><th class="num">Điểm</th><th class="num">Mở → nộp</th><th class="num">Trước</th><th>Schema</th><th>Kết quả tự báo</th><th>Status</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">BUG-02</td><td class="num">150</td><td class="num">4,4′</td><td class="num">6,9′</td><td><span class="pill p-ok">ĐÚNG</span></td><td class="mono">TC-04 FAIL</td><td><span class="pill p-warn">PARTIAL</span></td><td>Chỉ sửa invoices-tab và payments-tab. TC-04 ("test có sẵn phải pass") khai FAIL vì test cascade đã fail sẵn.</td></tr>
+      <tr><td class="mono">BUG-01</td><td class="num">200</td><td class="num">10,5′</td><td class="num">13,1′</td><td><span class="pill p-ok">ĐÚNG</span></td><td class="mono">3/3 PASS</td><td><span class="pill p-warn">PARTIAL</span></td><td>Sửa layout giống trận trước. Để PARTIAL vì test cascade, dù cả 3 kịch bản đều PASS.</td></tr>
+      <tr><td class="mono">CR-01</td><td class="num">300</td><td class="num">≈3,3′</td><td class="num">3,6′</td><td><span class="pill p-ok">ĐÚNG</span></td><td class="mono">5/5 PASS</td><td><span class="pill p-warn">PARTIAL</span></td><td>Thêm <span class="mono">lib/invoice-csv.ts</span> kèm test mới. PARTIAL cùng lý do.</td></tr>
+      <tr><td class="mono">TASK-02</td><td class="num">250</td><td class="num">≈6,8′</td><td class="num">7,5′</td><td><span class="pill p-ok">ĐÚNG</span></td><td class="mono">TC-04 FAIL</td><td><span class="pill p-warn">PARTIAL</span></td><td>Audit sạch, không tra web. TC-04 FAIL vì test cascade.</td></tr>
+      <tr><td class="mono">TASK-01</td><td class="num">100</td><td class="num">≈1,1′</td><td class="num">1,5′</td><td><span class="pill p-ok">ĐÚNG</span></td><td class="mono">"98304"</td><td><span class="pill p-warn">PARTIAL</span></td><td>Không lấy được commit đề tham chiếu nên khai PARTIAL, đúng như bài học mới.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">"Mở → nộp" tính từ lúc wave mở đến khi receipt được ghi nhận (với BUG-01 là tính cả thời gian chờ BUG-02). Mốc wave 2 và 3 lấy theo lúc agent bắt đầu làm (≈).</p>
+</section>
+
+<section>
+  <h2>Token theo giai đoạn</h2>
+  <div class="frame"><table>
+    <thead><tr><th>Giai đoạn</th><th class="num">Phút</th><th class="num">Session chính</th><th class="num">Guardian</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td>Chuẩn bị</td><td class="num">3,2</td><td class="num">0,37M</td><td class="num">0,43M</td><td>Nhanh hơn trận trước (4,7′)</td></tr>
+      <tr><td>BUG-02</td><td class="num">4,5</td><td class="num">1,24M</td><td class="num">0,44M</td><td></td></tr>
+      <tr><td>BUG-01</td><td class="num">6,1</td><td class="num">3,02M</td><td class="num">0,68M</td><td>Item tốn nhất: ảnh 3 môi trường, nhiều vòng sửa CSS</td></tr>
+      <tr><td>Chờ W2</td><td class="num">3,3</td><td class="num">1,31M</td><td class="num">0,53M</td><td></td></tr>
+      <tr><td>CR-01</td><td class="num">3,2</td><td class="num">1,43M</td><td class="num">0,99M</td><td></td></tr>
+      <tr><td>TASK-02</td><td class="num">3,5</td><td class="num">1,92M</td><td class="num">0,92M</td><td>Guardian: 224k token input không cache trong 3,5 phút</td></tr>
+      <tr><td>Chờ W3</td><td class="num">8,1</td><td class="num">1,21M</td><td class="num">1,13M</td><td></td></tr>
+      <tr><td>TASK-01</td><td class="num">1,1</td><td class="num">0,84M</td><td class="num">1,07M</td><td></td></tr>
+      <tr><td>Chờ hết trận</td><td class="num">29,8</td><td class="num"><span class="better">4,23M</span></td><td class="num"><span class="worse">4,37M</span></td><td>Session chính: trước 10,94M (−61%). Guardian vẫn duyệt từng lượt chờ.</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="findings">
+    <li><b>Tổng hai session:</b> 26,3M token input (trước 32,6M, giảm 19%). Input không cache: session chính 156k (trước 147k), guardian 374k (trước 637k).</li>
+    <li><b>Guardian là khoản tốn còn lại lớn nhất:</b> 108 trên 110 lượt duyệt là cho lệnh gọi tool <span class="mono">mtm_helper</span> của chính đội. Lý do: Player chạy Codex với <span class="mono">approvalPolicy: on-request</span> và chế độ "Approve for me", và Codex mặc định bắt xin phép mỗi lần gọi tool MCP.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Thất bại và lặp lại</h2>
+  <ul class="findings">
+    <li><b>Lệnh gọi Game Master:</b> tất cả thành công; không retry, không restart, không cần người vào máy, không có blocker.</li>
+    <li><b>Lệnh shell:</b> 26/120 lỗi (trước 18/149). Phần lớn là vòng sửa và test của BUG-01, cùng các lần chạy test gặp lỗi cascade.</li>
+    <li><b>Pattern mới lặp ở cả 5 item:</b> test cascade đã fail từ trước làm agent khai FAIL ở TC "test có sẵn phải pass" (BUG-02, TASK-02) và hạ status mọi item xuống PARTIAL.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Insight</h2>
+  <ul class="findings">
+    <li><b>Các bản sửa của lần trước đều có tác dụng:</b> 0 bài sai schema, 0 test bị làm yếu, 0 script phụ trong <span class="mono">src/</span>, 0 lần tra web, token lúc chờ của session chính giảm 61%.</li>
+    <li><b>Test cascade là bẫy cài sẵn trong đề.</b> <span class="mono">DECISIONS.md</span> và <span class="mono">BUILD_REPORT.md</span> ghi hóa đơn và thanh toán dùng <span class="mono">RESTRICT</span> ("deleting a company with financial docs fails loudly instead of destroying history"), nhưng migration <span class="mono">20260702093140_company_delete_cascades_financials</span> đổi sang <span class="mono">CASCADE</span>. Test đúng, code sai. Trận 1 sửa test (sai hướng); trận 2 giữ test nhưng không sửa code, nên mọi item bị PARTIAL.</li>
+    <li><b>Quy tắc "không sửa test" đúng nhưng chưa đủ:</b> agent cần thêm bước tìm hiểu vì sao test có sẵn fail, bằng tài liệu thiết kế trong repo, và sửa code khi code đi lệch khỏi thiết kế.</li>
+    <li><b>Chi phí bây giờ nằm ở guardian:</b> giảm số lượt duyệt tool của chính đội sẽ giảm thêm khoảng một phần ba tổng token.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Kế hoạch tiếp theo</h2>
+  <div class="frame"><table>
+    <thead><tr><th>#</th><th>Điểm yếu</th><th>Cách sửa</th><th>Ưu tiên</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td>Test có sẵn fail ngay từ đầu</td><td>Skill và bài học: khi baseline có test fail, đọc tài liệu thiết kế trong repo (DECISIONS, BUILD_REPORT, spec) để xác định hành vi đúng. Nếu code lệch khỏi thiết kế và tiêu chí của item yêu cầu "test có sẵn phải pass", sửa code (ví dụ thêm migration trả lại RESTRICT) ngay trong item đầu tiên có tiêu chí đó, ghi rõ lý do trong answer. Bổ sung vào ghi chú Solova.</td><td><span class="pill p-bad">Cao</span></td></tr>
+      <tr><td class="mono">2</td><td>Status PARTIAL tràn lan</td><td>Quy tắc: status phản ánh tiêu chí của chính item đó. Chỉ để PARTIAL khi một tiêu chí của item chưa đạt, không phải vì một lỗi có sẵn không liên quan.</td><td><span class="pill p-bad">Cao</span></td></tr>
+      <tr><td class="mono">3</td><td>Guardian tiêu ~40% token</td><td>Đặt <span class="mono">default_tools_approval_mode = "approve"</span> cho riêng <span class="mono">mtm_helper</span> (Codex đã nhận giá trị này) để tool của đội không phải chờ duyệt; lệnh shell vẫn qua cơ chế duyệt của Player. Cần cân nhắc: việc duyệt là tính năng của Player, nên nên hỏi BTC trước khi dùng ở trận chính thức.</td><td><span class="pill p-warn">Trung bình</span></td></tr>
+      <tr><td class="mono">4</td><td>BUG-01 tốn nhất</td><td>Ghi chú Solova: cách sửa layout và chụp ảnh nhanh (chụp một lần ở mỗi môi trường, dừng dev server khi xong).</td><td><span class="pill p-info">Thấp</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+</div>

@@ -1,0 +1,109 @@
+--- 9cdd838 MLD Digital Cuder 2026-10-26 18:47:38 +0700
+TASK-01: trace persisted card midpoint after same-list reorder
+
+ QNW5V6OU/answers/TASK-01/evidence/position-trace.txt |  1 +
+ QNW5V6OU/answers/TASK-01/evidence/source-trace.txt   |  2 ++
+ QNW5V6OU/answers/TASK-01/submit.json                 | 10 ++++++++++
+ QNW5V6OU/src/trace-position.ts                       | 15 +++++++++++++++
+ 4 files changed, 28 insertions(+)
+--- a71419a MLD Digital Cuder 2026-10-26 18:44:47 +0700
+Fix single-file evidence arrays in canonical answers
+
+ QNW5V6OU/answers/BUG-02/submit.json  |  4 +++-
+ QNW5V6OU/answers/TASK-02/submit.json | 16 ++++++++++++----
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+--- 7423c12 MLD Digital Cuder 2026-10-26 18:38:40 +0700
+TASK-02: patch vulnerable production dependency graph
+
+ QNW5V6OU/answers/TASK-02/evidence/audit-after.json |  16 +
+ .../answers/TASK-02/evidence/audit-before.json     | 769 +++++++++++++++++++++
+ QNW5V6OU/answers/TASK-02/evidence/audit.log        |   3 +
+ QNW5V6OU/answers/TASK-02/evidence/auth-smoke.txt   |   6 +
+ QNW5V6OU/answers/TASK-02/evidence/install.log      |   7 +
+ .../TASK-02/evidence/tc-05-login-dashboard.png     | Bin 0 -> 286448 bytes
+ .../answers/TASK-02/evidence/tc-05-signed-out.png  | Bin 0 -> 1233444 bytes
+ QNW5V6OU/answers/TASK-02/evidence/test.log         |  53 ++
+ .../answers/TASK-02/evidence/transitive-after.txt  |  42 ++
+ QNW5V6OU/answers/TASK-02/evidence/typecheck.log    |   3 +
+ .../answers/TASK-02/evidence/versions-after.txt    |  44 ++
+ .../answers/TASK-02/evidence/versions-before.txt   |  44 ++
+ QNW5V6OU/answers/TASK-02/submit.json               |  68 ++
+ QNW5V6OU/src/package.json                          |   6 +-
+ QNW5V6OU/src/pnpm-lock.yaml                        | 470 +++++++------
+ QNW5V6OU/src/pnpm-workspace.yaml                   |   6 +
+ 16 files changed, 1311 insertions(+), 226 deletions(-)
+--- 1cd211b MLD Digital Cuder 2026-10-26 18:34:52 +0700
+CR-01: preserve downloaded CSV evidence bytes
+
+ QNW5V6OU/.gitattributes                                    |  2 ++
+ QNW5V6OU/answers/CR-01/evidence/tc-01-all-invoices.csv     | 14 +++++++-------
+ .../answers/CR-01/evidence/tc-02-filtered-invoices.csv     | 10 +++++-----
+ QNW5V6OU/answers/CR-01/evidence/tc-03-special-company.csv  |  4 ++--
+ QNW5V6OU/answers/CR-01/evidence/tc-05-empty-export.csv     |  2 +-
+ 5 files changed, 17 insertions(+), 15 deletions(-)
+--- 48fedd2 MLD Digital Cuder 2026-10-26 18:34:34 +0700
+CR-01: export filtered invoices using accountant CSV standard
+
+ QNW5V6OU/answers/CR-01/evidence/after-invoices.png | Bin 0 -> 201507 bytes
+ .../answers/CR-01/evidence/before-invoices.png     | Bin 0 -> 200317 bytes
+ .../answers/CR-01/evidence/cr-01-test-data.json    | 114 ++++++++++++++
+ .../answers/CR-01/evidence/csv-validation.json     |  26 ++++
+ .../answers/CR-01/evidence/tc-01-all-invoices.csv  |   8 +
+ .../answers/CR-01/evidence/tc-01-all-invoices.png  | Bin 0 -> 201633 bytes
+ .../CR-01/evidence/tc-02-filtered-invoices.csv     |   5 +
+ .../CR-01/evidence/tc-02-filtered-invoices.png     | Bin 0 -> 195756 bytes
+ .../CR-01/evidence/tc-03-special-company.csv       |   3 +
+ .../CR-01/evidence/tc-03-special-company.png       | Bin 0 -> 189771 bytes
+ .../CR-01/evidence/tc-04-signed-out-request.txt    |   4 +
+ .../answers/CR-01/evidence/tc-04-signed-out.png    | Bin 0 -> 1233842 bytes
+ .../answers/CR-01/evidence/tc-05-empty-export.csv  |   1 +
+ .../answers/CR-01/evidence/tc-05-empty-export.png  | Bin 0 -> 169177 bytes
+ QNW5V6OU/answers/CR-01/evidence/test.log           |  58 +++++++
+ QNW5V6OU/answers/CR-01/evidence/typecheck.log      |   3 +
+ QNW5V6OU/answers/CR-01/submit.json                 |  82 ++++++++++
+ QNW5V6OU/src/CR-01-run-checks.mjs                  |  39 +++++
+ QNW5V6OU/src/CR-01-signed-out-check.mjs            |  52 +++++++
+ QNW5V6OU/src/prisma/seed-cr01.ts                   | 172 +++++++++++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |  16 +-
+ QNW5V6OU/src/src/lib/invoice-csv.ts                |  43 ++++++
+ QNW5V6OU/src/tests/invoice-csv.test.ts             |  43 ++++++
+ QNW5V6OU/src/verify-csv.cjs                        |  21 +++
+ 24 files changed, 689 insertions(+), 1 deletion(-)
+--- d56b153 MLD Digital Cuder 2026-10-26 18:30:15 +0700
+BUG-01: keep administration content beside desktop sidebar
+
+ QNW5V6OU/answers/BUG-01/evidence/build.log         |  46 +++++++++++++++
+ .../BUG-01/evidence/dashboard_before_fixing.png    | Bin 0 -> 229291 bytes
+ .../BUG-01/evidence/development-layout.json        |  27 +++++++++
+ .../answers/BUG-01/evidence/production-layout.json |  65 +++++++++++++++++++++
+ .../BUG-01/evidence/tc-01-desktop-dashboard.png    | Bin 0 -> 151473 bytes
+ .../BUG-01/evidence/tc-02-production-boards.png    | Bin 0 -> 134322 bytes
+ .../BUG-01/evidence/tc-02-production-layout.png    | Bin 0 -> 131629 bytes
+ .../BUG-01/evidence/tc-03-mobile-accounting.png    | Bin 0 -> 53049 bytes
+ .../BUG-01/evidence/tc-03-mobile-dashboard.png     | Bin 0 -> 177138 bytes
+ QNW5V6OU/answers/BUG-01/evidence/test.log          |  50 ++++++++++++++++
+ QNW5V6OU/answers/BUG-01/evidence/typecheck.log     |   1 +
+ QNW5V6OU/answers/BUG-01/submit.json                |  64 ++++++++++++++++++++
+ QNW5V6OU/src/src/app/(app)/layout.tsx              |   2 +-
+ QNW5V6OU/src/src/components/layout/topbar.tsx      |   2 +-
+ QNW5V6OU/src/src/styles/globals.css                |   7 +++
+ QNW5V6OU/src/verify-layout.cjs                     |  44 ++++++++++++++
+ 16 files changed, 306 insertions(+), 2 deletions(-)
+--- d7884b0 MLD Digital Cuder 2026-10-26 18:23:58 +0700
+BUG-02: use client currency for invoice and payment amounts
+
+ .../answers/BUG-02/evidence/bug-02-test-data.json  |  41 ++++++++++++
+ .../answers/BUG-02/evidence/currency-report.txt    |  11 ++++
+ .../answers/BUG-02/evidence/tc-01-vnd-invoice.png  | Bin 0 -> 145667 bytes
+ .../answers/BUG-02/evidence/tc-02-vnd-payment.png  | Bin 0 -> 149551 bytes
+ .../answers/BUG-02/evidence/tc-03-usd-invoice.png  | Bin 0 -> 159629 bytes
+ QNW5V6OU/answers/BUG-02/evidence/test.log          |  57 +++++++++++++++++
+ QNW5V6OU/answers/BUG-02/submit.json                |  62 ++++++++++++++++++
+ QNW5V6OU/src/BUG-02-run-checks.mjs                 |  31 +++++++++
+ QNW5V6OU/src/prisma/report-bug02.ts                |  70 +++++++++++++++++++++
+ QNW5V6OU/src/prisma/seed-bug02.ts                  |  59 +++++++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |   9 +--
+ .../src/src/components/accounting/payments-tab.tsx |   7 ++-
+ QNW5V6OU/src/src/server/api/routers/accounting.ts  |   2 +-
+ QNW5V6OU/src/tests/cascade.test.ts                 |   7 +--
+ 14 files changed, 344 insertions(+), 12 deletions(-)

@@ -1,0 +1,51 @@
+# Project-level Codex config for the match workspace (loaded because the workspace is trusted).
+# Keeps the match session lean: no notify hook, plugins, apps, browser/computer use, personal MCP
+# servers, so credits go to match work only.
+notify = []
+
+# Team configuration agent-test-1 (1.3.0, orchestrator + subagents): gpt-6.1-sol, low reasoning effort for every agent. MTM Player launches
+# `codex exec` without a model flag, so these defaults decide the model actually used.
+model = "gpt-6.1-sol"
+model_reasoning_effort = "low"
+
+# No web browsing during matches: network use stays on Game Master, Git and package registries.
+web_search = "disabled"
+
+# Smaller turns: capped tool output, terse answers, no reasoning summaries (team benchmark "lean" settings).
+tool_output_token_limit = 2500
+model_verbosity = "low"
+model_reasoning_summary = "none"
+
+[features]
+plugins = false
+apps = false
+browser_use = false
+browser_use_external = false
+computer_use = false
+image_generation = false
+goals = false
+
+[mcp_servers.mtm_helper]
+command = "node"
+args = ["../team-sdlc-pack/runtime/bin/runtime-server.mjs"]
+startup_timeout_sec = 15
+# wait_for_update blocks up to 240 s so an idle orchestrator costs one turn per four minutes.
+tool_timeout_sec = 300
+# The team's own tools enforce their scope internally (schema, evidence, test and push checks), so
+# they run without a per-call approval review; shell commands keep the normal review.
+default_tools_approval_mode = "approve"
+
+[mcp_servers.node_repl]
+enabled = false
+
+[mcp_servers.overleaf]
+enabled = false
+
+[mcp_servers.shadcn]
+enabled = false
+
+[mcp_servers.stitch]
+enabled = false
+
+[mcp_servers.sauce-labs]
+enabled = false

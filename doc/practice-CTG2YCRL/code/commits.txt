@@ -1,0 +1,55 @@
+--- 9d3de80 MLD Digital Cuder 2026-10-26 23:41:53 +0700
+TASK-02: patch vulnerable production dependencies and verify authentication
+
+ CTG2YCRL/answers/TASK-02/evidence/audit-after.json |  16 +
+ .../answers/TASK-02/evidence/audit-before.json     | 769 +++++++++++++++++++++
+ CTG2YCRL/answers/TASK-02/evidence/audit.log        |   3 +
+ CTG2YCRL/answers/TASK-02/evidence/auth-smoke.json  |  11 +
+ CTG2YCRL/answers/TASK-02/evidence/build.log        |  51 ++
+ CTG2YCRL/answers/TASK-02/evidence/install.log      |   7 +
+ .../TASK-02/evidence/installed-versions.json       | 286 ++++++++
+ .../TASK-02/evidence/tc-05-login-dashboard.png     | Bin 0 -> 290785 bytes
+ .../answers/TASK-02/evidence/tc-05-signed-out.png  | Bin 0 -> 866703 bytes
+ CTG2YCRL/answers/TASK-02/evidence/test.log         |  52 ++
+ CTG2YCRL/answers/TASK-02/evidence/typecheck.log    |   3 +
+ CTG2YCRL/answers/TASK-02/submit.json               |  75 ++
+ CTG2YCRL/src/package.json                          |   6 +-
+ CTG2YCRL/src/pnpm-lock.yaml                        | 470 +++++++------
+ CTG2YCRL/src/pnpm-workspace.yaml                   |   7 +
+ 15 files changed, 1530 insertions(+), 226 deletions(-)
+--- 3042e4a MLD Digital Cuder 2026-10-26 23:35:37 +0700
+BUG-01: reserve desktop sidebar space for shared administration layout
+
+ CTG2YCRL/answers/BUG-01/evidence/build.log         |  46 ++
+ .../BUG-01/evidence/dashboard_before_fixing.png    | Bin 0 -> 279171 bytes
+ CTG2YCRL/answers/BUG-01/evidence/dev-geometry.json | 487 +++++++++++++++++++++
+ .../answers/BUG-01/evidence/production-boards.png  | Bin 0 -> 134322 bytes
+ .../BUG-01/evidence/production-geometry.json       | 487 +++++++++++++++++++++
+ .../BUG-01/evidence/tc-01-desktop-dashboard.png    | Bin 0 -> 291645 bytes
+ .../BUG-01/evidence/tc-02-production-layout.png    | Bin 0 -> 131714 bytes
+ .../BUG-01/evidence/tc-03-mobile-accounting.png    | Bin 0 -> 68697 bytes
+ .../BUG-01/evidence/tc-03-mobile-dashboard.png     | Bin 0 -> 221519 bytes
+ CTG2YCRL/answers/BUG-01/evidence/test.log          |  50 +++
+ CTG2YCRL/answers/BUG-01/evidence/typecheck.log     |   1 +
+ CTG2YCRL/answers/BUG-01/submit.json                |  63 +++
+ CTG2YCRL/src/src/app/(app)/layout.tsx              |   2 +-
+ CTG2YCRL/src/src/components/layout/topbar.tsx      |   2 +-
+ CTG2YCRL/src/src/styles/globals.css                |   6 +
+ 15 files changed, 1142 insertions(+), 2 deletions(-)
+--- 15452ce MLD Digital Cuder 2026-10-26 23:28:41 +0700
+BUG-02: honor client currency in accounting amounts and preserve financial history
+
+ .../answers/BUG-02/evidence/bug-02-test-data.json  |  41 +++++++++++++
+ .../answers/BUG-02/evidence/currency-report.txt    |  11 ++++
+ .../answers/BUG-02/evidence/tc-01-vnd-invoice.png  | Bin 0 -> 201052 bytes
+ .../answers/BUG-02/evidence/tc-02-vnd-payment.png  | Bin 0 -> 191977 bytes
+ .../answers/BUG-02/evidence/tc-03-usd-invoice.png  | Bin 0 -> 201092 bytes
+ CTG2YCRL/answers/BUG-02/evidence/test.log          |  64 +++++++++++++++++++++
+ CTG2YCRL/answers/BUG-02/submit.json                |  62 ++++++++++++++++++++
+ CTG2YCRL/src/prisma/schema/accounting.prisma       |   6 +-
+ .../migration.sql                                  |   6 ++
+ .../src/src/components/accounting/expenses-tab.tsx |   7 ++-
+ .../src/src/components/accounting/invoices-tab.tsx |   7 ++-
+ .../src/src/components/accounting/payments-tab.tsx |  10 +++-
+ CTG2YCRL/src/src/server/api/routers/accounting.ts  |  10 ++--
+ 13 files changed, 207 insertions(+), 17 deletions(-)

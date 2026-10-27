@@ -1,0 +1,18 @@
+{
+  "backlogId": "TASK-01",
+  "backlogType": "TASK",
+  "startInstruction": "After the team declares START, send the submit template.",
+  "replay": false,
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "TASK-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "position": ""
+  },
+  "minimumVerificationScenarios": null,
+  "files": {
+    "challenge/TASK-01-submit.json": "{\n  \"schemaVersion\": 1,\n  \"backlogId\": \"TASK-01\",\n  \"status\": \"NOT_STARTED\",\n  \"evidenceFiles\": [],\n  \"position\": \"\"\n}\n",
+    "challenge/TASK-01-submit.schema.json": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"MTM-26-EAC440/TASK-01-submit.schema.json\",\n  \"title\": \"TASK-01 submission\",\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\n    \"schemaVersion\",\n    \"backlogId\",\n    \"status\",\n    \"evidenceFiles\",\n    \"position\"\n  ],\n  \"properties\": {\n    \"schemaVersion\": {\n      \"const\": 1\n    },\n    \"backlogId\": {\n      \"const\": \"TASK-01\"\n    },\n    \"status\": {\n      \"description\": \"Overall result when you submit: DONE (all requirements met), PARTIAL (some met), BLOCKED (could not be done; explain in engineeringRecord).\",\n      \"enum\": [\n        \"DONE\",\n        \"PARTIAL\",\n        \"BLOCKED\"\n      ]\n    },\n    \"evidenceFiles\": {\n      \"type\": \"array\",\n      \"uniqueItems\": true,\n      \"items\": {\n        \"$ref\": \"#/$defs/evidencePath\"\n      }\n    },\n    \"position\": {\n      \"description\": \"One unsigned decimal integer string, without whitespace, separators or units. Not a JSON number.\",\n      \"type\": \"string\",\n      \"pattern\": \"^(0|[1-9][0-9]*)$\"\n    }\n  },\n  \"$defs\": {\n    \"evidencePath\": {\n      \"description\": \"Path relative to answers/<backlogId>/, directly inside evidence/.\",\n      \"type\": \"string\",\n      \"pattern\": \"^evidence/[A-Za-z0-9][A-Za-z0-9._-]*$\"\n    }\n  }\n}\n"
+  }
+}

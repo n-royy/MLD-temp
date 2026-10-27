@@ -1,0 +1,95 @@
+--- e1c60a6 MLD Digital Cuder 2026-10-27 10:29:38 +0700
+TASK-01: trace persisted card position with revision limitation
+
+ FWBI6I0S/answers/TASK-01/evidence/card.ts.txt      |  64 +++++++
+ FWBI6I0S/answers/TASK-01/evidence/kanban.tsx.txt   | 211 +++++++++++++++++++++
+ .../answers/TASK-01/evidence/position-trace.txt    |  11 ++
+ FWBI6I0S/answers/TASK-01/evidence/position.ts.txt  |  39 ++++
+ FWBI6I0S/answers/TASK-01/submit.json               |  12 ++
+ 5 files changed, 337 insertions(+)
+--- bce0f67 MLD Digital Cuder 2026-10-27 10:19:23 +0700
+TASK-02: patch production dependency vulnerabilities
+
+ FWBI6I0S/answers/TASK-02/evidence/audit-after.json |  16 +
+ FWBI6I0S/answers/TASK-02/evidence/audit-all.json   | 247 +++++++
+ .../answers/TASK-02/evidence/audit-before.json     | 769 +++++++++++++++++++++
+ FWBI6I0S/answers/TASK-02/evidence/audit.log        |   3 +
+ FWBI6I0S/answers/TASK-02/evidence/auth-smoke.txt   |   7 +
+ FWBI6I0S/answers/TASK-02/evidence/build.log        |  51 ++
+ FWBI6I0S/answers/TASK-02/evidence/install.log      |   7 +
+ .../TASK-02/evidence/tc-05-login-dashboard.png     | Bin 0 -> 149542 bytes
+ .../answers/TASK-02/evidence/tc-05-signed-out.png  | Bin 0 -> 1232735 bytes
+ FWBI6I0S/answers/TASK-02/evidence/test.log         |  58 ++
+ FWBI6I0S/answers/TASK-02/evidence/typecheck.log    |   3 +
+ FWBI6I0S/answers/TASK-02/submit.json               |  75 ++
+ FWBI6I0S/src/package.json                          |   6 +-
+ FWBI6I0S/src/pnpm-lock.yaml                        | 468 +++++++------
+ FWBI6I0S/src/pnpm-workspace.yaml                   |   6 +
+ 15 files changed, 1491 insertions(+), 225 deletions(-)
+--- 89f3eee MLD Digital Cuder 2026-10-27 10:16:15 +0700
+CR-01: export filtered invoices using accounting CSV standard
+
+ FWBI6I0S/answers/CR-01/evidence/after-invoices.png | Bin 0 -> 201575 bytes
+ .../answers/CR-01/evidence/before-invoices.png     | Bin 0 -> 199831 bytes
+ .../answers/CR-01/evidence/cr-01-test-data.json    | 114 +++++++++++++++++++++
+ .../answers/CR-01/evidence/tc-01-all-invoices.csv  |   8 ++
+ .../answers/CR-01/evidence/tc-01-all-invoices.png  | Bin 0 -> 201641 bytes
+ .../CR-01/evidence/tc-02-filtered-invoices.csv     |   5 +
+ .../CR-01/evidence/tc-02-filtered-invoices.png     | Bin 0 -> 195750 bytes
+ .../CR-01/evidence/tc-03-special-company.csv       |   3 +
+ .../CR-01/evidence/tc-03-special-company.png       | Bin 0 -> 189748 bytes
+ .../CR-01/evidence/tc-04-signed-out-request.txt    |   4 +
+ .../answers/CR-01/evidence/tc-04-signed-out.png    | Bin 0 -> 1233035 bytes
+ .../answers/CR-01/evidence/tc-05-empty-export.csv  |   1 +
+ .../answers/CR-01/evidence/tc-05-empty-export.png  | Bin 0 -> 169235 bytes
+ FWBI6I0S/answers/CR-01/evidence/test.log           |  63 ++++++++++++
+ FWBI6I0S/answers/CR-01/evidence/typecheck.log      |   3 +
+ FWBI6I0S/answers/CR-01/submit.json                 |  81 +++++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |  19 +++-
+ FWBI6I0S/src/src/lib/invoice-csv.ts                |  45 ++++++++
+ FWBI6I0S/src/tests/invoice-csv.test.ts             |  70 +++++++++++++
+ 19 files changed, 415 insertions(+), 1 deletion(-)
+--- 3a87e9b MLD Digital Cuder 2026-10-27 10:07:54 +0700
+BUG-01: reserve desktop space beside fixed sidebar
+
+ FWBI6I0S/answers/BUG-01/evidence/build.log         |  46 ++++
+ .../BUG-01/evidence/dashboard_before_fixing.png    | Bin 0 -> 307924 bytes
+ .../BUG-01/evidence/dev-1024-accounting.png        | Bin 0 -> 134737 bytes
+ .../answers/BUG-01/evidence/dev-1024-boards.png    | Bin 0 -> 137970 bytes
+ .../answers/BUG-01/evidence/dev-1024-dashboard.png | Bin 0 -> 303268 bytes
+ .../BUG-01/evidence/dev-1440-accounting.png        | Bin 0 -> 168673 bytes
+ .../answers/BUG-01/evidence/dev-1440-boards.png    | Bin 0 -> 189329 bytes
+ .../answers/BUG-01/evidence/dev-390-boards.png     | Bin 0 -> 60843 bytes
+ FWBI6I0S/answers/BUG-01/evidence/dev-geometry.json | 236 +++++++++++++++++++++
+ .../BUG-01/evidence/production-1024-boards.png     | Bin 0 -> 134322 bytes
+ .../BUG-01/evidence/production-1024-dashboard.png  | Bin 0 -> 303303 bytes
+ .../BUG-01/evidence/production-1440-accounting.png | Bin 0 -> 165529 bytes
+ .../BUG-01/evidence/production-1440-boards.png     | Bin 0 -> 185486 bytes
+ .../BUG-01/evidence/production-1440-dashboard.png  | Bin 0 -> 317805 bytes
+ .../BUG-01/evidence/production-390-boards.png      | Bin 0 -> 59696 bytes
+ .../BUG-01/evidence/production-geometry.json       | 236 +++++++++++++++++++++
+ .../BUG-01/evidence/tc-01-desktop-dashboard.png    | Bin 0 -> 318311 bytes
+ .../BUG-01/evidence/tc-02-production-layout.png    | Bin 0 -> 131652 bytes
+ .../BUG-01/evidence/tc-03-mobile-accounting.png    | Bin 0 -> 68744 bytes
+ .../BUG-01/evidence/tc-03-mobile-dashboard.png     | Bin 0 -> 246527 bytes
+ FWBI6I0S/answers/BUG-01/evidence/test.log          |  50 +++++
+ FWBI6I0S/answers/BUG-01/evidence/typecheck.log     |   1 +
+ FWBI6I0S/answers/BUG-01/submit.json                |  74 +++++++
+ FWBI6I0S/src/src/app/(app)/layout.tsx              |   2 +-
+ FWBI6I0S/src/src/components/layout/topbar.tsx      |   2 +-
+ FWBI6I0S/src/src/styles/globals.css                |   7 +
+ 26 files changed, 652 insertions(+), 2 deletions(-)
+--- d089f6d MLD Digital Cuder 2026-10-27 10:03:28 +0700
+BUG-02: use client currency for invoice and payment amounts
+
+ .../answers/BUG-02/evidence/bug-02-test-data.json  |  41 ++++++++++++++
+ .../answers/BUG-02/evidence/currency-report.txt    |  11 ++++
+ .../answers/BUG-02/evidence/tc-01-vnd-invoice.png  | Bin 0 -> 139039 bytes
+ .../answers/BUG-02/evidence/tc-02-vnd-payment.png  | Bin 0 -> 152150 bytes
+ .../answers/BUG-02/evidence/tc-03-usd-invoice.png  | Bin 0 -> 148743 bytes
+ FWBI6I0S/answers/BUG-02/evidence/test.log          |  57 +++++++++++++++++++
+ FWBI6I0S/answers/BUG-02/submit.json                |  62 +++++++++++++++++++++
+ .../src/src/components/accounting/invoices-tab.tsx |   9 +--
+ .../src/src/components/accounting/payments-tab.tsx |   7 ++-
+ FWBI6I0S/src/src/server/api/routers/accounting.ts  |   2 +-
+ 10 files changed, 181 insertions(+), 8 deletions(-)
