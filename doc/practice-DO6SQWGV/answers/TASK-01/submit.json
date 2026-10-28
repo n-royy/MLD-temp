@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "TASK-01",
+  "status": "PARTIAL",
+  "evidenceFiles": ["evidence/trace.txt"],
+  "position": "98304"
+}

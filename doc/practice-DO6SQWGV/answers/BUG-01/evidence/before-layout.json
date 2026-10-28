@@ -1,0 +1,13 @@
+[
+  {
+    "path": "/dashboard",
+    "width": 1440,
+    "main": 0,
+    "header": 0,
+    "navRight": 240,
+    "navWidth": 240,
+    "navTop": 0,
+    "body": 1440,
+    "pass": true
+  }
+]

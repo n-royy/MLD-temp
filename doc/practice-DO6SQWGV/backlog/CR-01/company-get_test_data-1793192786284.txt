@@ -1,0 +1,114 @@
+{
+  "fixtureId": "DO6SQWGV-CR-01-MLD",
+  "backlogItemKey": "CR-01",
+  "description": "Official QA invoice data for team MLD, match DO6SQWGV. Load it with the CR-01 loader script before producing verification evidence. It replaces every invoice in the application database.",
+  "data": {
+    "loader": "challenge/CR-01-seed.ts",
+    "companies": [
+      {
+        "key": "A",
+        "name": "Alpha Design MLD",
+        "currency": "USD"
+      },
+      {
+        "key": "B",
+        "name": "Beta Labs MLD",
+        "currency": "JPY"
+      },
+      {
+        "key": "VN",
+        "name": "Công ty \"Ánh Dương\" MLD, Chi nhánh 1\nHà Nội",
+        "currency": "VND"
+      },
+      {
+        "key": "EMPTY",
+        "name": "Gamma Studio MLD",
+        "currency": "USD"
+      }
+    ],
+    "invoices": [
+      {
+        "number": "CR01-MLD-0001",
+        "company": "A",
+        "issueDate": "2026-10-01",
+        "dueDate": "2026-10-31",
+        "totalMinor": 12345,
+        "state": "ISSUED",
+        "payments": [
+          {
+            "amountMinor": 2000,
+            "paidAt": "2026-10-03"
+          },
+          {
+            "amountMinor": 345,
+            "paidAt": "2026-10-06"
+          }
+        ]
+      },
+      {
+        "number": "CR01-MLD-0002",
+        "company": "A",
+        "issueDate": "2026-09-15",
+        "dueDate": "2026-10-15",
+        "totalMinor": 50000,
+        "state": "ISSUED",
+        "payments": [
+          {
+            "amountMinor": 50000,
+            "paidAt": "2026-09-20"
+          }
+        ]
+      },
+      {
+        "number": "CR01-MLD-0003",
+        "company": "A",
+        "issueDate": "2026-09-01",
+        "dueDate": null,
+        "totalMinor": 20000,
+        "state": "DRAFT",
+        "payments": []
+      },
+      {
+        "number": "CR01-MLD-0004",
+        "company": "B",
+        "issueDate": "2026-09-20",
+        "dueDate": "2026-12-31",
+        "totalMinor": 7500,
+        "state": "VOID",
+        "payments": []
+      },
+      {
+        "number": "CR01-MLD-0005",
+        "company": "VN",
+        "issueDate": "2026-10-05",
+        "dueDate": null,
+        "totalMinor": 12345,
+        "state": "ISSUED",
+        "payments": []
+      },
+      {
+        "number": "CR01-MLD-0006",
+        "company": "A",
+        "issueDate": "2026-08-10",
+        "dueDate": "2026-09-10",
+        "totalMinor": 9900,
+        "state": "OVERDUE",
+        "payments": []
+      }
+    ],
+    "scenarios": {
+      "CR-01-TC-01": {
+        "filter": "ALL"
+      },
+      "CR-01-TC-02": {
+        "filter": "A"
+      },
+      "CR-01-TC-03": {
+        "filter": "VN"
+      },
+      "CR-01-TC-05": {
+        "filter": "EMPTY"
+      }
+    }
+  }
+}

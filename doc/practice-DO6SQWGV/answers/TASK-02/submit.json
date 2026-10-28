@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "TASK-02",
+  "status": "DONE",
+  "evidenceFiles": [
+    "evidence/install.log",
+    "evidence/audit.log",
+    "evidence/typecheck.log",
+    "evidence/test.log",
+    "evidence/tc-05-login-dashboard.png",
+    "evidence/tc-05-signed-out.png",
+    "evidence/auth-smoke.log",
+    "evidence/dependency-review.json",
+    "evidence/build.log"
+  ],
+  "testResults": [
+    {
+      "id": "TASK-02-TC-01",
+      "result": "PASS",
+      "evidence": [
+        "evidence/install.log"
+      ]
+    },
+    {
+      "id": "TASK-02-TC-02",
+      "result": "PASS",
+      "evidence": [
+        "evidence/audit.log"
+      ]
+    },
+    {
+      "id": "TASK-02-TC-03",
+      "result": "PASS",
+      "evidence": [
+        "evidence/typecheck.log"
+      ]
+    },
+    {
+      "id": "TASK-02-TC-04",
+      "result": "PASS",
+      "evidence": [
+        "evidence/test.log"
+      ]
+    },
+    {
+      "id": "TASK-02-TC-05",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-05-login-dashboard.png",
+        "evidence/tc-05-signed-out.png",
+        "evidence/auth-smoke.log"
+      ]
+    }
+  ],
+  "engineeringRecord": {
+    "analysis": "Started from the issued locked dependency graph and resolved all production high/critical findings without removing packages, suppressing advisories or changing existing tests. Official Company Tool returned TEST_DATA_NOT_FOUND. The inherited baseline financial-history migration fix is already present; all 24 existing tests pass.",
+    "changes": [
+      "Direct installed versions: next 15.5.19 -> 15.5.28; next-auth 5.0.0-beta.31 -> 5.0.0-beta.32; zod 3.25.76 -> 4.6.7. Auth beta.32 is pinned explicitly.",
+      "Updated parent resolutions bring @auth/core 0.41.2 -> 0.41.3 and sharp 0.34.5 -> 0.35.5 with patched image binaries.",
+      "Scoped workspace overrides: next>postcss 8.4.31 -> 8.5.32 and @prisma/config>deepmerge-ts 7.1.5 -> 8.0.2. Patched PostCSS resolves production nanoid 3.3.15 -> 3.3.20 and source-map-js 1.2.1 -> 1.2.2. Overrides replace vulnerable implementations, not audit suppression.",
+      "No compatibility source edits needed: existing Zod schemas, Auth.js server actions, JWT callbacks, credentials verification and Prisma configuration remain compatible under typecheck, database tests and browser smoke."
+    ],
+    "tests": [
+      "Organizer runner: frozen installation, production audit, typecheck and existing suite all exit 0; 24/24 existing tests pass unchanged.",
+      "Headless Microsoft Edge: seeded credentials login, Dashboard refresh, Accounting page, logout, private Accounting redirect and signed-out Accounting API HTTP 401 all pass.",
+      "Additional production build: pnpm run build exited 0."
+    ],
+    "risks": [
+      "Production audit has zero findings at verification. Full audit still reports development-only findings: 1 low, 7 moderate, 5 high, 2 critical in Vite/Vitest/mocker/tinypool and their PostCSS/nanoid/source-map-js graph. These are excluded from production by pnpm audit --prod and are outside this production dependency task; upgrading the development runner is deferred. Details and advisory paths are preserved in dependency-review.json.",
+      "Auth.js remains on its patched beta release. Zod and deepmerge-ts cross major versions; verified against the current application and existing suite."
+    ],
+    "aiCollaboration": "AI worker inspected registry advisory metadata and package APIs, applied focused dependency upgrades, ran the organizer checks and browser smoke, and recorded actual results. No subagents or test weakening."
+  }
+}

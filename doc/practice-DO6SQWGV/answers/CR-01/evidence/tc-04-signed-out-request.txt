@@ -1,0 +1,4 @@
+CR-01 signed-out check
+cookies_sent: none
+status: REJECTED
+invoice_data_leaked: no

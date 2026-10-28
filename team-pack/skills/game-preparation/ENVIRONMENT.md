@@ -11,7 +11,7 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
    `exam-info.json` and `src/.env.example`. Follow them literally (ports, database names, package manager versions).
    If the README names a product with notes in `.agents/skills/team-orchestrator/products/` (e.g. Solova), read them.
    - Machine-level prerequisites prepared by the team before the match are described in
-     `<teamWorkspace>/.mtm-local/README.md` (local database ports, local dev passwords). Read it if it exists and
+     `<teamSdlcPackWorkspace>/../.mtm-local/README.md` (the team workspace is the PARENT folder of `team-sdlc-pack`; `.mtm-local` is never inside `team-sdlc-pack`) (local database ports, local dev passwords). Read it if it exists and
      use those local values; never commit them (they belong in git-ignored files such as `src/.env`).
    - Shared local services must be isolated per match. A database that an earlier match migrated makes baseline
      tests lie (a fix applied last match hides a planted defect in this seed). Use match-specific database names in

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "TEST_DATA_NOT_FOUND",
+    "message": "No official test data is issued for TASK-02."
+  }
+}

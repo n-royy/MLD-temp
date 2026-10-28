@@ -1,0 +1,84 @@
+{
+  "backlogId": "CR-01",
+  "backlogType": "CR",
+  "item": {
+    "id": "34dfce88-c356-46fa-9d84-cac8a7068be3",
+    "key": "CR-01",
+    "title": "Export the filtered invoice list as CSV",
+    "type": "CR",
+    "backlogId": "CR-01",
+    "backlogType": "CR",
+    "backlogTitle": "Export the filtered invoice list as CSV",
+    "status": "OPEN",
+    "workStatus": "NOT_STARTED",
+    "revisionNo": 1,
+    "points": 300,
+    "descriptionMd": "# Export the filtered invoice list as CSV\n\n## Context\nOur accountants import invoice lists into their bookkeeping tool. Today they retype invoices from the Accounting screen because Solova has no export. They asked for a CSV download that their tool can import without manual fixing.\n\n## Expected outcome\nOn Accounting → Invoices, the user can download, as one CSV file, exactly the invoice list selected by the current company filter.\n\n## Requirements\n1. Place a button labelled **Export CSV** beside **New invoice**, to the right of the company filter. Keep the existing controls available.\n2. Export every invoice returned by the current company filter, in the order shown on screen, without silently excluding any status. An empty selection still downloads a valid file.\n3. The file goes straight into the accountants' import tool, so its layout, encoding, columns, amounts, paid and outstanding balances, status values and dates must follow Solova's accounting data-exchange standards exactly. The accounting team maintains those standards in the company's internal systems; they are authoritative and override assumptions.\n4. Invoice and company financial data stays restricted to signed-in staff, also through the new export. Either an authenticated server export or an export built from the already authenticated invoice list is acceptable.\n5. Add automated tests for the export logic, including filtering, CSV escaping, amount/date formatting and the signed-out case. Existing tests must keep passing. Do not weaken, skip or delete existing tests. If an existing test contradicts the application's intended behavior, fix the test and explain why in the engineering record.\n\nDesktop wireframe:\n\n```text\nAccounting\nReports | Invoices | Payments | Products | Expenses | Journal | Accounts\n[All companies / selected company]       [Export CSV] [New invoice]\nInvoice list selected by that company filter\n```\n\n## Acceptance criteria\n1. Clicking Export CSV on Invoices downloads a CSV of exactly the invoices selected by the active company filter, in screen order, including draft and void invoices.\n2. The file conforms to Solova's invoice export standard: encoding, header, column order, quoting, amounts per currency, paid and outstanding balances, status values and dates.\n3. Company names with Vietnamese letters, commas, double quotes and line breaks survive the round trip unchanged.\n4. An empty selection downloads a file with only the header row; existing invoice actions keep working.\n5. Signed-out users cannot obtain invoice data or an export through the implemented flow.\n6. `pnpm test` (including the new tests) and `pnpm typecheck` pass.\n\n## Verification data\nVerify with the official QA test data issued to your team for CR-01; other data cannot match the expected results. A loader script and the verification scenarios are provided when you start this item.\n\n## Out of scope\nPDF export, changing invoice accounting or statuses, currency conversion, and unrelated UI changes. Do not introduce a heavy library when it is unnecessary. Formula-injection protection is optional and carries no points; if you add it, the verification data must still round-trip unchanged.\n\n## Submission\nCreate `answers/CR-01/` with `submit.json` (copied from `challenge/CR-01-submit.json`) and an `evidence/` child folder. Follow the evidence rules and file names in `CR-01-minimum-verification-scenarios.md`. Every PASS result must reference existing evidence files. Commit source, tests, evidence and the completed submission together. Do not add a gitRevision field; give the pushed commit SHA to Game Master separately.\n\n### submit.json contract\n\n`submit.json` must validate against `challenge/CR-01-submit.schema.json` (JSON Schema 2020-12), delivered with the submit template. Grading checks this schema first: a file that does not validate scores 0 and no test case is graded.\n\n- Start from the template. It already lists one `testResults` row per test case, in the required order: `CR-01-TC-01` … `CR-01-TC-05`. Keep exactly these rows and these field names: `id`, `result`, `evidence`, and optionally `note`. Do not rename, add or remove fields or rows.\n- `result` is `PASS`, `FAIL` or `NOT_RUN` (upper case). A `PASS` row lists at least one evidence path.\n- Evidence paths are `evidence/<file name>`, for files directly inside `answers/CR-01/evidence/`.\n- Before submitting, set the top-level `status` to `DONE` (all requirements met), `PARTIAL` or `BLOCKED`.\n\nExample row:\n\n```json\n{ \"id\": \"CR-01-TC-01\", \"result\": \"PASS\", \"evidence\": [\"evidence/tc-01-all-invoices.png\", \"evidence/tc-01-all-invoices.csv\"] }\n```\n\nThe engineering record describes the chosen export design, the standards applied and the edge cases handled. Its completeness is reviewed, but prose quality does not change functional points.",
+    "releaseFiles": [
+      "challenge/CR-01.md"
+    ],
+    "onStartFiles": [
+      "challenge/CR-01-submit.json",
+      "challenge/CR-01-minimum-verification-scenarios.md",
+      "challenge/CR-01-submit.schema.json",
+      "challenge/CR-01-seed.ts",
+      "challenge/CR-01-signed-out-check.mjs",
+      "challenge/CR-01-run-checks.mjs"
+    ],
+    "startInstruction": "After the team declares START, send the submit template and Minimum Verification Scenarios together.",
+    "deadlineMinutes": null,
+    "revealedElapsedSec": 841,
+    "updatedByEventKey": null,
+    "updatedAt": "2026-10-28T13:06:07.026Z",
+    "submission": null
+  },
+  "startInstruction": "After the team declares START, send the submit template and Minimum Verification Scenarios together.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "CR-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "CR-01-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "CR-01-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "CR-01-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "CR-01-TC-04",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "CR-01-TC-05",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# CR-01 minimum verification scenarios\n\n## Files provided with this item\n\n| File | Use |\n|---|---|\n| `CR-01-submit.json` | Submission template, copy to `answers/CR-01/submit.json` |\n| `CR-01-submit.schema.json` | JSON Schema that `submit.json` must satisfy |\n| `CR-01-seed.ts` | Loader for your team's official CR-01 test data |\n| `CR-01-signed-out-check.mjs` | Writes the TC-04 report |\n| `CR-01-run-checks.mjs` | Runs `pnpm test` and `pnpm typecheck` and writes their logs |\n\n## Preparation (once, before capturing evidence)\n\n1. Obtain your team's official CR-01 test data from the QA test data store and save it unchanged as `answers/CR-01/evidence/cr-01-test-data.json` (the `answers/` folder next to `src/`).\n2. Copy `CR-01-seed.ts` to `src/prisma/seed-cr01.ts` and load the data from the `src/` folder:\n   `pnpm tsx prisma/seed-cr01.ts ../answers/CR-01/evidence/cr-01-test-data.json`\n   This replaces every invoice in your database. Do not create, edit, pay or void invoices afterwards.\n3. The fixture's `data.companies[].key` values (`A`, `B`, `VN`, `EMPTY`) and `data.scenarios` tell which company each case uses.\n\n## Evidence rules (apply to every case)\n\n- Location: every evidence file goes in `answers/CR-01/evidence/` with the exact name below. `submit.json` references them as `evidence/<name>`.\n- Screenshots (PNG): desktop viewport at least 1280×720, from the running app (`pnpm dev` or `pnpm start`), showing the controls named in the case. No editing over app content.\n- CSV files: the file exactly as the browser downloaded it, renamed only. Never open and re-save it in Excel or an editor; that changes encoding and quoting.\n- Text and log files: written by the provided scripts, UTF-8, unedited.\n\n## General evidence (required once)\n\n| File | Content |\n|---|---|\n| `cr-01-test-data.json` | Your team's CR-01 test data, unchanged |\n| `before-invoices.png` | Accounting → Invoices before the change: company filter and New invoice, no Export CSV |\n| `after-invoices.png` | Same page after the change: company filter, Export CSV and New invoice, as in the wireframe |\n| `test.log`, `typecheck.log` | Written by `node <path>/CR-01-run-checks.mjs ../answers/CR-01/evidence`, run from the `src/` folder |\n\n## CR-01-TC-01 – all companies\n\nPrecondition: signed in; test data loaded; Accounting → Invoices.\n\n1. Select **All companies**.\n2. Click **Export CSV**.\n\nExpected: one row for every invoice of the test data, in the on-screen order, including draft and void invoices; the file follows the invoice export standard.\n\nRequired evidence:\n- `tc-01-all-invoices.png`: the filter showing All companies and the full invoice list.\n- `tc-01-all-invoices.csv`: the file downloaded from that screen.\n\n## CR-01-TC-02 – one company\n\nPrecondition: as TC-01.\n\n1. Select the company with key `A` using the company filter and wait for its list.\n2. Click **Export CSV**.\n\nExpected: only company A's invoices, in the on-screen order, following the standard.\n\nRequired evidence:\n- `tc-02-filtered-invoices.png`: the filter visibly set to company A, with its invoice list.\n- `tc-02-filtered-invoices.csv`: the file downloaded from that screen.\n\n## CR-01-TC-03 – special characters and zero-decimal currency\n\nPrecondition: as TC-01.\n\n1. Select the company with key `VN` (Vietnamese name with a comma, double quotes and a line break).\n2. Click **Export CSV**.\n\nExpected: exactly one row; after RFC 4180 parsing the company name equals the stored name character for character; amounts follow the currency rules of the standard.\n\nRequired evidence:\n- `tc-03-special-company.png`: the filter set to company VN, with its invoice.\n- `tc-03-special-company.csv`: the file downloaded from that screen.\n\n## CR-01-TC-04 – signed out\n\nPrecondition: the app is running; no session, no cookies.\n\n1. Open `/accounting` in a fresh private browser window.\n2. Run the provided check against the data source your export uses (your export endpoint, or the invoice list request it reads):\n   `node <path>/CR-01-signed-out-check.mjs \"<url>\" <answers>/CR-01/evidence/tc-04-signed-out-request.txt`\n\nExpected: the page shows the login page or a rejection, and the report says the request was rejected and leaked no invoice data.\n\nRequired evidence:\n- `tc-04-signed-out.png`: the fresh window after opening `/accounting`.\n- `tc-04-signed-out-request.txt`: the report written by the script.\n\n## CR-01-TC-05 – empty selection\n\nPrecondition: as TC-01.\n\n1. Select the company with key `EMPTY` (no invoices).\n2. Click **Export CSV**.\n\nExpected: a valid file containing only the header row; no rows from a previously selected company.\n\nRequired evidence:\n- `tc-05-empty-export.png`: the filter set to company EMPTY, showing the empty state and Export CSV.\n- `tc-05-empty-export.csv`: the file downloaded from that screen.\n",
+  "requiredTestCases": 5,
+  "answerFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\answers\\CR-01\\submit.json",
+  "evidenceDir": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\answers\\CR-01\\evidence",
+  "organizerFiles": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\.mtm-tmp\\CR-01\\files",
+  "submitSchemaFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\.mtm-tmp\\CR-01\\submit.schema.json",
+  "validateCommand": "node \"D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\.mtm-tmp\\CR-01\\validate.mjs\"",
+  "doneFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s1\\DO6SQWGV\\.mtm-tmp\\CR-01\\DONE.json"
+}

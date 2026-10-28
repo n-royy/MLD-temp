@@ -1,0 +1,46 @@
+$ next build
+   ▲ Next.js 15.5.19
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 24.8s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      146 B         103 kB
+├ ○ /_not-found                             1 kB         103 kB
+├ ƒ /accounting                          14.5 kB         203 kB
+├ ƒ /api/auth/[...nextauth]                146 B         103 kB
+├ ƒ /api/trpc/[trpc]                       146 B         103 kB
+├ ƒ /api/uploads                           146 B         103 kB
+├ ƒ /api/uploads/[name]                    146 B         103 kB
+├ ƒ /boards                              5.37 kB         184 kB
+├ ƒ /boards/[id]                         91.2 kB         383 kB
+├ ƒ /companies                           2.21 kB         215 kB
+├ ƒ /companies/[id]                      13.9 kB         230 kB
+├ ƒ /contacts                            5.69 kB         211 kB
+├ ƒ /dashboard                           5.49 kB         257 kB
+├ ƒ /login                               3.65 kB         115 kB
+├ ƒ /notes                               4.75 kB         145 kB
+├ ƒ /projects                            2.35 kB         206 kB
+├ ƒ /projects/[id]                       3.28 kB         210 kB
+├ ƒ /settings                            9.58 kB         180 kB
+├ ƒ /tasks                                 146 B         103 kB
+└ ƒ /time                                7.08 kB         178 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/8920-e8a44724f7d68c07.js      46.1 kB
+  ├ chunks/acfafb44-f6a0b112f5720eb7.js  54.2 kB
+  └ other shared chunks (total)          2.06 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

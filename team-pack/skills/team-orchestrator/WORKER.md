@@ -38,6 +38,9 @@ instead of exploring.
    (`"evidence": ["evidence/a.png"]`). Write it with `apply_patch` or Node (`JSON.stringify(obj, null, 2)`);
    **never with PowerShell `ConvertTo-Json`**. Evidence files go in `evidenceDir` and are referenced as
    `evidence/<file>` (never with an `answers/<ID>/` prefix, never at repository root). Keep evidence small (tails).
+   A value answer (number, ID or text compared exactly) always holds your best answer computed from the source you
+   have. When the brief names a commit or data you cannot obtain, compute it on the issued checkout, set `PARTIAL` and
+   state the gap in the evidence; never submit `0`, an empty string or any other placeholder (it always scores 0).
 6. Run `validateCommand` (same checks as `validate_answer`); fix until it prints `"valid":true`.
 7. Commit source + tests + answer + evidence. `git -C <worktreeRoot> status --porcelain` must be empty.
 8. Write `doneFile` LAST (it tells the orchestrator you are finished), with Node or `apply_patch`:

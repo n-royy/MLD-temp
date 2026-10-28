@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "CR-01",
+  "status": "DONE",
+  "evidenceFiles": [
+    "evidence/after-invoices.png",
+    "evidence/before-invoices.png",
+    "evidence/cr-01-test-data.json",
+    "evidence/tc-01-all-invoices.csv",
+    "evidence/tc-01-all-invoices.png",
+    "evidence/tc-02-filtered-invoices.csv",
+    "evidence/tc-02-filtered-invoices.png",
+    "evidence/tc-03-special-company.csv",
+    "evidence/tc-03-special-company.png",
+    "evidence/tc-04-signed-out-request.txt",
+    "evidence/tc-04-signed-out.png",
+    "evidence/tc-05-empty-export.csv",
+    "evidence/tc-05-empty-export.png",
+    "evidence/test.log",
+    "evidence/typecheck.log"
+  ],
+  "testResults": [
+    {
+      "id": "CR-01-TC-01",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-01-all-invoices.png",
+        "evidence/tc-01-all-invoices.csv"
+      ]
+    },
+    {
+      "id": "CR-01-TC-02",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-02-filtered-invoices.png",
+        "evidence/tc-02-filtered-invoices.csv"
+      ]
+    },
+    {
+      "id": "CR-01-TC-03",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-03-special-company.png",
+        "evidence/tc-03-special-company.csv"
+      ]
+    },
+    {
+      "id": "CR-01-TC-04",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-04-signed-out.png",
+        "evidence/tc-04-signed-out-request.txt"
+      ]
+    },
+    {
+      "id": "CR-01-TC-05",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-05-empty-export.png",
+        "evidence/tc-05-empty-export.csv"
+      ]
+    }
+  ],
+  "engineeringRecord": {
+    "analysis": "The existing protected accounting.invoices procedure already returns the complete company-filtered invoice list, payments summed, ordered by issue date. Browser serialization of that exact list preserves the displayed order and avoids adding an unauthenticated endpoint.",
+    "changes": [
+      "Added Export CSV next to New invoice; unavailable until invoice data is loaded. Existing create, issue, void and delete controls are preserved.",
+      "Added a pure serializer implementing KB-EXP-01, KB-FIN-01, KB-FIN-04, KB-AR-02, KB-INV-03 and KB-SEC-01: UTF-8 BOM, CRLF, nine exact columns, RFC 4180 escaping, unmodified text, invoice currency decimals, UTC dates and null due dates as empty fields.",
+      "Paid comes from the existing sum of all linked payments. Only SENT, PARTIAL and OVERDUE have nonnegative outstanding balances; DRAFT, VOID and PAID have zero.",
+      "Added 12 automated tests covering formatting, special characters, zero-decimal currencies, negative amounts, overpayments, all/selected/empty companies, multiple payments, order and anonymous rejection. No existing tests changed."
+    ],
+    "tests": [
+      "Official fixture loaded with the provided loader before browser evidence. Four actual browser downloads parsed and compared field-for-field to official QA data and screen order.",
+      "All five minimum verification scenarios passed. New invoice dialog remains operable. Anonymous accounting redirects to login; supplied request checker reports REJECTED with no invoice data leaked.",
+      "Provided run-checks script: pnpm test passed all 36 tests; pnpm typecheck passed. Initial new-test setup errors were corrected before the final run.",
+      "Previously reported financial-delete baseline failure was fixed on the assigned branch before this item; the unchanged cascade suite passes."
+    ],
+    "risks": [
+      "Exports use the current authenticated list snapshot, matching the displayed data. No public files or export endpoint are introduced."
+    ],
+    "aiCollaboration": "Implemented and verified by the CR-01 worker in isolated slot s1; accounting standards and official fixture supplied by the company tools through the orchestrator."
+  }
+}

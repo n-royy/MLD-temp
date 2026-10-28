@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-FIN-04",
+      "title": "Dates in reports and data exchange",
+      "body": "Invoice issue and due dates are calendar dates, not timestamps. Write them as YYYY-MM-DD (ISO 8601), without time or offset. Never convert them through the local time zone: a date stored as 2026-10-01 must be written 2026-10-01 everywhere, also on servers or laptops west of UTC. A missing optional date (for example an invoice without a due date) is an empty field: not 'null', not '-', not 'N/A'."
+    }
+  ]
+}

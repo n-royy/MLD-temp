@@ -1,0 +1,23 @@
+Computed final persisted position: 98304
+Status: PARTIAL because canonical commit 571c531681e672241f18842025c905e499a3641d is not present (git cat-file -t returned could not get object info).
+Issued checkout examined: a654475da6aa9f4d51d23b072416ca297da958fb.
+Company tool: TEST_DATA_NOT_FOUND; no official test data issued.
+
+Trace:
+src/src/server/api/routers/card.ts create uses the maximum active card position in the list and appendPosition(last._max.position).
+src/src/lib/position.ts defines POSITION_GAP=65536 and appendPosition(max)=(max ?? 0)+65536.
+Initially empty list: A=65536, B=131072, C=196608.
+src/src/components/board/kanban.tsx removes C at index 2 and reinserts at index 1. Its neighbours are A and B.
+betweenPosition(65536,131072)=(65536+131072)/2=98304.
+card.move calls moveCard in src/src/server/services/card.ts, which persists input.position directly.
+Same-list movement does not fire MOVED automation.
+needsRebalance(A,B) checks abs(131072-65536)<1e-6, which is false; no rebalance changes this value.
+Final order: A(65536), C(98304), B(131072).
+
+Verification: 3 scenarios executed, 3 passed, 0 failed, 0 skipped; required scenarios=0.
+1. Node imported the actual position.ts functions and asserted sequential positions, final midpoint 98304, and needsRebalance=false: PASS.
+2. Existing tests/move-card.test.ts moving a card to Done marks it completed and writes a COMPLETED activity: PASS.
+3. Existing tests/move-card.test.ts reordering within the same list updates position without firing MOVED: PASS.
+Command from src: corepack pnpm exec vitest run tests/move-card.test.ts. Vitest: 1 file passed, 2 tests passed.
+An initial invocation from the match folder using pnpm --dir src stopped before tests due to package-manager version resolution; rerunning from src used pinned pnpm 11.9.0 successfully.
+No product code or existing tests changed.

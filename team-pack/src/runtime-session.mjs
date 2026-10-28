@@ -270,7 +270,12 @@ export class MatchSession {
 
   async waitForUpdate({ timeoutMs = 240000 } = {}) {
     const c = this.#need();
-    const deadline = Date.now() + Math.min(Math.max(Number(timeoutMs) || 240000, 5000), 240000);
+    // The loop returns within ~5 s of any change (new item, status, SLOT_DONE), so a shorter wait only adds idle model
+    // turns that re-send the whole context. A shorter timeout is honoured only while a worker is busy (safety net).
+    const busy = existsSync(join(c.checkoutRoot, '.git', 'mtm', 'slots.json'))
+      && Object.values(this.#slots()).some(s => s.item && s.state === 'BUSY');
+    const ms = busy ? Math.min(Math.max(Number(timeoutMs) || 240000, 5000), 240000) : 240000;
+    const deadline = Date.now() + ms;
     if (!this.projection) await this.#getProjection();
     const before = this.signature ?? this.#signature();
     let lastFull = Date.now();

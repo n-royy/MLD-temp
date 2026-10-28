@@ -1,0 +1,71 @@
+{
+  "backlogId": "BUG-01",
+  "backlogType": "BUG",
+  "item": {
+    "id": "8c701719-612e-4d00-86fe-3fff8cf4b8c6",
+    "key": "BUG-01",
+    "title": "Desktop sidebar obscures the main content",
+    "type": "BUG",
+    "backlogId": "BUG-01",
+    "backlogType": "BUG",
+    "backlogTitle": "Desktop sidebar obscures the main content",
+    "status": "OPEN",
+    "workStatus": "NOT_STARTED",
+    "revisionNo": 1,
+    "points": 200,
+    "descriptionMd": "# Desktop sidebar obscures the main content\n\n## Context\nAfter login, the left sidebar overlaps content on Dashboard and other administration pages on desktop. Statistics, charts, or tables at the left edge cannot be read. The small-screen mobile interface remains usable.\n\n## Expected outcome\nOn desktop, the main content and top bar sit beside the sidebar and remain fully readable.\n\n## Requirements\nFix the shared administration layout in both development and production. Preserve mobile navigation and existing page controls. Maximum practice score: 200 points.\n\nDesktop wireframe:\n\n```text\n| Sidebar | Top bar                         |\n| Sidebar | Dashboard / administration page |\n| Sidebar | Cards, charts, tables           |\n```\n\n## Acceptance criteria\n1. The sidebar does not cover main content or the top bar on any administration page at desktop widths, including 1024px and 1440px.\n2. The result holds with pnpm dev and the production pnpm build / pnpm start flow.\n3. At 390px viewport width, mobile navigation and content remain usable without a new overlapping desktop sidebar.\n4. Existing pnpm test cases and pnpm typecheck pass.\n\n## Out of scope\nRedesigning the navigation, replacing charts, or unrelated refactoring.\n\n## Submission\n\nCreate `answers/BUG-01/`, copy `challenge/BUG-01-submit.json` to `answers/BUG-01/submit.json`, and create its `evidence/` child directory. Capture screenshot of Dashboard before fixing as dashboard_before_fixing.png and commit to `evidence/` folder. Record actual test results and relative evidence paths. Every PASS result must reference an existing evidence file. Commit source, tests, evidence, and the completed submission together. Do not add a gitRevision field; give the pushed commit SHA to Game Master separately.\n\n### submit.json contract\n\n`submit.json` must validate against `challenge/BUG-01-submit.schema.json` (JSON Schema 2020-12), delivered with the submit template. Grading checks this schema first: a file that does not validate scores 0 and no test case is graded.\n\n- Start from the template. It already lists one `testResults` row per test case, in the required order: `BUG-01-TC-01`, `BUG-01-TC-02`, `BUG-01-TC-03`. Keep exactly these rows and these field names: `id`, `result`, `evidence`, and optionally `note`. Do not rename, add or remove fields or rows.\n- `result` is `PASS`, `FAIL` or `NOT_RUN` (upper case). A `PASS` row lists at least one evidence path.\n- Evidence paths are `evidence/<file name>`, for files directly inside `answers/BUG-01/evidence/`.\n- Before submitting, set the top-level `status` to `DONE` (all requirements met), `PARTIAL` or `BLOCKED`.\n\nExample row:\n\n```json\n{ \"id\": \"BUG-01-TC-01\", \"result\": \"PASS\", \"evidence\": [\"evidence/<file name>\"] }\n```\n\nComplete the engineering record with observed/expected behavior, diagnosis, affected files, changes, and verification. Its prose supports review; functional behavior determines points.",
+    "releaseFiles": [
+      "challenge/BUG-01.md"
+    ],
+    "onStartFiles": [
+      "challenge/BUG-01-submit.json",
+      "challenge/BUG-01-submit.schema.json",
+      "challenge/BUG-01-minimum-verification-scenarios.md"
+    ],
+    "startInstruction": "After the team declares START, send the submit template and Minimum Verification Scenarios together.",
+    "deadlineMinutes": null,
+    "revealedElapsedSec": 0,
+    "updatedByEventKey": null,
+    "updatedAt": "2026-10-28T12:52:05.862Z",
+    "submission": null
+  },
+  "startInstruction": "After the team declares START, send the submit template and Minimum Verification Scenarios together.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "BUG-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "BUG-01-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-01-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-01-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# Minimum verification scenarios\n\n## BUG-01-TC-01\n\nPrecondition: Signed in; development app running.\n\nData: Desktop 1440px viewport; Dashboard statistics present.\n\n1. Open Dashboard.\n2. Inspect the leftmost content and top bar.\n\nExpected: No main content or top-bar control is obscured by the sidebar.\n\nRequired evidence (screenshot): tc-01-desktop-dashboard.png\n\n## BUG-01-TC-02\n\nPrecondition: Signed in; production build running.\n\nData: 1024px viewport; Accounting and Boards have content.\n\n1. Run pnpm build and pnpm start.\n2. Open Accounting and Boards.\n3. Inspect sidebar boundaries and top bar.\n\nExpected: Main content and top bar remain beside the sidebar in production.\n\nRequired evidence (screenshot): tc-02-production-layout.png\n\n## BUG-01-TC-03\n\nPrecondition: Signed in; app running.\n\nData: 390px viewport.\n\n1. Open Dashboard and Accounting.\n2. Use mobile navigation.\n\nExpected: Mobile content and navigation remain usable.\n\nRequired evidence (screenshot): tc-03-mobile-dashboard.png and tc-03-mobile-accounting.png\n",
+  "requiredTestCases": 3,
+  "answerFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\answers\\BUG-01\\submit.json",
+  "evidenceDir": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\answers\\BUG-01\\evidence",
+  "organizerFiles": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\.mtm-tmp\\BUG-01\\files",
+  "submitSchemaFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\.mtm-tmp\\BUG-01\\submit.schema.json",
+  "validateCommand": "node \"D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\.mtm-tmp\\BUG-01\\validate.mjs\"",
+  "doneFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s2\\DO6SQWGV\\.mtm-tmp\\BUG-01\\DONE.json"
+}

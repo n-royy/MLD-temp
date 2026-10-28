@@ -25,8 +25,10 @@ const TOOLS = [
     inputSchema: obj({ key, refresh: { type: 'boolean' } }, ['key']) },
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
     description: 'Block up to timeoutMs (default and max 240000) until the match changes (new item, status/score change, ' +
-      'pause/end) or a worker finished a slot (reason SLOT_DONE with slotDone[]). Returns {changed, reason, board}. While idle call it again right away without writing any message; ' +
-      'an empty backlog is never the end of the match.',
+      'pause/end) or a worker finished a slot (reason SLOT_DONE with slotDone[]); returns within about 5 s of a change. ' +
+      'Returns {changed, reason, board}. While idle call it again right away without writing any message; ' +
+      'an empty backlog is never the end of the match. A shorter timeoutMs is only honoured while a worker is busy. ' +
+      'In an exec cell put // @exec: {"yield_time_ms": 270000} on the first line.',
     inputSchema: obj({ timeoutMs: { type: 'integer', minimum: 5000, maximum: 240000 } }) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
     description: 'Create (or keep, on resume) up to 3 worker slots: Git worktrees of the assigned repository at ' +
@@ -97,7 +99,7 @@ async function handle(msg) {
   const { id, method, params } = msg;
   if (method === 'initialize') {
     return send({ jsonrpc: '2.0', id, result: { protocolVersion: params?.protocolVersion ?? '2025-06-18',
-      capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'mtm_helper', version: '1.3.0' } } });
+      capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'mtm_helper', version: '1.3.1' } } });
   }
   if (method === 'notifications/initialized' || method?.startsWith('notifications/')) return;
   if (method === 'ping') return send({ jsonrpc: '2.0', id, result: {} });

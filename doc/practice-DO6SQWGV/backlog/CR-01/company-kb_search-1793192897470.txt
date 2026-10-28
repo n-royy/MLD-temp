@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-SEC-01",
+      "title": "Access to client financial data",
+      "body": "Invoice, payment and company financial data may only be read by signed-in staff. Any new screen, endpoint or export that exposes this data must refuse anonymous requests (respond 401/403 or redirect to the login page) and must not include data in the refused response. Do not place exports in public folders or shareable links."
+    }
+  ]
+}

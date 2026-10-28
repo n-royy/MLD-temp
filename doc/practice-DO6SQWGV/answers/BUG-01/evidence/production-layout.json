@@ -1,0 +1,41 @@
+[
+  {
+    "path": "/accounting",
+    "width": 1024,
+    "url": "http://localhost:3120/accounting",
+    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
+    "main": 240,
+    "header": 240,
+    "navRight": 240,
+    "navWidth": 240,
+    "navTop": 0,
+    "body": 1024,
+    "pass": true
+  },
+  {
+    "path": "/boards",
+    "width": 1024,
+    "url": "http://localhost:3120/boards",
+    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
+    "main": 240,
+    "header": 240,
+    "navRight": 240,
+    "navWidth": 240,
+    "navTop": 0,
+    "body": 1024,
+    "pass": true
+  },
+  {
+    "path": "/dashboard",
+    "width": 1440,
+    "url": "http://localhost:3120/dashboard",
+    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
+    "main": 240,
+    "header": 240,
+    "navRight": 240,
+    "navWidth": 240,
+    "navTop": 0,
+    "body": 1440,
+    "pass": true
+  }
+]

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "BUG-02",
+  "status": "DONE",
+  "evidenceFiles": [
+    "evidence/bug-02-test-data.json",
+    "evidence/currency-report.txt",
+    "evidence/tc-01-vnd-invoice.png",
+    "evidence/tc-02-vnd-payment.png",
+    "evidence/tc-03-usd-invoice.png",
+    "evidence/test.log"
+  ],
+  "testResults": [
+    {
+      "id": "BUG-02-TC-01",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-01-vnd-invoice.png",
+        "evidence/currency-report.txt"
+      ]
+    },
+    {
+      "id": "BUG-02-TC-02",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-02-vnd-payment.png",
+        "evidence/currency-report.txt"
+      ]
+    },
+    {
+      "id": "BUG-02-TC-03",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-03-usd-invoice.png",
+        "evidence/currency-report.txt"
+      ]
+    },
+    {
+      "id": "BUG-02-TC-04",
+      "result": "PASS",
+      "evidence": [
+        "evidence/test.log"
+      ]
+    }
+  ],
+  "engineeringRecord": {
+    "analysis": "Invoice and payment forms multiplied entered major amounts by the workspace USD factor (100), despite invoices being stored in the client currency. VND input 12345 therefore became 1234500 minor units instead of 12345. Payment rows also rendered in workspace currency. Official QA fixture DO6SQWGV-BUG-02-MLD and standards KB-FIN-01/KB-FX-01 establish client currency and no conversion.",
+    "changes": [
+      "src/src/components/accounting/invoices-tab.tsx: derive input factor, precision, label and preview from selected company currency, falling back to workspace currency. Catalog prices retain their workspace major-unit value when inserted into client invoice; no exchange conversion.",
+      "src/src/components/accounting/payments-tab.tsx: derive amount currency from selected invoice, then company, then workspace; format saved payments in the same currency.",
+      "src/src/server/api/routers/accounting.ts: expose existing company/invoice currency metadata in payment list. No mutation to stored records or posting code.",
+      "src/tests/money.test.ts: add 12 regressions covering all zero-decimal and two-decimal supported currencies, lowercase, zero, negatives, cents and payment formatting."
+    ],
+    "tests": [
+      "Official UI TC-01 PASS: Hoa Sen Trading MLD invoice issued with 12345 minor units, displayed ₫12,345.",
+      "Official UI TC-02 PASS: payment 5000 minor units, displayed ₫5,000, invoice PARTIAL.",
+      "Official UI TC-03 PASS: Pine Labs MLD invoice issued with 12345 minor units, displayed USD 123.45.",
+      "TypeScript typecheck passed; focused accounting and money suite 18/18 passed.",
+      "Official full-suite runner exited 0: all 24 tests pass (12 existing and 12 new); no existing tests changed. BUG-01 baseline migration 5f5ad43 restores financial-history RESTRICT behavior and is included as a dependency."
+    ],
+    "risks": [
+      "Existing stored amounts are not rewritten; currency conversion and historical repair are outside scope."
+    ],
+    "aiCollaboration": "AI implemented and reviewed the minimal UI/API metadata fix, ran official Playwright screen flows in isolated slot database, captured real screenshots and generated unedited organizer reports. No existing tests modified."
+  }
+}

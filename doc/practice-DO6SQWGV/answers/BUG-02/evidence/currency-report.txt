@@ -1,0 +1,11 @@
+BUG-02 currency report
+vnd_company: Hoa Sen Trading MLD
+vnd_invoice_status: PARTIAL
+vnd_invoice_currency: VND
+vnd_invoice_total_minor: 12345
+vnd_invoice_paid_minor: 5000
+usd_company: Pine Labs MLD
+usd_invoice_status: SENT
+usd_invoice_currency: USD
+usd_invoice_total_minor: 12345
+usd_invoice_paid_minor: 0

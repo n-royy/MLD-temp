@@ -10,7 +10,7 @@ Read only when the match README or brief names Solova. Knowledge about the produ
 - Set `PRISMA_HIDE_UPDATE_MESSAGE=1`; never upgrade Prisma because of its "Update available" notice.
 
 ## Database
-- PostgreSQL 16 on 127.0.0.1:5433, role `freelanceos` with CREATEDB (password in `<teamWorkspace>/.mtm-local/`).
+- PostgreSQL 16 on 127.0.0.1:5433, role `freelanceos` with CREATEDB (password in `<teamSdlcPackWorkspace>/../.mtm-local/`, next to `team-sdlc-pack`).
 - **One database pair per match.** In `src/.env` set `DATABASE_URL` to `.../freelanceos_<matchId lowercase>` and
   `TEST_DATABASE_URL` to `.../freelanceos_<matchId lowercase>_test` (keep host 127.0.0.1, port 5433, the app
   password). `pnpm prisma migrate deploy` creates the database when it is missing. Reusing `freelanceos` from an

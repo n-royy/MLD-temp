@@ -1,0 +1,10 @@
+8b0e803 20:22:56 TASK-01: trace card reorder position with source evidence
+a654475 20:13:17 CR-01: preserve exact evidence bytes across checkouts
+454638d 20:13:05 CR-01: export filtered invoices as accounting-standard CSV
+1852c3a 20:13:18 TASK-02: record passing production build
+1cc43d5 20:12:55 TASK-02: resolve production dependency vulnerabilities
+cc0fe75 20:05:57 BUG-02: verify rebased integration with passing full suite
+69a6526 20:01:33 BUG-02: record passing official verification after baseline repair
+c919e2f 19:59:59 BUG-02: use client currency for invoice and payment amounts
+ad1ff05 20:04:24 BUG-01: offset shared desktop shell and verify responsive layout
+9d9db68 19:59:33 BUG-01: restore financial history deletion policy

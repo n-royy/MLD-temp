@@ -1,0 +1,5 @@
+﻿invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status
+CR01-MLD-0001,Alpha Design MLD,2026-10-01,2026-10-31,USD,123.45,23.45,100.00,PARTIAL
+CR01-MLD-0002,Alpha Design MLD,2026-09-15,2026-10-15,USD,500.00,500.00,0.00,PAID
+CR01-MLD-0003,Alpha Design MLD,2026-09-01,,USD,200.00,0.00,0.00,DRAFT
+CR01-MLD-0006,Alpha Design MLD,2026-08-10,2026-09-10,USD,99.00,0.00,99.00,OVERDUE

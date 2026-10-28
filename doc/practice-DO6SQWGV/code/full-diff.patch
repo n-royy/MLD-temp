@@ -1,0 +1,2980 @@
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/before-layout.json b/DO6SQWGV/answers/BUG-01/evidence/before-layout.json
+new file mode 100644
+index 0000000..3ef6010
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/before-layout.json
+@@ -0,0 +1,13 @@
++[
++  {
++    "path": "/dashboard",
++    "width": 1440,
++    "main": 0,
++    "header": 0,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1440,
++    "pass": true
++  }
++]
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/build.txt b/DO6SQWGV/answers/BUG-01/evidence/build.txt
+new file mode 100644
+index 0000000..14180a9
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/build.txt
+@@ -0,0 +1,46 @@
++$ next build
++   ▲ Next.js 15.5.19
++   - Environments: .env
++
++   Creating an optimized production build ...
++ ✓ Compiled successfully in 24.8s
++   Linting and checking validity of types ...
++   Collecting page data ...
++   Generating static pages (0/16) ...
++   Generating static pages (4/16) 
++   Generating static pages (8/16) 
++   Generating static pages (12/16) 
++ ✓ Generating static pages (16/16)
++   Finalizing page optimization ...
++   Collecting build traces ...
++
++Route (app)                                 Size  First Load JS
++┌ ○ /                                      146 B         103 kB
++├ ○ /_not-found                             1 kB         103 kB
++├ ƒ /accounting                          14.5 kB         203 kB
++├ ƒ /api/auth/[...nextauth]                146 B         103 kB
++├ ƒ /api/trpc/[trpc]                       146 B         103 kB
++├ ƒ /api/uploads                           146 B         103 kB
++├ ƒ /api/uploads/[name]                    146 B         103 kB
++├ ƒ /boards                              5.37 kB         184 kB
++├ ƒ /boards/[id]                         91.2 kB         383 kB
++├ ƒ /companies                           2.21 kB         215 kB
++├ ƒ /companies/[id]                      13.9 kB         230 kB
++├ ƒ /contacts                            5.69 kB         211 kB
++├ ƒ /dashboard                           5.49 kB         257 kB
++├ ƒ /login                               3.65 kB         115 kB
++├ ƒ /notes                               4.75 kB         145 kB
++├ ƒ /projects                            2.35 kB         206 kB
++├ ƒ /projects/[id]                       3.28 kB         210 kB
++├ ƒ /settings                            9.58 kB         180 kB
++├ ƒ /tasks                                 146 B         103 kB
++└ ƒ /time                                7.08 kB         178 kB
+++ First Load JS shared by all             102 kB
++  ├ chunks/8920-e8a44724f7d68c07.js      46.1 kB
++  ├ chunks/acfafb44-f6a0b112f5720eb7.js  54.2 kB
++  └ other shared chunks (total)          2.06 kB
++
++
++○  (Static)   prerendered as static content
++ƒ  (Dynamic)  server-rendered on demand
++
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/dashboard_before_fixing.png b/DO6SQWGV/answers/BUG-01/evidence/dashboard_before_fixing.png
+new file mode 100644
+index 0000000..c4b8b88
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/dashboard_before_fixing.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/desktop-layout.json b/DO6SQWGV/answers/BUG-01/evidence/desktop-layout.json
+new file mode 100644
+index 0000000..5ef437b
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/desktop-layout.json
+@@ -0,0 +1,15 @@
++[
++  {
++    "path": "/dashboard",
++    "width": 1440,
++    "url": "http://localhost:3120/dashboard",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 240,
++    "header": 240,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1440,
++    "pass": true
++  }
++]
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/production-dashboard.png b/DO6SQWGV/answers/BUG-01/evidence/production-dashboard.png
+new file mode 100644
+index 0000000..26d0901
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/production-dashboard.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/production-layout.json b/DO6SQWGV/answers/BUG-01/evidence/production-layout.json
+new file mode 100644
+index 0000000..77529dd
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/production-layout.json
+@@ -0,0 +1,41 @@
++[
++  {
++    "path": "/accounting",
++    "width": 1024,
++    "url": "http://localhost:3120/accounting",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 240,
++    "header": 240,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1024,
++    "pass": true
++  },
++  {
++    "path": "/boards",
++    "width": 1024,
++    "url": "http://localhost:3120/boards",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 240,
++    "header": 240,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1024,
++    "pass": true
++  },
++  {
++    "path": "/dashboard",
++    "width": 1440,
++    "url": "http://localhost:3120/dashboard",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 240,
++    "header": 240,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1440,
++    "pass": true
++  }
++]
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/production-mobile-layout.json b/DO6SQWGV/answers/BUG-01/evidence/production-mobile-layout.json
+new file mode 100644
+index 0000000..b7166a2
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/production-mobile-layout.json
+@@ -0,0 +1,41 @@
++[
++  {
++    "path": "/dashboard",
++    "width": 1440,
++    "url": "http://localhost:3120/dashboard",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 240,
++    "header": 240,
++    "navRight": 240,
++    "navWidth": 240,
++    "navTop": 0,
++    "body": 1440,
++    "pass": true
++  },
++  {
++    "path": "/dashboard",
++    "width": 390,
++    "url": "http://localhost:3120/dashboard",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 0,
++    "header": 0,
++    "navRight": 390,
++    "navWidth": 390,
++    "navTop": 950.34375,
++    "body": 390,
++    "pass": true
++  },
++  {
++    "path": "/accounting",
++    "width": 390,
++    "url": "http://localhost:3120/accounting",
++    "classes": "min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6",
++    "main": 0,
++    "header": 0,
++    "navRight": 390,
++    "navWidth": 390,
++    "navTop": 950.34375,
++    "body": 390,
++    "pass": true
++  }
++]
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tc-01-desktop-dashboard.png b/DO6SQWGV/answers/BUG-01/evidence/tc-01-desktop-dashboard.png
+new file mode 100644
+index 0000000..c6d8bc0
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/tc-01-desktop-dashboard.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-boards.png b/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-boards.png
+new file mode 100644
+index 0000000..c804afc
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-boards.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-layout.png b/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-layout.png
+new file mode 100644
+index 0000000..c348149
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/tc-02-production-layout.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-accounting.png b/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-accounting.png
+new file mode 100644
+index 0000000..a38c878
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-accounting.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-dashboard.png b/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-dashboard.png
+new file mode 100644
+index 0000000..c444bb4
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-01/evidence/tc-03-mobile-dashboard.png differ
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/tests.txt b/DO6SQWGV/answers/BUG-01/evidence/tests.txt
+new file mode 100644
+index 0000000..2e81797
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/tests.txt
+@@ -0,0 +1,57 @@
++$ vitest run
++
++ RUN  v3.2.6 D:/mtm/MLD-multi/matches/DO6SQWGV.slots/s2/DO6SQWGV/src
++
++◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
++warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
++For more information, see: https://pris.ly/prisma-config
++
++Environment variables loaded from .env
++Prisma schema loaded from prisma\schema
++Datasource "db": PostgreSQL database "freelanceos_do6sqwgv_s2_test", schema "public" at "127.0.0.1:5433"
++
++8 migrations found in prisma/migrations
++
++Applying migration `20261028130000_restore_financial_history`
++
++The following migration(s) have been applied:
++
++migrations/
++  └─ 20261028130000_restore_financial_history/
++    └─ migration.sql
++      
++All migrations have been successfully applied.
++stdout | tests/accounting.test.ts
++◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
++
++ ✓ tests/accounting.test.ts (6 tests) 8848ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced journal entry at the service layer  1509ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced entry at the DATABASE level (trigger backstop)  1445ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > accepts a balanced entry and SUM(debits) = SUM(credits)  1467ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > journal is append-only: updates and deletes are blocked  1480ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > corrections are reversing entries that mirror debit/credit  1459ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > issuing an invoice posts DR AR / CR Revenue; payment posts DR Bank / CR AR and flips status  1487ms
++stdout | tests/move-card.test.ts
++◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
++
++ ✓ tests/move-card.test.ts (2 tests) 3089ms
++   ✓ card movement + Done automation (spec §5, §12.6) > moving a card to Done marks it completed and writes a COMPLETED activity  1553ms
++   ✓ card movement + Done automation (spec §5, §12.6) > reordering within the same list updates position without firing MOVED  1534ms
++stdout | tests/heatmap.test.ts
++◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
++
++ ✓ tests/heatmap.test.ts (1 test) 1502ms
++   ✓ heatmap aggregation (spec §6, §12.5) > returns correct per-day counts from activity + time entries  1501ms
++stdout | tests/cascade.test.ts
++◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
++
++ ✓ tests/cascade.test.ts (3 tests) 4604ms
++   ✓ deletion cascades (spec §4) > deleting a company deletes its boards, lists, cards, projects and contracts  1551ms
++   ✓ deletion cascades (spec §4) > deleting a board deletes its lists and cards (company survives)  1491ms
++   ✓ deletion cascades (spec §4) > deleting a company with invoices is RESTRICTED (financial history is protected)  1558ms
++
++ Test Files  4 passed (4)
++      Tests  12 passed (12)
++   Start at  19:55:41
++   Duration  21.27s (transform 104ms, setup 0ms, collect 1.08s, tests 18.04s, environment 0ms, prepare 259ms)
++
+diff --git a/DO6SQWGV/answers/BUG-01/evidence/typecheck.txt b/DO6SQWGV/answers/BUG-01/evidence/typecheck.txt
+new file mode 100644
+index 0000000..f5b99e8
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/evidence/typecheck.txt
+@@ -0,0 +1 @@
++$ tsc --noEmit
+diff --git a/DO6SQWGV/answers/BUG-01/submit.json b/DO6SQWGV/answers/BUG-01/submit.json
+new file mode 100644
+index 0000000..dae1704
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-01/submit.json
+@@ -0,0 +1,68 @@
++{
++  "schemaVersion": 1,
++  "backlogId": "BUG-01",
++  "status": "DONE",
++  "evidenceFiles": [
++    "evidence/before-layout.json",
++    "evidence/build.txt",
++    "evidence/dashboard_before_fixing.png",
++    "evidence/desktop-layout.json",
++    "evidence/production-dashboard.png",
++    "evidence/production-layout.json",
++    "evidence/production-mobile-layout.json",
++    "evidence/tc-01-desktop-dashboard.png",
++    "evidence/tc-02-production-boards.png",
++    "evidence/tc-02-production-layout.png",
++    "evidence/tc-03-mobile-accounting.png",
++    "evidence/tc-03-mobile-dashboard.png",
++    "evidence/tests.txt",
++    "evidence/typecheck.txt"
++  ],
++  "testResults": [
++    {
++      "id": "BUG-01-TC-01",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-01-desktop-dashboard.png",
++        "evidence/desktop-layout.json"
++      ]
++    },
++    {
++      "id": "BUG-01-TC-02",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-02-production-layout.png",
++        "evidence/tc-02-production-boards.png",
++        "evidence/production-layout.json",
++        "evidence/build.txt"
++      ]
++    },
++    {
++      "id": "BUG-01-TC-03",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-03-mobile-dashboard.png",
++        "evidence/tc-03-mobile-accounting.png",
++        "evidence/production-mobile-layout.json"
++      ]
++    }
++  ],
++  "engineeringRecord": {
++    "analysis": "Before fixing, the 240px fixed sidebar covered the main content and top bar, both starting at x=0. The shared layout referenced md:ms-sidebar without defining that utility. Expected both to start beside the sidebar on desktop and retain zero offset on mobile.",
++    "changes": [
++      "Shared app layout and topbar now use desktop-sidebar-offset. globals.css defines its logical margin at the existing 48rem desktop breakpoint, matching sidebar w-60 via the spacing token.",
++      "Assigned baseline failure in cascade.test.ts was caused by the company_delete_cascades_financials migration contradicting DECISIONS.md and original migration. Added a corrective migration and aligned accounting.prisma: invoices/payments RESTRICT and expenses SET NULL, preserving financial history. No existing tests changed."
++    ],
++    "tests": [
++      "All 3 MVS scenarios passed with authenticated seeded data; browser screenshots and bounding boxes verify main/topbar x=240 beside the sidebar at desktop widths and x=0 at 390px.",
++      "Production build and start verified Accounting/Boards at 1024px and Dashboard at 1440px. Mobile Home/Money navigation verified on Dashboard and Accounting.",
++      "pnpm test: 12 passed, 0 failed. pnpm typecheck: exit 0. pnpm build: exit 0.",
++      "Local verification used port 3120 because 3020 was already occupied. A stale dev CSS cache was cleared before rerunning; a dev/build cache collision during an intermediate run was resolved by running the servers sequentially. Final checks passed.",
++      "Development desktop TC-01 passed independently. Mobile navigation TC-03 passed on production; development mobile return navigation encountered a Next development error overlay, so mobile interaction evidence is from production."
++    ],
++    "risks": [
++      "Sidebar width and desktop breakpoint must stay aligned with the shared offset rule."
++    ],
++    "aiCollaboration": "AI inspected source and documented design, implemented the minimal shared layout fix and assigned database baseline correction, and used Playwright browser checks plus the existing suite for verification."
++  }
++}
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/bug-02-test-data.json b/DO6SQWGV/answers/BUG-02/evidence/bug-02-test-data.json
+new file mode 100644
+index 0000000..46f61dd
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-02/evidence/bug-02-test-data.json
+@@ -0,0 +1,41 @@
++{
++  "fixtureId": "DO6SQWGV-BUG-02-MLD",
++  "backlogItemKey": "BUG-02",
++  "description": "Official QA data for team MLD, match DO6SQWGV: two client companies and the amounts to enter through the Accounting screens. Load the companies with the BUG-02 loader script.",
++  "data": {
++    "loader": "challenge/BUG-02-seed.ts",
++    "companies": [
++      {
++        "key": "VND",
++        "name": "Hoa Sen Trading MLD",
++        "currency": "VND"
++      },
++      {
++        "key": "USD",
++        "name": "Pine Labs MLD",
++        "currency": "USD"
++      }
++    ],
++    "steps": {
++      "BUG-02-TC-01": {
++        "action": "Create and issue an invoice",
++        "company": "VND",
++        "lineDescription": "Website maintenance",
++        "quantity": 1,
++        "unitPrice": "12345"
++      },
++      "BUG-02-TC-02": {
++        "action": "Record a payment applied to that invoice",
++        "company": "VND",
++        "amount": "5000"
++      },
++      "BUG-02-TC-03": {
++        "action": "Create and issue an invoice",
++        "company": "USD",
++        "lineDescription": "Consulting",
++        "quantity": 1,
++        "unitPrice": "123.45"
++      }
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/currency-report.txt b/DO6SQWGV/answers/BUG-02/evidence/currency-report.txt
+new file mode 100644
+index 0000000..9bc525d
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-02/evidence/currency-report.txt
+@@ -0,0 +1,11 @@
++BUG-02 currency report
++vnd_company: Hoa Sen Trading MLD
++vnd_invoice_status: PARTIAL
++vnd_invoice_currency: VND
++vnd_invoice_total_minor: 12345
++vnd_invoice_paid_minor: 5000
++usd_company: Pine Labs MLD
++usd_invoice_status: SENT
++usd_invoice_currency: USD
++usd_invoice_total_minor: 12345
++usd_invoice_paid_minor: 0
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/tc-01-vnd-invoice.png b/DO6SQWGV/answers/BUG-02/evidence/tc-01-vnd-invoice.png
+new file mode 100644
+index 0000000..e2cb5fd
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-02/evidence/tc-01-vnd-invoice.png differ
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/tc-02-vnd-payment.png b/DO6SQWGV/answers/BUG-02/evidence/tc-02-vnd-payment.png
+new file mode 100644
+index 0000000..95a809f
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-02/evidence/tc-02-vnd-payment.png differ
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/tc-03-usd-invoice.png b/DO6SQWGV/answers/BUG-02/evidence/tc-03-usd-invoice.png
+new file mode 100644
+index 0000000..6be3e08
+Binary files /dev/null and b/DO6SQWGV/answers/BUG-02/evidence/tc-03-usd-invoice.png differ
+diff --git a/DO6SQWGV/answers/BUG-02/evidence/test.log b/DO6SQWGV/answers/BUG-02/evidence/test.log
+new file mode 100644
+index 0000000..1d322fd
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-02/evidence/test.log
+@@ -0,0 +1,53 @@
++command: pnpm test
++
++ RUN  v3.2.6 D:/mtm/MLD-multi/matches/DO6SQWGV.slots/s1/DO6SQWGV/src
++
++◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
++Prisma schema loaded from prisma\schema
++Datasource "db": PostgreSQL database "freelanceos_do6sqwgv_s1_test", schema "public" at "127.0.0.1:5433"
++
++8 migrations found in prisma/migrations
++
++
++No pending migrations to apply.
++stdout | tests/accounting.test.ts
++◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
++
++ ✓ tests/accounting.test.ts (6 tests) 8825ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced journal entry at the service layer  1506ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced entry at the DATABASE level (trigger backstop)  1447ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > accepts a balanced entry and SUM(debits) = SUM(credits)  1441ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > journal is append-only: updates and deletes are blocked  1492ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > corrections are reversing entries that mirror debit/credit  1482ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > issuing an invoice posts DR AR / CR Revenue; payment posts DR Bank / CR AR and flips status  1455ms
++stdout | tests/cascade.test.ts
++◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
++
++ ✓ tests/cascade.test.ts (3 tests) 4462ms
++   ✓ deletion cascades (spec §4) > deleting a company deletes its boards, lists, cards, projects and contracts  1525ms
++   ✓ deletion cascades (spec §4) > deleting a board deletes its lists and cards (company survives)  1439ms
++   ✓ deletion cascades (spec §4) > deleting a company with invoices is RESTRICTED (financial history is protected)  1496ms
++stdout | tests/move-card.test.ts
++◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
++
++ ✓ tests/move-card.test.ts (2 tests) 3033ms
++   ✓ card movement + Done automation (spec §5, §12.6) > moving a card to Done marks it completed and writes a COMPLETED activity  1538ms
++   ✓ card movement + Done automation (spec §5, §12.6) > reordering within the same list updates position without firing MOVED  1494ms
++stdout | tests/heatmap.test.ts
++◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
++
++ ✓ tests/heatmap.test.ts (1 test) 1517ms
++   ✓ heatmap aggregation (spec §6, §12.5) > returns correct per-day counts from activity + time entries  1516ms
++ ✓ tests/money.test.ts (12 tests) 15ms
++
++ Test Files  5 passed (5)
++      Tests  24 passed (24)
++   Start at  20:05:16
++   Duration  21.15s (transform 105ms, setup 0ms, collect 1.05s, tests 17.85s, environment 1ms, prepare 320ms)
++
++$ vitest run
++warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
++For more information, see: https://pris.ly/prisma-config
++
++Environment variables loaded from .env
++exit_code: 0
+diff --git a/DO6SQWGV/answers/BUG-02/submit.json b/DO6SQWGV/answers/BUG-02/submit.json
+new file mode 100644
+index 0000000..5960c56
+--- /dev/null
++++ b/DO6SQWGV/answers/BUG-02/submit.json
+@@ -0,0 +1,66 @@
++{
++  "schemaVersion": 1,
++  "backlogId": "BUG-02",
++  "status": "DONE",
++  "evidenceFiles": [
++    "evidence/bug-02-test-data.json",
++    "evidence/currency-report.txt",
++    "evidence/tc-01-vnd-invoice.png",
++    "evidence/tc-02-vnd-payment.png",
++    "evidence/tc-03-usd-invoice.png",
++    "evidence/test.log"
++  ],
++  "testResults": [
++    {
++      "id": "BUG-02-TC-01",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-01-vnd-invoice.png",
++        "evidence/currency-report.txt"
++      ]
++    },
++    {
++      "id": "BUG-02-TC-02",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-02-vnd-payment.png",
++        "evidence/currency-report.txt"
++      ]
++    },
++    {
++      "id": "BUG-02-TC-03",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-03-usd-invoice.png",
++        "evidence/currency-report.txt"
++      ]
++    },
++    {
++      "id": "BUG-02-TC-04",
++      "result": "PASS",
++      "evidence": [
++        "evidence/test.log"
++      ]
++    }
++  ],
++  "engineeringRecord": {
++    "analysis": "Invoice and payment forms multiplied entered major amounts by the workspace USD factor (100), despite invoices being stored in the client currency. VND input 12345 therefore became 1234500 minor units instead of 12345. Payment rows also rendered in workspace currency. Official QA fixture DO6SQWGV-BUG-02-MLD and standards KB-FIN-01/KB-FX-01 establish client currency and no conversion.",
++    "changes": [
++      "src/src/components/accounting/invoices-tab.tsx: derive input factor, precision, label and preview from selected company currency, falling back to workspace currency. Catalog prices retain their workspace major-unit value when inserted into client invoice; no exchange conversion.",
++      "src/src/components/accounting/payments-tab.tsx: derive amount currency from selected invoice, then company, then workspace; format saved payments in the same currency.",
++      "src/src/server/api/routers/accounting.ts: expose existing company/invoice currency metadata in payment list. No mutation to stored records or posting code.",
++      "src/tests/money.test.ts: add 12 regressions covering all zero-decimal and two-decimal supported currencies, lowercase, zero, negatives, cents and payment formatting."
++    ],
++    "tests": [
++      "Official UI TC-01 PASS: Hoa Sen Trading MLD invoice issued with 12345 minor units, displayed ₫12,345.",
++      "Official UI TC-02 PASS: payment 5000 minor units, displayed ₫5,000, invoice PARTIAL.",
++      "Official UI TC-03 PASS: Pine Labs MLD invoice issued with 12345 minor units, displayed USD 123.45.",
++      "TypeScript typecheck passed; focused accounting and money suite 18/18 passed.",
++      "Official full-suite runner exited 0: all 24 tests pass (12 existing and 12 new); no existing tests changed. BUG-01 baseline migration 5f5ad43 restores financial-history RESTRICT behavior and is included as a dependency."
++    ],
++    "risks": [
++      "Existing stored amounts are not rewritten; currency conversion and historical repair are outside scope."
++    ],
++    "aiCollaboration": "AI implemented and reviewed the minimal UI/API metadata fix, ran official Playwright screen flows in isolated slot database, captured real screenshots and generated unedited organizer reports. No existing tests modified."
++  }
++}
+diff --git a/DO6SQWGV/answers/CR-01/evidence/.gitattributes b/DO6SQWGV/answers/CR-01/evidence/.gitattributes
+new file mode 100644
+index 0000000..e99823e
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/.gitattributes
+@@ -0,0 +1,2 @@
++# Keep browser downloads, official fixtures and script reports byte-for-byte.
++* -text
+diff --git a/DO6SQWGV/answers/CR-01/evidence/after-invoices.png b/DO6SQWGV/answers/CR-01/evidence/after-invoices.png
+new file mode 100644
+index 0000000..add74dc
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/after-invoices.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/before-invoices.png b/DO6SQWGV/answers/CR-01/evidence/before-invoices.png
+new file mode 100644
+index 0000000..ee7eb2d
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/before-invoices.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/cr-01-test-data.json b/DO6SQWGV/answers/CR-01/evidence/cr-01-test-data.json
+new file mode 100644
+index 0000000..b76ff01
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/cr-01-test-data.json
+@@ -0,0 +1,114 @@
++{
++  "fixtureId": "DO6SQWGV-CR-01-MLD",
++  "backlogItemKey": "CR-01",
++  "description": "Official QA invoice data for team MLD, match DO6SQWGV. Load it with the CR-01 loader script before producing verification evidence. It replaces every invoice in the application database.",
++  "data": {
++    "loader": "challenge/CR-01-seed.ts",
++    "companies": [
++      {
++        "key": "A",
++        "name": "Alpha Design MLD",
++        "currency": "USD"
++      },
++      {
++        "key": "B",
++        "name": "Beta Labs MLD",
++        "currency": "JPY"
++      },
++      {
++        "key": "VN",
++        "name": "Công ty \"Ánh Dương\" MLD, Chi nhánh 1\nHà Nội",
++        "currency": "VND"
++      },
++      {
++        "key": "EMPTY",
++        "name": "Gamma Studio MLD",
++        "currency": "USD"
++      }
++    ],
++    "invoices": [
++      {
++        "number": "CR01-MLD-0001",
++        "company": "A",
++        "issueDate": "2026-10-01",
++        "dueDate": "2026-10-31",
++        "totalMinor": 12345,
++        "state": "ISSUED",
++        "payments": [
++          {
++            "amountMinor": 2000,
++            "paidAt": "2026-10-03"
++          },
++          {
++            "amountMinor": 345,
++            "paidAt": "2026-10-06"
++          }
++        ]
++      },
++      {
++        "number": "CR01-MLD-0002",
++        "company": "A",
++        "issueDate": "2026-09-15",
++        "dueDate": "2026-10-15",
++        "totalMinor": 50000,
++        "state": "ISSUED",
++        "payments": [
++          {
++            "amountMinor": 50000,
++            "paidAt": "2026-09-20"
++          }
++        ]
++      },
++      {
++        "number": "CR01-MLD-0003",
++        "company": "A",
++        "issueDate": "2026-09-01",
++        "dueDate": null,
++        "totalMinor": 20000,
++        "state": "DRAFT",
++        "payments": []
++      },
++      {
++        "number": "CR01-MLD-0004",
++        "company": "B",
++        "issueDate": "2026-09-20",
++        "dueDate": "2026-12-31",
++        "totalMinor": 7500,
++        "state": "VOID",
++        "payments": []
++      },
++      {
++        "number": "CR01-MLD-0005",
++        "company": "VN",
++        "issueDate": "2026-10-05",
++        "dueDate": null,
++        "totalMinor": 12345,
++        "state": "ISSUED",
++        "payments": []
++      },
++      {
++        "number": "CR01-MLD-0006",
++        "company": "A",
++        "issueDate": "2026-08-10",
++        "dueDate": "2026-09-10",
++        "totalMinor": 9900,
++        "state": "OVERDUE",
++        "payments": []
++      }
++    ],
++    "scenarios": {
++      "CR-01-TC-01": {
++        "filter": "ALL"
++      },
++      "CR-01-TC-02": {
++        "filter": "A"
++      },
++      "CR-01-TC-03": {
++        "filter": "VN"
++      },
++      "CR-01-TC-05": {
++        "filter": "EMPTY"
++      }
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.csv b/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.csv
+new file mode 100644
+index 0000000..a76943d
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.csv
+@@ -0,0 +1,8 @@
++﻿invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status
++CR01-MLD-0005,"Công ty ""Ánh Dương"" MLD, Chi nhánh 1
++Hà Nội",2026-10-05,,VND,12345,0,12345,SENT
++CR01-MLD-0001,Alpha Design MLD,2026-10-01,2026-10-31,USD,123.45,23.45,100.00,PARTIAL
++CR01-MLD-0004,Beta Labs MLD,2026-09-20,2026-12-31,JPY,7500,0,0,VOID
++CR01-MLD-0002,Alpha Design MLD,2026-09-15,2026-10-15,USD,500.00,500.00,0.00,PAID
++CR01-MLD-0003,Alpha Design MLD,2026-09-01,,USD,200.00,0.00,0.00,DRAFT
++CR01-MLD-0006,Alpha Design MLD,2026-08-10,2026-09-10,USD,99.00,0.00,99.00,OVERDUE
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.png b/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.png
+new file mode 100644
+index 0000000..41919ba
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/tc-01-all-invoices.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.csv b/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.csv
+new file mode 100644
+index 0000000..13e7b8e
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.csv
+@@ -0,0 +1,5 @@
++﻿invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status
++CR01-MLD-0001,Alpha Design MLD,2026-10-01,2026-10-31,USD,123.45,23.45,100.00,PARTIAL
++CR01-MLD-0002,Alpha Design MLD,2026-09-15,2026-10-15,USD,500.00,500.00,0.00,PAID
++CR01-MLD-0003,Alpha Design MLD,2026-09-01,,USD,200.00,0.00,0.00,DRAFT
++CR01-MLD-0006,Alpha Design MLD,2026-08-10,2026-09-10,USD,99.00,0.00,99.00,OVERDUE
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.png b/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.png
+new file mode 100644
+index 0000000..a26e37d
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/tc-02-filtered-invoices.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.csv b/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.csv
+new file mode 100644
+index 0000000..20724ef
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.csv
+@@ -0,0 +1,3 @@
++﻿invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status
++CR01-MLD-0005,"Công ty ""Ánh Dương"" MLD, Chi nhánh 1
++Hà Nội",2026-10-05,,VND,12345,0,12345,SENT
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.png b/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.png
+new file mode 100644
+index 0000000..bb68af5
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/tc-03-special-company.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out-request.txt b/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out-request.txt
+new file mode 100644
+index 0000000..2bd9903
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out-request.txt
+@@ -0,0 +1,4 @@
++CR-01 signed-out check
++cookies_sent: none
++status: REJECTED
++invoice_data_leaked: no
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out.png b/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out.png
+new file mode 100644
+index 0000000..b22604b
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/tc-04-signed-out.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.csv b/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.csv
+new file mode 100644
+index 0000000..2aa3e64
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.csv
+@@ -0,0 +1 @@
++﻿invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status
+diff --git a/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.png b/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.png
+new file mode 100644
+index 0000000..bd014d9
+Binary files /dev/null and b/DO6SQWGV/answers/CR-01/evidence/tc-05-empty-export.png differ
+diff --git a/DO6SQWGV/answers/CR-01/evidence/test.log b/DO6SQWGV/answers/CR-01/evidence/test.log
+new file mode 100644
+index 0000000..dcf741e
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/test.log
+@@ -0,0 +1,59 @@
++command: pnpm test
++
++ RUN  v3.2.6 D:/mtm/MLD-multi/matches/DO6SQWGV.slots/s1/DO6SQWGV/src
++
++◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
++Prisma schema loaded from prisma\schema
++Datasource "db": PostgreSQL database "freelanceos_do6sqwgv_s1_test", schema "public" at "127.0.0.1:5433"
++
++8 migrations found in prisma/migrations
++
++
++No pending migrations to apply.
++stdout | tests/invoice-csv.test.ts
++◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
++
++ ✓ tests/invoice-csv.test.ts (12 tests) 3122ms
++   ✓ authenticated export data source > filters companies, retains draft/void, sums payments and preserves screen order  1581ms
++   ✓ authenticated export data source > rejects signed-out invoice queries before reading financial data  1535ms
++stdout | tests/accounting.test.ts
++◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
++
++ ✓ tests/accounting.test.ts (6 tests) 9924ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced journal entry at the service layer  1595ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced entry at the DATABASE level (trigger backstop)  1622ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > accepts a balanced entry and SUM(debits) = SUM(credits)  1752ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > journal is append-only: updates and deletes are blocked  1684ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > corrections are reversing entries that mirror debit/credit  1644ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > issuing an invoice posts DR AR / CR Revenue; payment posts DR Bank / CR AR and flips status  1623ms
++stdout | tests/cascade.test.ts
++◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
++
++ ✓ tests/cascade.test.ts (3 tests) 4996ms
++   ✓ deletion cascades (spec §4) > deleting a company deletes its boards, lists, cards, projects and contracts  1621ms
++   ✓ deletion cascades (spec §4) > deleting a board deletes its lists and cards (company survives)  1614ms
++   ✓ deletion cascades (spec §4) > deleting a company with invoices is RESTRICTED (financial history is protected)  1752ms
++stdout | tests/move-card.test.ts
++◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
++
++ ✓ tests/move-card.test.ts (2 tests) 3325ms
++   ✓ card movement + Done automation (spec §5, §12.6) > moving a card to Done marks it completed and writes a COMPLETED activity  1724ms
++   ✓ card movement + Done automation (spec §5, §12.6) > reordering within the same list updates position without firing MOVED  1599ms
++stdout | tests/heatmap.test.ts
++◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
++
++ ✓ tests/heatmap.test.ts (1 test) 1570ms
++   ✓ heatmap aggregation (spec §6, §12.5) > returns correct per-day counts from activity + time entries  1569ms
++ ✓ tests/money.test.ts (12 tests) 16ms
++
++ Test Files  6 passed (6)
++      Tests  36 passed (36)
++   Start at  20:11:42
++   Duration  27.58s (transform 227ms, setup 0ms, collect 1.53s, tests 22.95s, environment 1ms, prepare 459ms)
++
++$ vitest run
++warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
++For more information, see: https://pris.ly/prisma-config
++
++Environment variables loaded from .env
++exit_code: 0
+diff --git a/DO6SQWGV/answers/CR-01/evidence/typecheck.log b/DO6SQWGV/answers/CR-01/evidence/typecheck.log
+new file mode 100644
+index 0000000..cc671fd
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/evidence/typecheck.log
+@@ -0,0 +1,3 @@
++command: pnpm typecheck
++$ tsc --noEmit
++exit_code: 0
+diff --git a/DO6SQWGV/answers/CR-01/submit.json b/DO6SQWGV/answers/CR-01/submit.json
+new file mode 100644
+index 0000000..e138c2b
+--- /dev/null
++++ b/DO6SQWGV/answers/CR-01/submit.json
+@@ -0,0 +1,83 @@
++{
++  "schemaVersion": 1,
++  "backlogId": "CR-01",
++  "status": "DONE",
++  "evidenceFiles": [
++    "evidence/after-invoices.png",
++    "evidence/before-invoices.png",
++    "evidence/cr-01-test-data.json",
++    "evidence/tc-01-all-invoices.csv",
++    "evidence/tc-01-all-invoices.png",
++    "evidence/tc-02-filtered-invoices.csv",
++    "evidence/tc-02-filtered-invoices.png",
++    "evidence/tc-03-special-company.csv",
++    "evidence/tc-03-special-company.png",
++    "evidence/tc-04-signed-out-request.txt",
++    "evidence/tc-04-signed-out.png",
++    "evidence/tc-05-empty-export.csv",
++    "evidence/tc-05-empty-export.png",
++    "evidence/test.log",
++    "evidence/typecheck.log"
++  ],
++  "testResults": [
++    {
++      "id": "CR-01-TC-01",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-01-all-invoices.png",
++        "evidence/tc-01-all-invoices.csv"
++      ]
++    },
++    {
++      "id": "CR-01-TC-02",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-02-filtered-invoices.png",
++        "evidence/tc-02-filtered-invoices.csv"
++      ]
++    },
++    {
++      "id": "CR-01-TC-03",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-03-special-company.png",
++        "evidence/tc-03-special-company.csv"
++      ]
++    },
++    {
++      "id": "CR-01-TC-04",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-04-signed-out.png",
++        "evidence/tc-04-signed-out-request.txt"
++      ]
++    },
++    {
++      "id": "CR-01-TC-05",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-05-empty-export.png",
++        "evidence/tc-05-empty-export.csv"
++      ]
++    }
++  ],
++  "engineeringRecord": {
++    "analysis": "The existing protected accounting.invoices procedure already returns the complete company-filtered invoice list, payments summed, ordered by issue date. Browser serialization of that exact list preserves the displayed order and avoids adding an unauthenticated endpoint.",
++    "changes": [
++      "Added Export CSV next to New invoice; unavailable until invoice data is loaded. Existing create, issue, void and delete controls are preserved.",
++      "Added a pure serializer implementing KB-EXP-01, KB-FIN-01, KB-FIN-04, KB-AR-02, KB-INV-03 and KB-SEC-01: UTF-8 BOM, CRLF, nine exact columns, RFC 4180 escaping, unmodified text, invoice currency decimals, UTC dates and null due dates as empty fields.",
++      "Paid comes from the existing sum of all linked payments. Only SENT, PARTIAL and OVERDUE have nonnegative outstanding balances; DRAFT, VOID and PAID have zero.",
++      "Added 12 automated tests covering formatting, special characters, zero-decimal currencies, negative amounts, overpayments, all/selected/empty companies, multiple payments, order and anonymous rejection. No existing tests changed."
++    ],
++    "tests": [
++      "Official fixture loaded with the provided loader before browser evidence. Four actual browser downloads parsed and compared field-for-field to official QA data and screen order.",
++      "All five minimum verification scenarios passed. New invoice dialog remains operable. Anonymous accounting redirects to login; supplied request checker reports REJECTED with no invoice data leaked.",
++      "Provided run-checks script: pnpm test passed all 36 tests; pnpm typecheck passed. Initial new-test setup errors were corrected before the final run.",
++      "Previously reported financial-delete baseline failure was fixed on the assigned branch before this item; the unchanged cascade suite passes."
++    ],
++    "risks": [
++      "Exports use the current authenticated list snapshot, matching the displayed data. No public files or export endpoint are introduced."
++    ],
++    "aiCollaboration": "Implemented and verified by the CR-01 worker in isolated slot s1; accounting standards and official fixture supplied by the company tools through the orchestrator."
++  }
++}
+diff --git a/DO6SQWGV/answers/TASK-01/evidence/trace.txt b/DO6SQWGV/answers/TASK-01/evidence/trace.txt
+new file mode 100644
+index 0000000..32bb2cf
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-01/evidence/trace.txt
+@@ -0,0 +1,23 @@
++Computed final persisted position: 98304
++Status: PARTIAL because canonical commit 571c531681e672241f18842025c905e499a3641d is not present (git cat-file -t returned could not get object info).
++Issued checkout examined: a654475da6aa9f4d51d23b072416ca297da958fb.
++Company tool: TEST_DATA_NOT_FOUND; no official test data issued.
++
++Trace:
++src/src/server/api/routers/card.ts create uses the maximum active card position in the list and appendPosition(last._max.position).
++src/src/lib/position.ts defines POSITION_GAP=65536 and appendPosition(max)=(max ?? 0)+65536.
++Initially empty list: A=65536, B=131072, C=196608.
++src/src/components/board/kanban.tsx removes C at index 2 and reinserts at index 1. Its neighbours are A and B.
++betweenPosition(65536,131072)=(65536+131072)/2=98304.
++card.move calls moveCard in src/src/server/services/card.ts, which persists input.position directly.
++Same-list movement does not fire MOVED automation.
++needsRebalance(A,B) checks abs(131072-65536)<1e-6, which is false; no rebalance changes this value.
++Final order: A(65536), C(98304), B(131072).
++
++Verification: 3 scenarios executed, 3 passed, 0 failed, 0 skipped; required scenarios=0.
++1. Node imported the actual position.ts functions and asserted sequential positions, final midpoint 98304, and needsRebalance=false: PASS.
++2. Existing tests/move-card.test.ts moving a card to Done marks it completed and writes a COMPLETED activity: PASS.
++3. Existing tests/move-card.test.ts reordering within the same list updates position without firing MOVED: PASS.
++Command from src: corepack pnpm exec vitest run tests/move-card.test.ts. Vitest: 1 file passed, 2 tests passed.
++An initial invocation from the match folder using pnpm --dir src stopped before tests due to package-manager version resolution; rerunning from src used pinned pnpm 11.9.0 successfully.
++No product code or existing tests changed.
+diff --git a/DO6SQWGV/answers/TASK-01/submit.json b/DO6SQWGV/answers/TASK-01/submit.json
+new file mode 100644
+index 0000000..45218a9
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-01/submit.json
+@@ -0,0 +1,7 @@
++{
++  "schemaVersion": 1,
++  "backlogId": "TASK-01",
++  "status": "PARTIAL",
++  "evidenceFiles": ["evidence/trace.txt"],
++  "position": "98304"
++}
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/audit.log b/DO6SQWGV/answers/TASK-02/evidence/audit.log
+new file mode 100644
+index 0000000..78bc646
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/audit.log
+@@ -0,0 +1,3 @@
++command: pnpm audit --prod --audit-level=high
++No known vulnerabilities found
++exit_code: 0
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/auth-smoke.log b/DO6SQWGV/answers/TASK-02/evidence/auth-smoke.log
+new file mode 100644
+index 0000000..b117cd6
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/auth-smoke.log
+@@ -0,0 +1,6 @@
++PASS seeded credentials login
++PASS Dashboard refresh remains authenticated
++PASS Accounting opens
++PASS logout
++PASS private browser Accounting redirects to login
++PASS signed-out Accounting API returns 401
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/build.log b/DO6SQWGV/answers/TASK-02/evidence/build.log
+new file mode 100644
+index 0000000..06c7060
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/build.log
+@@ -0,0 +1,46 @@
++$ next build
++   ▲ Next.js 15.5.28
++   - Environments: .env
++
++   Creating an optimized production build ...
++ ✓ Compiled successfully in 38.1s
++   Linting and checking validity of types ...
++   Collecting page data ...
++   Generating static pages (0/16) ...
++   Generating static pages (4/16) 
++   Generating static pages (8/16) 
++   Generating static pages (12/16) 
++ ✓ Generating static pages (16/16)
++   Finalizing page optimization ...
++   Collecting build traces ...
++
++Route (app)                                 Size  First Load JS
++┌ ○ /                                      146 B         103 kB
++├ ○ /_not-found                             1 kB         103 kB
++├ ƒ /accounting                          14.7 kB         217 kB
++├ ƒ /api/auth/[...nextauth]                146 B         103 kB
++├ ƒ /api/trpc/[trpc]                       146 B         103 kB
++├ ƒ /api/uploads                           146 B         103 kB
++├ ƒ /api/uploads/[name]                    146 B         103 kB
++├ ƒ /boards                              5.34 kB         183 kB
++├ ƒ /boards/[id]                         91.1 kB         384 kB
++├ ƒ /companies                           2.21 kB         228 kB
++├ ƒ /companies/[id]                      13.8 kB         243 kB
++├ ƒ /contacts                             5.7 kB         224 kB
++├ ƒ /dashboard                           5.49 kB         258 kB
++├ ƒ /login                               3.65 kB         115 kB
++├ ƒ /notes                               4.76 kB         145 kB
++├ ƒ /projects                            2.34 kB         219 kB
++├ ƒ /projects/[id]                       3.29 kB         223 kB
++├ ƒ /settings                            9.55 kB         180 kB
++├ ƒ /tasks                                 146 B         103 kB
++└ ƒ /time                                7.09 kB         178 kB
+++ First Load JS shared by all             102 kB
++  ├ chunks/9003-bb85fcc9beb1aacb.js      46.2 kB
++  ├ chunks/9a698ee7-ce187a77763a4a3e.js  54.2 kB
++  └ other shared chunks (total)          2.06 kB
++
++
++○  (Static)   prerendered as static content
++ƒ  (Dynamic)  server-rendered on demand
++
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/dependency-review.json b/DO6SQWGV/answers/TASK-02/evidence/dependency-review.json
+new file mode 100644
+index 0000000..69a4195
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/dependency-review.json
+@@ -0,0 +1,373 @@
++{
++  "advisories": {
++    "1130709": {
++      "findings": [
++        {
++          "version": "8.5.16",
++          "paths": [
++            ".>@tailwindcss/postcss>postcss",
++            ".>vitest>@vitest/mocker>vite>postcss",
++            ".>vitest>vite>postcss",
++            ".>vitest>vite-node>vite>postcss"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1130709,
++      "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
++      "module_name": "postcss",
++      "vulnerable_versions": "<=8.5.22",
++      "patched_versions": ">=8.5.23",
++      "severity": "moderate",
++      "cwe": "CWE-22, CWE-200",
++      "github_advisory_id": "GHSA-fxqj-rqcc-2cmp",
++      "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp"
++    },
++    "1138811": {
++      "findings": [
++        {
++          "version": "3.3.15",
++          "paths": [
++            ".>@tailwindcss/postcss>postcss>nanoid",
++            ".>vitest>@vitest/mocker>vite>postcss>nanoid",
++            ".>vitest>vite>postcss>nanoid",
++            ".>vitest>vite-node>vite>postcss>nanoid"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1138811,
++      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
++      "module_name": "nanoid",
++      "vulnerable_versions": "<3.3.16",
++      "patched_versions": ">=3.3.16",
++      "severity": "high",
++      "cwe": "CWE-835",
++      "github_advisory_id": "GHSA-28wg-ghj8-5hjv",
++      "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv"
++    },
++    "1139427": {
++      "findings": [
++        {
++          "version": "3.3.15",
++          "paths": [
++            ".>@tailwindcss/postcss>postcss>nanoid",
++            ".>vitest>@vitest/mocker>vite>postcss>nanoid",
++            ".>vitest>vite>postcss>nanoid",
++            ".>vitest>vite-node>vite>postcss>nanoid"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1139427,
++      "title": "nanoid: custom generators can loop indefinitely when size is zero",
++      "module_name": "nanoid",
++      "vulnerable_versions": "<3.3.18",
++      "patched_versions": ">=3.3.18",
++      "severity": "high",
++      "cwe": "CWE-835",
++      "github_advisory_id": "GHSA-2v37-7h3g-55p8",
++      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
++    },
++    "1139510": {
++      "findings": [
++        {
++          "version": "8.5.16",
++          "paths": [
++            ".>@tailwindcss/postcss>postcss",
++            ".>vitest>@vitest/mocker>vite>postcss",
++            ".>vitest>vite>postcss",
++            ".>vitest>vite-node>vite>postcss"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1139510,
++      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
++      "module_name": "postcss",
++      "vulnerable_versions": "<=8.5.17",
++      "patched_versions": ">=8.5.18",
++      "severity": "high",
++      "cwe": "CWE-22",
++      "github_advisory_id": "GHSA-r28c-9q8g-f849",
++      "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849"
++    },
++    "1193683": {
++      "findings": [
++        {
++          "version": "3.2.6",
++          "paths": [
++            ".>vitest"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1193683,
++      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
++      "module_name": "vitest",
++      "vulnerable_versions": ">=2.1.0 <4.1.11",
++      "patched_versions": ">=4.1.11",
++      "severity": "moderate",
++      "cwe": "CWE-22",
++      "github_advisory_id": "GHSA-82fw-gwwq-j7x9",
++      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
++    },
++    "1193684": {
++      "findings": [
++        {
++          "version": "3.2.6",
++          "paths": [
++            ".>vitest>@vitest/mocker"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1193684,
++      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
++      "module_name": "@vitest/mocker",
++      "vulnerable_versions": ">=2.1.0 <4.1.11",
++      "patched_versions": ">=4.1.11",
++      "severity": "moderate",
++      "cwe": "CWE-22",
++      "github_advisory_id": "GHSA-82fw-gwwq-j7x9",
++      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
++    },
++    "1241209": {
++      "findings": [
++        {
++          "version": "1.2.1",
++          "paths": [
++            ".>@tailwindcss/postcss>@tailwindcss/node>source-map-js",
++            ".>@tailwindcss/postcss>postcss>source-map-js",
++            ".>vitest>@vitest/mocker>vite>postcss>source-map-js",
++            ".>vitest>vite>postcss>source-map-js",
++            ".>vitest>vite-node>vite>postcss>source-map-js"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1241209,
++      "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
++      "module_name": "source-map-js",
++      "vulnerable_versions": ">=1.0.0 <1.2.2",
++      "patched_versions": ">=1.2.2",
++      "severity": "high",
++      "cwe": "CWE-1284",
++      "github_advisory_id": "GHSA-68fv-2mgg-jv7q",
++      "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q"
++    },
++    "1241260": {
++      "findings": [
++        {
++          "version": "1.1.1",
++          "paths": [
++            ".>vitest>tinypool"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1241260,
++      "title": "Tinypool: Prototype Pollution gadget in worker options leads to Remote Code Execution",
++      "module_name": "tinypool",
++      "vulnerable_versions": "<=2.1.0",
++      "patched_versions": ">=2.1.1",
++      "severity": "critical",
++      "cwe": "CWE-1321",
++      "github_advisory_id": "GHSA-5gmw-xhrv-c9v3",
++      "url": "https://github.com/advisories/GHSA-5gmw-xhrv-c9v3"
++    },
++    "1241261": {
++      "findings": [
++        {
++          "version": "1.1.1",
++          "paths": [
++            ".>vitest>tinypool"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1241261,
++      "title": "Tinypool: Prototype Pollution Gadget to RCE in run() options",
++      "module_name": "tinypool",
++      "vulnerable_versions": "<2.1.2",
++      "patched_versions": ">=2.1.2",
++      "severity": "critical",
++      "cwe": "CWE-94, CWE-1321",
++      "github_advisory_id": "GHSA-85c8-ppgw-ccpr",
++      "url": "https://github.com/advisories/GHSA-85c8-ppgw-ccpr"
++    },
++    "1242623": {
++      "findings": [
++        {
++          "version": "7.3.6",
++          "paths": [
++            ".>vitest>@vitest/mocker>vite",
++            ".>vitest>vite",
++            ".>vitest>vite-node>vite"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242623,
++      "title": "launch-editor: escapeCmdArgs() omits % escaping on Windows",
++      "module_name": "vite",
++      "vulnerable_versions": ">=7.0.0 <=7.3.6",
++      "patched_versions": ">=7.3.7",
++      "severity": "moderate",
++      "cwe": "CWE-78",
++      "github_advisory_id": "GHSA-698v-4r3x-3vcv",
++      "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv"
++    },
++    "1242652": {
++      "findings": [
++        {
++          "version": "7.3.6",
++          "paths": [
++            ".>vitest>@vitest/mocker>vite",
++            ".>vitest>vite",
++            ".>vitest>vite-node>vite"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242652,
++      "title": "launch-editor: Editor CLI flag misinterpretation causing arbitrary command execution for some editors",
++      "module_name": "vite",
++      "vulnerable_versions": ">=7.0.0 <=7.3.6",
++      "patched_versions": ">=7.3.7",
++      "severity": "moderate",
++      "cwe": "CWE-88",
++      "github_advisory_id": "GHSA-r825-w8mm-5pxw",
++      "url": "https://github.com/advisories/GHSA-r825-w8mm-5pxw"
++    },
++    "1242659": {
++      "findings": [
++        {
++          "version": "7.3.6",
++          "paths": [
++            ".>vitest>@vitest/mocker>vite",
++            ".>vitest>vite",
++            ".>vitest>vite-node>vite"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242659,
++      "title": "launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
++      "module_name": "vite",
++      "vulnerable_versions": ">=7.0.0 <=7.3.6",
++      "patched_versions": ">=7.3.7",
++      "severity": "high",
++      "cwe": "CWE-77",
++      "github_advisory_id": "GHSA-587h-7wmj-h5pm",
++      "url": "https://github.com/advisories/GHSA-587h-7wmj-h5pm"
++    },
++    "1242725": {
++      "findings": [
++        {
++          "version": "7.3.6",
++          "paths": [
++            ".>vitest>@vitest/mocker>vite",
++            ".>vitest>vite",
++            ".>vitest>vite-node>vite"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242725,
++      "title": "Vite: Cross origin script execution through Vite custom middleware",
++      "module_name": "vite",
++      "vulnerable_versions": ">=7.0.0 <=7.3.6",
++      "patched_versions": ">=7.3.7",
++      "severity": "low",
++      "cwe": "CWE-80",
++      "github_advisory_id": "GHSA-9jrq-w75r-8gcw",
++      "url": "https://github.com/advisories/GHSA-9jrq-w75r-8gcw"
++    },
++    "1242731": {
++      "findings": [
++        {
++          "version": "7.3.6",
++          "paths": [
++            ".>vitest>@vitest/mocker>vite",
++            ".>vitest>vite",
++            ".>vitest>vite-node>vite"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242731,
++      "title": "Vite: Files outside `server.fs.allow` could be served when project paths match system paths on non-Windows machine",
++      "module_name": "vite",
++      "vulnerable_versions": ">=7.0.0 <=7.3.6",
++      "patched_versions": ">=7.3.7",
++      "severity": "moderate",
++      "cwe": "CWE-22, CWE-284",
++      "github_advisory_id": "GHSA-rq7h-c2jc-7f22",
++      "url": "https://github.com/advisories/GHSA-rq7h-c2jc-7f22"
++    },
++    "1242767": {
++      "findings": [
++        {
++          "version": "3.2.6",
++          "paths": [
++            ".>vitest>@vitest/mocker"
++          ],
++          "dev": true,
++          "optional": false,
++          "bundled": false
++        }
++      ],
++      "id": 1242767,
++      "title": "Vitest: Code injection via unauthenticated manual mock registration",
++      "module_name": "@vitest/mocker",
++      "vulnerable_versions": ">=2.1.0-beta.7 <4.1.12",
++      "patched_versions": ">=4.1.12",
++      "severity": "moderate",
++      "cwe": "CWE-94, CWE-116, CWE-306",
++      "github_advisory_id": "GHSA-qxg6-89mg-rqv8",
++      "url": "https://github.com/advisories/GHSA-qxg6-89mg-rqv8"
++    }
++  },
++  "metadata": {
++    "vulnerabilities": {
++      "info": 0,
++      "low": 1,
++      "moderate": 7,
++      "high": 5,
++      "critical": 2
++    },
++    "dependencies": 292,
++    "devDependencies": 136,
++    "optionalDependencies": 114,
++    "totalDependencies": 466
++  }
++}
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/install.log b/DO6SQWGV/answers/TASK-02/evidence/install.log
+new file mode 100644
+index 0000000..090d7f2
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/install.log
+@@ -0,0 +1,7 @@
++command: pnpm install --frozen-lockfile
++✓ Lockfile passes supply-chain policies (verified 11s ago)
++Lockfile is up to date, resolution step is skipped
++Already up to date
++
++Done in 784ms using pnpm v11.9.0
++exit_code: 0
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/tc-05-login-dashboard.png b/DO6SQWGV/answers/TASK-02/evidence/tc-05-login-dashboard.png
+new file mode 100644
+index 0000000..39d705a
+Binary files /dev/null and b/DO6SQWGV/answers/TASK-02/evidence/tc-05-login-dashboard.png differ
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/tc-05-signed-out.png b/DO6SQWGV/answers/TASK-02/evidence/tc-05-signed-out.png
+new file mode 100644
+index 0000000..11d1abf
+Binary files /dev/null and b/DO6SQWGV/answers/TASK-02/evidence/tc-05-signed-out.png differ
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/test.log b/DO6SQWGV/answers/TASK-02/evidence/test.log
+new file mode 100644
+index 0000000..ad9ec03
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/test.log
+@@ -0,0 +1,53 @@
++command: pnpm test
++
++ RUN  v3.2.6 D:/mtm/MLD-multi/matches/DO6SQWGV.slots/s2/DO6SQWGV/src
++
++◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
++Prisma schema loaded from prisma\schema
++Datasource "db": PostgreSQL database "freelanceos_do6sqwgv_s2_test", schema "public" at "127.0.0.1:5433"
++
++8 migrations found in prisma/migrations
++
++
++No pending migrations to apply.
++stdout | tests/accounting.test.ts
++◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
++
++ ✓ tests/accounting.test.ts (6 tests) 9253ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced journal entry at the service layer  1548ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > rejects an unbalanced entry at the DATABASE level (trigger backstop)  1507ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > accepts a balanced entry and SUM(debits) = SUM(credits)  1518ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > journal is append-only: updates and deletes are blocked  1576ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > corrections are reversing entries that mirror debit/credit  1533ms
++   ✓ double-entry accounting core (spec §4.2, §12.3, §12.4) > issuing an invoice posts DR AR / CR Revenue; payment posts DR Bank / CR AR and flips status  1569ms
++stdout | tests/cascade.test.ts
++◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
++
++ ✓ tests/cascade.test.ts (3 tests) 4731ms
++   ✓ deletion cascades (spec §4) > deleting a company deletes its boards, lists, cards, projects and contracts  1593ms
++   ✓ deletion cascades (spec §4) > deleting a board deletes its lists and cards (company survives)  1540ms
++   ✓ deletion cascades (spec §4) > deleting a company with invoices is RESTRICTED (financial history is protected)  1595ms
++stdout | tests/move-card.test.ts
++◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
++
++ ✓ tests/move-card.test.ts (2 tests) 3202ms
++   ✓ card movement + Done automation (spec §5, §12.6) > moving a card to Done marks it completed and writes a COMPLETED activity  1649ms
++   ✓ card movement + Done automation (spec §5, §12.6) > reordering within the same list updates position without firing MOVED  1550ms
++stdout | tests/heatmap.test.ts
++◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
++
++ ✓ tests/heatmap.test.ts (1 test) 1509ms
++   ✓ heatmap aggregation (spec §6, §12.5) > returns correct per-day counts from activity + time entries  1507ms
++ ✓ tests/money.test.ts (12 tests) 14ms
++
++ Test Files  5 passed (5)
++      Tests  24 passed (24)
++   Start at  20:09:09
++   Duration  23.87s (transform 126ms, setup 0ms, collect 2.44s, tests 18.71s, environment 1ms, prepare 359ms)
++
++$ vitest run
++warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
++For more information, see: https://pris.ly/prisma-config
++
++Environment variables loaded from .env
++exit_code: 0
+diff --git a/DO6SQWGV/answers/TASK-02/evidence/typecheck.log b/DO6SQWGV/answers/TASK-02/evidence/typecheck.log
+new file mode 100644
+index 0000000..cc671fd
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/evidence/typecheck.log
+@@ -0,0 +1,3 @@
++command: pnpm typecheck
++$ tsc --noEmit
++exit_code: 0
+diff --git a/DO6SQWGV/answers/TASK-02/submit.json b/DO6SQWGV/answers/TASK-02/submit.json
+new file mode 100644
+index 0000000..d40ad76
+--- /dev/null
++++ b/DO6SQWGV/answers/TASK-02/submit.json
+@@ -0,0 +1,74 @@
++{
++  "schemaVersion": 1,
++  "backlogId": "TASK-02",
++  "status": "DONE",
++  "evidenceFiles": [
++    "evidence/install.log",
++    "evidence/audit.log",
++    "evidence/typecheck.log",
++    "evidence/test.log",
++    "evidence/tc-05-login-dashboard.png",
++    "evidence/tc-05-signed-out.png",
++    "evidence/auth-smoke.log",
++    "evidence/dependency-review.json",
++    "evidence/build.log"
++  ],
++  "testResults": [
++    {
++      "id": "TASK-02-TC-01",
++      "result": "PASS",
++      "evidence": [
++        "evidence/install.log"
++      ]
++    },
++    {
++      "id": "TASK-02-TC-02",
++      "result": "PASS",
++      "evidence": [
++        "evidence/audit.log"
++      ]
++    },
++    {
++      "id": "TASK-02-TC-03",
++      "result": "PASS",
++      "evidence": [
++        "evidence/typecheck.log"
++      ]
++    },
++    {
++      "id": "TASK-02-TC-04",
++      "result": "PASS",
++      "evidence": [
++        "evidence/test.log"
++      ]
++    },
++    {
++      "id": "TASK-02-TC-05",
++      "result": "PASS",
++      "evidence": [
++        "evidence/tc-05-login-dashboard.png",
++        "evidence/tc-05-signed-out.png",
++        "evidence/auth-smoke.log"
++      ]
++    }
++  ],
++  "engineeringRecord": {
++    "analysis": "Started from the issued locked dependency graph and resolved all production high/critical findings without removing packages, suppressing advisories or changing existing tests. Official Company Tool returned TEST_DATA_NOT_FOUND. The inherited baseline financial-history migration fix is already present; all 24 existing tests pass.",
++    "changes": [
++      "Direct installed versions: next 15.5.19 -> 15.5.28; next-auth 5.0.0-beta.31 -> 5.0.0-beta.32; zod 3.25.76 -> 4.6.7. Auth beta.32 is pinned explicitly.",
++      "Updated parent resolutions bring @auth/core 0.41.2 -> 0.41.3 and sharp 0.34.5 -> 0.35.5 with patched image binaries.",
++      "Scoped workspace overrides: next>postcss 8.4.31 -> 8.5.32 and @prisma/config>deepmerge-ts 7.1.5 -> 8.0.2. Patched PostCSS resolves production nanoid 3.3.15 -> 3.3.20 and source-map-js 1.2.1 -> 1.2.2. Overrides replace vulnerable implementations, not audit suppression.",
++      "No compatibility source edits needed: existing Zod schemas, Auth.js server actions, JWT callbacks, credentials verification and Prisma configuration remain compatible under typecheck, database tests and browser smoke."
++    ],
++    "tests": [
++      "Organizer runner: frozen installation, production audit, typecheck and existing suite all exit 0; 24/24 existing tests pass unchanged.",
++      "Headless Microsoft Edge: seeded credentials login, Dashboard refresh, Accounting page, logout, private Accounting redirect and signed-out Accounting API HTTP 401 all pass.",
++      "Additional production build: pnpm run build exited 0."
++    ],
++    "risks": [
++      "Production audit has zero findings at verification. Full audit still reports development-only findings: 1 low, 7 moderate, 5 high, 2 critical in Vite/Vitest/mocker/tinypool and their PostCSS/nanoid/source-map-js graph. These are excluded from production by pnpm audit --prod and are outside this production dependency task; upgrading the development runner is deferred. Details and advisory paths are preserved in dependency-review.json.",
++      "Auth.js remains on its patched beta release. Zod and deepmerge-ts cross major versions; verified against the current application and existing suite."
++    ],
++    "aiCollaboration": "AI worker inspected registry advisory metadata and package APIs, applied focused dependency upgrades, ran the organizer checks and browser smoke, and recorded actual results. No subagents or test weakening."
++  }
++}
+diff --git a/DO6SQWGV/src/package.json b/DO6SQWGV/src/package.json
+index 936cd43..4d7ece0 100644
+--- a/DO6SQWGV/src/package.json
++++ b/DO6SQWGV/src/package.json
+@@ -44,8 +44,8 @@
+     "clsx": "^2.1.1",
+     "date-fns": "^4.1.0",
+     "lucide-react": "^0.544.0",
+-    "next": "^15.5.0",
+-    "next-auth": "^5.0.0-beta.25",
++    "next": "^15.5.28",
++    "next-auth": "5.0.0-beta.32",
+     "next-themes": "^0.4.6",
+     "react": "^19.1.0",
+     "react-dom": "^19.1.0",
+@@ -56,7 +56,7 @@
+     "remark-gfm": "^4.0.0",
+     "superjson": "^2.2.2",
+     "tailwind-merge": "^3.6.0",
+-    "zod": "^3.25.0",
++    "zod": "^4.6.7",
+     "zustand": "^5.0.0"
+   },
+   "devDependencies": {
+diff --git a/DO6SQWGV/src/pnpm-lock.yaml b/DO6SQWGV/src/pnpm-lock.yaml
+index bedd29b..88be74f 100644
+--- a/DO6SQWGV/src/pnpm-lock.yaml
++++ b/DO6SQWGV/src/pnpm-lock.yaml
+@@ -4,6 +4,10 @@ settings:
+   autoInstallPeers: true
+   excludeLinksFromLockfile: false
+ 
++overrides:
++  next>postcss: 8.5.32
++  '@prisma/config>deepmerge-ts': 8.0.2
++
+ importers:
+ 
+   .:
+@@ -49,7 +53,7 @@ importers:
+         version: 1.2.11(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+       '@t3-oss/env-nextjs':
+         specifier: ^0.13.0
+-        version: 0.13.11(typescript@5.9.3)(zod@3.25.76)
++        version: 0.13.11(typescript@5.9.3)(zod@4.6.7)
+       '@tanstack/react-query':
+         specifier: ^5.90.0
+         version: 5.101.2(react@19.2.7)
+@@ -78,11 +82,11 @@ importers:
+         specifier: ^0.544.0
+         version: 0.544.0(react@19.2.7)
+       next:
+-        specifier: ^15.5.0
+-        version: 15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
++        specifier: ^15.5.28
++        version: 15.5.28(@types/node@22.20.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+       next-auth:
+-        specifier: ^5.0.0-beta.25
+-        version: 5.0.0-beta.31(next@15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
++        specifier: 5.0.0-beta.32
++        version: 5.0.0-beta.32(next@15.5.28(@types/node@22.20.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
+       next-themes:
+         specifier: ^0.4.6
+         version: 0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+@@ -114,8 +118,8 @@ importers:
+         specifier: ^3.6.0
+         version: 3.6.0
+       zod:
+-        specifier: ^3.25.0
+-        version: 3.25.76
++        specifier: ^4.6.7
++        version: 4.6.7
+       zustand:
+         specifier: ^5.0.0
+         version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+@@ -160,12 +164,12 @@ packages:
+     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
+     engines: {node: '>=10'}
+ 
+-  '@auth/core@0.41.2':
+-    resolution: {integrity: sha512-Hx5MNBxN2fJTbJKGUKAA0wca43D0Akl3TvufY54Gn8lop7F+34vU1zA1pn0vQfIoVuLIrpfc2nkyjwIaPJMW7w==}
++  '@auth/core@0.41.3':
++    resolution: {integrity: sha512-sJ3JMHHkXMD3aOjopv7mOBTO1Ocw4b0fAEXJBz6k7YHLpYQI6C40jCUPc5fNvUKxXRXNE1/sRISA15UrwWJBTw==}
+     peerDependencies:
+       '@simplewebauthn/browser': ^9.0.1
+       '@simplewebauthn/server': ^9.0.2
+-      nodemailer: ^7.0.7
++      nodemailer: ^7.0.7 || ^8.0.5
+     peerDependenciesMeta:
+       '@simplewebauthn/browser':
+         optional: true
+@@ -178,8 +182,8 @@ packages:
+     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
+     engines: {node: '>=6.9.0'}
+ 
+-  '@emnapi/runtime@1.11.1':
+-    resolution: {integrity: sha512-vgj7R3y3Wgx24IQaGPA/R6YFXLHVMOZ0uVEyIQPaWs+rd1AzfEMXlAC22FYwO1XkKR6NPsq7mUandH8oIRdZFw==}
++  '@emnapi/runtime@1.11.3':
++    resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
+ 
+   '@epic-web/invariant@1.0.0':
+     resolution: {integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==}
+@@ -370,152 +374,161 @@ packages:
+     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
+     engines: {node: '>=18'}
+ 
+-  '@img/sharp-darwin-arm64@0.34.5':
+-    resolution: {integrity: sha512-imtQ3WMJXbMY4fxb/Ndp6HBTNVtWCUI0WdobyheGf5+ad6xX8VIDO8u2xE4qc/fr08CKG/7dDseFtn6M6g/r3w==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-darwin-arm64@0.35.5':
++    resolution: {integrity: sha512-QRUlFQ0WxvdWyqqG/WtI3iupfD5rBzmCHXSdPsY91sAtVtTo7Q4cb6zOccZ3gqEqkr0f1As1ehLqmEpDsRf+lg==}
++    engines: {node: '>=20.9.0'}
+     cpu: [arm64]
+     os: [darwin]
+ 
+-  '@img/sharp-darwin-x64@0.34.5':
+-    resolution: {integrity: sha512-YNEFAF/4KQ/PeW0N+r+aVVsoIY0/qxxikF2SWdp+NRkmMB7y9LBZAVqQ4yhGCm/H3H270OSykqmQMKLBhBJDEw==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-darwin-x64@0.35.5':
++    resolution: {integrity: sha512-+BR255RhDlpygUpOc/Jdt1nT6DQ3XG/ERo5wbcdOf5Q320dKtPCKPLR1LJs9VGXRaMa8l1uUa0tkCNOXiAxZUw==}
++    engines: {node: '>=20.9.0'}
+     cpu: [x64]
+     os: [darwin]
+ 
+-  '@img/sharp-libvips-darwin-arm64@1.2.4':
+-    resolution: {integrity: sha512-zqjjo7RatFfFoP0MkQ51jfuFZBnVE2pRiaydKJ1G/rHZvnsrHAOcQALIi9sA5co5xenQdTugCvtb1cuf78Vf4g==}
++  '@img/sharp-freebsd-wasm32@0.35.5':
++    resolution: {integrity: sha512-Y/z91nEZ4uIBX5X3nfTovjU9lHNKFYbL2lpHCLVNmXQK03VIZvXBBt0KxbPGp2SdGSF+2mQU4e+hQaWOt86iAw==}
++    engines: {node: '>=20.9.0'}
++    os: [freebsd]
++
++  '@img/sharp-libvips-darwin-arm64@1.3.4':
++    resolution: {integrity: sha512-5R89nBYiRdUlSWJxPhO+GVtaXzXSxKnRu/xqMn3KTA3L9EB9Oy/P+Nn2f2vlhPuUdy/Zusb2DarbyTpGCfEDuw==}
+     cpu: [arm64]
+     os: [darwin]
+ 
+-  '@img/sharp-libvips-darwin-x64@1.2.4':
+-    resolution: {integrity: sha512-1IOd5xfVhlGwX+zXv2N93k0yMONvUlANylbJw1eTah8K/Jtpi15KC+WSiaX/nBmbm2HxRM1gZ0nSdjSsrZbGKg==}
++  '@img/sharp-libvips-darwin-x64@1.3.4':
++    resolution: {integrity: sha512-iR2OKH80yi0U+dUplyh3/xdpFvps6YkCwsXenIJxqxR1v9o+xtKTGbS9H7cps+2Vxjc8B1j96p75NmTGjIhtpQ==}
+     cpu: [x64]
+     os: [darwin]
+ 
+-  '@img/sharp-libvips-linux-arm64@1.2.4':
+-    resolution: {integrity: sha512-excjX8DfsIcJ10x1Kzr4RcWe1edC9PquDRRPx3YVCvQv+U5p7Yin2s32ftzikXojb1PIFc/9Mt28/y+iRklkrw==}
++  '@img/sharp-libvips-linux-arm64@1.3.4':
++    resolution: {integrity: sha512-Y3dgX/6lE2QhQb+Gxy0WZxfg9MEm/JBjamZpS2IklP7xIQoKN4hzAm7KcMVGtaVDt3neE9OKBC7vAfonA/Lr1A==}
+     cpu: [arm64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linux-arm@1.2.4':
+-    resolution: {integrity: sha512-bFI7xcKFELdiNCVov8e44Ia4u2byA+l3XtsAj+Q8tfCwO6BQ8iDojYdvoPMqsKDkuoOo+X6HZA0s0q11ANMQ8A==}
++  '@img/sharp-libvips-linux-arm@1.3.4':
++    resolution: {integrity: sha512-LmRtTsOHuvM2+wlO2Db37dx5MiZhB0FvSunciw48YjdOkZz9KAiRbm8ujeMOA1INqmei5NapFxYEK1D1ZSidmw==}
+     cpu: [arm]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linux-ppc64@1.2.4':
+-    resolution: {integrity: sha512-FMuvGijLDYG6lW+b/UvyilUWu5Ayu+3r2d1S8notiGCIyYU/76eig1UfMmkZ7vwgOrzKzlQbFSuQfgm7GYUPpA==}
++  '@img/sharp-libvips-linux-ppc64@1.3.4':
++    resolution: {integrity: sha512-Le6boB8Tai0Nis+gIxIpKx68UDVVIqdR8Tin5Yf1z2LJJQLDJvCDRqRu+jC2qCoD+eIomonmOwB4smBRxfVpYQ==}
+     cpu: [ppc64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linux-riscv64@1.2.4':
+-    resolution: {integrity: sha512-oVDbcR4zUC0ce82teubSm+x6ETixtKZBh/qbREIOcI3cULzDyb18Sr/Wcyx7NRQeQzOiHTNbZFF1UwPS2scyGA==}
++  '@img/sharp-libvips-linux-riscv64@1.3.4':
++    resolution: {integrity: sha512-aHkkIEHPRdQEegJN20MLmGtxYD9R2wQr3Cwpddnu5+YKMt6Uzax7S9h5gpZTo8wyrGuZSlfQ63OevL5mTyOC7Q==}
+     cpu: [riscv64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linux-s390x@1.2.4':
+-    resolution: {integrity: sha512-qmp9VrzgPgMoGZyPvrQHqk02uyjA0/QrTO26Tqk6l4ZV0MPWIW6LTkqOIov+J1yEu7MbFQaDpwdwJKhbJvuRxQ==}
++  '@img/sharp-libvips-linux-s390x@1.3.4':
++    resolution: {integrity: sha512-ra/mB6MikESDUO7Yg+Mi95bFBb9GsObURuhnOv3OqknjGe9sZrG8tCe9q0xSIGrtLgvgw0gKnFWcK4blSgQOuQ==}
+     cpu: [s390x]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linux-x64@1.2.4':
+-    resolution: {integrity: sha512-tJxiiLsmHc9Ax1bz3oaOYBURTXGIRDODBqhveVHonrHJ9/+k89qbLl0bcJns+e4t4rvaNBxaEZsFtSfAdquPrw==}
++  '@img/sharp-libvips-linux-x64@1.3.4':
++    resolution: {integrity: sha512-GJ//SSXbnwSDes02umB3nDJLFcQzw8a18V8fyhqr6tV515tOEMdImjjxj1AoafMRz56F3PHgftnj1QEKSU1zkw==}
+     cpu: [x64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-libvips-linuxmusl-arm64@1.2.4':
+-    resolution: {integrity: sha512-FVQHuwx1IIuNow9QAbYUzJ+En8KcVm9Lk5+uGUQJHaZmMECZmOlix9HnH7n1TRkXMS0pGxIJokIVB9SuqZGGXw==}
++  '@img/sharp-libvips-linuxmusl-arm64@1.3.4':
++    resolution: {integrity: sha512-hvulFwtjUcagsis6BBxHwGFwWoNZjgYmULGVrZcyfNbjA8hKILbRxGg15/7w5HDyXHXUos/j6baAWqnCyQ2DWA==}
+     cpu: [arm64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@img/sharp-libvips-linuxmusl-x64@1.2.4':
+-    resolution: {integrity: sha512-+LpyBk7L44ZIXwz/VYfglaX/okxezESc6UxDSoyo2Ks6Jxc4Y7sGjpgU9s4PMgqgjj1gZCylTieNamqA1MF7Dg==}
++  '@img/sharp-libvips-linuxmusl-x64@1.3.4':
++    resolution: {integrity: sha512-6zXKeE/p39I1AmA3cJG35eyBGNqNddLnUXjhwBnsGjFPWqf5VKkDBEqaEkPDoTEtkxwi2vv8Tcr2mDyP4So7Fg==}
+     cpu: [x64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@img/sharp-linux-arm64@0.34.5':
+-    resolution: {integrity: sha512-bKQzaJRY/bkPOXyKx5EVup7qkaojECG6NLYswgktOZjaXecSAeCWiZwwiFf3/Y+O1HrauiE3FVsGxFg8c24rZg==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-arm64@0.35.5':
++    resolution: {integrity: sha512-LYVx5JTsOM2CBzmxreh+nl64/3H6Xb09iSLknqH47z2T2DFFxDeFLP5y4dJwe6H7uGQlHPyEEtIqyo3DYsRwdQ==}
++    engines: {node: '>=20.9.0'}
+     cpu: [arm64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linux-arm@0.34.5':
+-    resolution: {integrity: sha512-9dLqsvwtg1uuXBGZKsxem9595+ujv0sJ6Vi8wcTANSFpwV/GONat5eCkzQo/1O6zRIkh0m/8+5BjrRr7jDUSZw==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-arm@0.35.5':
++    resolution: {integrity: sha512-LEaXK2WdXVK5ykcw0buWyPMsmLLL2vpHLD6yrNSW+JGEL3BZPA4tpKN6iaMc4AxTTAoaX/sU1rOL51lcIz48ZQ==}
++    engines: {node: '>=20.9.0'}
+     cpu: [arm]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linux-ppc64@0.34.5':
+-    resolution: {integrity: sha512-7zznwNaqW6YtsfrGGDA6BRkISKAAE1Jo0QdpNYXNMHu2+0dTrPflTLNkpc8l7MUP5M16ZJcUvysVWWrMefZquA==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-ppc64@0.35.5':
++    resolution: {integrity: sha512-QVxAAq8evVRI9ia2vqgwrmWucn5Dfv+JdWzj75pD8omHLPSP7f8p20O8jxzjCcuCEQEOtYOZUmX1hkiZ0kdevA==}
++    engines: {node: '>=20.9.0'}
+     cpu: [ppc64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linux-riscv64@0.34.5':
+-    resolution: {integrity: sha512-51gJuLPTKa7piYPaVs8GmByo7/U7/7TZOq+cnXJIHZKavIRHAP77e3N2HEl3dgiqdD/w0yUfiJnII77PuDDFdw==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-riscv64@0.35.5':
++    resolution: {integrity: sha512-LtdreXguaavKODPIfzJ4kffx7UNt1omwtK0rch4EBbbSTXPnxWmYSayXdLJw0fJzQ97kHt1gL/yh4tvU+nCyRQ==}
++    engines: {node: '>=20.9.0'}
+     cpu: [riscv64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linux-s390x@0.34.5':
+-    resolution: {integrity: sha512-nQtCk0PdKfho3eC5MrbQoigJ2gd1CgddUMkabUj+rBevs8tZ2cULOx46E7oyX+04WGfABgIwmMC0VqieTiR4jg==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-s390x@0.35.5':
++    resolution: {integrity: sha512-UZasTOFiYzotTsGOCu42BfUzP6Tu6Do/947iRm1RsLKvlllxwGcn4RN27LibGWceix4Y+Pmw3jsnTcCQIgWjqA==}
++    engines: {node: '>=20.9.0'}
+     cpu: [s390x]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linux-x64@0.34.5':
+-    resolution: {integrity: sha512-MEzd8HPKxVxVenwAa+JRPwEC7QFjoPWuS5NZnBt6B3pu7EG2Ge0id1oLHZpPJdn3OQK+BQDiw9zStiHBTJQQQQ==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linux-x64@0.35.5':
++    resolution: {integrity: sha512-SxFtLTeJInhAA9Q836kux2vZNeOBQEx658qvbboZScr0wIARym3IcGmW7KpVD5sbVg0Ojy+udFQdayYIZyoNog==}
++    engines: {node: '>=20.9.0'}
+     cpu: [x64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@img/sharp-linuxmusl-arm64@0.34.5':
+-    resolution: {integrity: sha512-fprJR6GtRsMt6Kyfq44IsChVZeGN97gTD331weR1ex1c1rypDEABN6Tm2xa1wE6lYb5DdEnk03NZPqA7Id21yg==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linuxmusl-arm64@0.35.5':
++    resolution: {integrity: sha512-9HbMclmI1zlNkFRs3z9/eBtDjfD0sGlrX1z6b1qwmiFY5ElDLh4BC0LPBdVp7z1DXFiKlIcznf+ZlsuZzLxQqg==}
++    engines: {node: '>=20.9.0'}
+     cpu: [arm64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@img/sharp-linuxmusl-x64@0.34.5':
+-    resolution: {integrity: sha512-Jg8wNT1MUzIvhBFxViqrEhWDGzqymo3sV7z7ZsaWbZNDLXRJZoRGrjulp60YYtV4wfY8VIKcWidjojlLcWrd8Q==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-linuxmusl-x64@0.35.5':
++    resolution: {integrity: sha512-4KOphqB035HrVdqLZfCgMzzERrQkkzOwRhl4OAkRO1YCldbaFjySXMaK534Mo0V+LndnlJk+sbUyLeU0ULyD1A==}
++    engines: {node: '>=20.9.0'}
+     cpu: [x64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@img/sharp-wasm32@0.34.5':
+-    resolution: {integrity: sha512-OdWTEiVkY2PHwqkbBI8frFxQQFekHaSSkUIJkwzclWZe64O1X4UlUjqqqLaPbUpMOQk6FBu/HtlGXNblIs0huw==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-wasm32@0.35.5':
++    resolution: {integrity: sha512-Ptsga1su4tQx+LLF1ECS9U6nz5kmrXKo6XVbtR48Ke3ZRxxgaWBu7IDtEe1quo8hiupwm6WFqxVlXaSf7IINGQ==}
++    engines: {node: '>=20.9.0'}
++
++  '@img/sharp-webcontainers-wasm32@0.35.5':
++    resolution: {integrity: sha512-hfhF/FmoQyTUkA0bIKFOtw536BQSeBMe6BF6QyWlrPxT754+TFLaZ7sKKTfvvM0yJgKgaYTwnFCIZ/GuDw5SUA==}
++    engines: {node: '>=20.9.0'}
+     cpu: [wasm32]
+ 
+-  '@img/sharp-win32-arm64@0.34.5':
+-    resolution: {integrity: sha512-WQ3AgWCWYSb2yt+IG8mnC6Jdk9Whs7O0gxphblsLvdhSpSTtmu69ZG1Gkb6NuvxsNACwiPV6cNSZNzt0KPsw7g==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-win32-arm64@0.35.5':
++    resolution: {integrity: sha512-X4t7g+7ZA5DKblCBEXGjUqqemj4vczING/5viFwAL8h4N3qYeyjwdCvRLHi4EdOUI+2Z7UFlp1VM+p/AuEtm6Q==}
++    engines: {node: '>=20.9.0'}
+     cpu: [arm64]
+     os: [win32]
+ 
+-  '@img/sharp-win32-ia32@0.34.5':
+-    resolution: {integrity: sha512-FV9m/7NmeCmSHDD5j4+4pNI8Cp3aW+JvLoXcTUo0IqyjSfAZJ8dIUmijx1qaJsIiU+Hosw6xM5KijAWRJCSgNg==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-win32-ia32@0.35.5':
++    resolution: {integrity: sha512-5Zm82LoBc43nhwNybZlG7Y1KO//Zhsn306fQl29ZOuStHLGTo3BWL83q3cznX0poxSAMuYL1On/BHBxkBeKr6A==}
++    engines: {node: ^20.9.0}
+     cpu: [ia32]
+     os: [win32]
+ 
+-  '@img/sharp-win32-x64@0.34.5':
+-    resolution: {integrity: sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  '@img/sharp-win32-x64@0.35.5':
++    resolution: {integrity: sha512-x76eH0vEiHlcMQu8Y8IenntaACtddpT6W0wmXtWrnKcnKI7ME5DdgqhAD6SEWOEl1v2zDvkZDhFA9KnURwpfqg==}
++    engines: {node: '>=20.9.0'}
+     cpu: [x64]
+     os: [win32]
+ 
+@@ -535,57 +548,57 @@ packages:
+   '@jridgewell/trace-mapping@0.3.31':
+     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+ 
+-  '@next/env@15.5.19':
+-    resolution: {integrity: sha512-sWWluFvcv5v3Fxznmf2ZfjyoVQt/64oCnYqS90inQWGzMPK1VjvekPiz3OPHKmFT30EnHrjlbyaHLt3M0vWabw==}
++  '@next/env@15.5.28':
++    resolution: {integrity: sha512-xxW5EBI8fMPuVTPBW7LL980IRbuDXlbkUAwp9DDhtb4Lnich3nJ13uYpvrX4VE74hWPf6AvHHAMmGCidcHjbfg==}
+ 
+-  '@next/swc-darwin-arm64@15.5.19':
+-    resolution: {integrity: sha512-jx9wWlTKueHKPvVOndyr7WuaevWCkuYqsQ8gC0TMPKAVWG3MhcdMrjfo9tvIZNXd0QOUYXXvAcZ325y8Uq7uzg==}
++  '@next/swc-darwin-arm64@15.5.28':
++    resolution: {integrity: sha512-dPoQYXcfSIqx5o+TOXVXO7kONK5qbtNRDeiTfII0bT3puGIT6VF5e0QwmxNZfEZ5Zety5f3m9P/p4xqwfiLlPg==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [darwin]
+ 
+-  '@next/swc-darwin-x64@15.5.19':
+-    resolution: {integrity: sha512-291KFcsIQ3OenRdiUDFOR6W3wezzH4auENXm1gbm1Bjd4ANMMRgxPrWTUztQN43BnVoVuMnHCrLeECIMwgFKbA==}
++  '@next/swc-darwin-x64@15.5.28':
++    resolution: {integrity: sha512-RgCJ7buBivTH+6sddqaVm+/v8kwMHlFkobvdt3DfETutws5HrxnToMIWSN9X3MZ3aAi7BbKrGZZWUDQLEycXqw==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [darwin]
+ 
+-  '@next/swc-linux-arm64-gnu@15.5.19':
+-    resolution: {integrity: sha512-WeH+nelQyyMeE2f8FxBRZNrGipya5zHZV2vjzfCOAYyiI6am+NbnWAAldOBFQBB2w0DjJcsvrKqoFT2b7+5YoA==}
++  '@next/swc-linux-arm64-gnu@15.5.28':
++    resolution: {integrity: sha512-OHXQe13olE59aKe++zHavGcJPh5SLHXi6Anret3BBeq1+qhSuOJDNAli/EDDfxs6UTqA4Qddo4uyYry2slyjiQ==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@next/swc-linux-arm64-musl@15.5.19':
+-    resolution: {integrity: sha512-5xTOE0lDlDCSSfp+BAif7j17VRRCjWp//ZPZy6NI0QpdrhxtQnsZguSx0xAAZ0c9XZLrLLwCe/XVe5YPrRilKw==}
++  '@next/swc-linux-arm64-musl@15.5.28':
++    resolution: {integrity: sha512-nTB7bB6vfn4ezCJNYP43ukt2o8L3+WxKF/sTcTxepdXsJh3SM9RhlU7wrZYbH7L4HO5M87dqDTwm8587vAkCiw==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@next/swc-linux-x64-gnu@15.5.19':
+-    resolution: {integrity: sha512-LTxRmMgqqMv05Had879W00Fm53quiJd3Zuz8h1JSNJ3nGSlbZ/7Tjs1tKyScgN3Au3t3MyPsjPlq60fMmSHLsg==}
++  '@next/swc-linux-x64-gnu@15.5.28':
++    resolution: {integrity: sha512-WXCfVI32rW3xCusoUX1RpZKtyChWU2Zwe27JUDmM3KrXwcDNc9vV4zEq0GKFAURnuQ/Ouo/XqPvB0yh445XZCg==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [linux]
+     libc: [glibc]
+ 
+-  '@next/swc-linux-x64-musl@15.5.19':
+-    resolution: {integrity: sha512-eoNQSpA5PQfB9wBO4RA47MTDXWz1fizy9Y3Z6e4DetYIF3dvjuu8sj7aIGn/bFCU6lnFzTK34NtCaffP4NsQ7Q==}
++  '@next/swc-linux-x64-musl@15.5.28':
++    resolution: {integrity: sha512-Miq+NDb/HWsXuxseYxMM6fuEOQXgTziarkKIRpVKCn8W69cEfhQaQr+90pO+u4q2CbJR2wzXmUuCFyZaJs/Nng==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [linux]
+     libc: [musl]
+ 
+-  '@next/swc-win32-arm64-msvc@15.5.19':
+-    resolution: {integrity: sha512-6UNt2dFuCHOe446sm/Kp69nUe8/wIhnh9bm6Xcqw4qEWCOppLMOvhTBVgvM7invVUNr4SPpP6NOQsACtn2IN9Q==}
++  '@next/swc-win32-arm64-msvc@15.5.28':
++    resolution: {integrity: sha512-5LR79lemgDlgxvG7MQJ+zHCkVcrUoQuO7CiIvq3I58vNW4goSOE2b+19Z6FujRWMouvni4gvudYFuFuNxolGWA==}
+     engines: {node: '>= 10'}
+     cpu: [arm64]
+     os: [win32]
+ 
+-  '@next/swc-win32-x64-msvc@15.5.19':
+-    resolution: {integrity: sha512-PhmojAHyqMne56HBLGu9dhDnHPuFmEjrXSQMM/nW0J6j849lk3ESrVtqNJcCk8CKOV7brpTTbaYAjwKPzKM69w==}
++  '@next/swc-win32-x64-msvc@15.5.28':
++    resolution: {integrity: sha512-GNipvXUYROSTf4PXEyH95FrWImIB5zdaK6uEOg0RP1/X2drnvoMwiBkJ0VWdzX7w3iiBm3y5g2TxkKDGVTOQcg==}
+     engines: {node: '>= 10'}
+     cpu: [x64]
+     os: [win32]
+@@ -1446,8 +1459,8 @@ packages:
+     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
+     engines: {node: '>=8'}
+ 
+-  caniuse-lite@1.0.30001800:
+-    resolution: {integrity: sha512-MMHtuAz9Ys840zAY5F4k6fV5GaivZ9sPk+nz0mY+GYVzRBnYkN0mpqkSR92oWRQ19yQWo4HvBV/FnC16AJX8MA==}
++  caniuse-lite@1.0.30001819:
++    resolution: {integrity: sha512-LFUqIIAwpzsIuevnKnsR9qnStBcgzPShTX61lBwN9uFkkf8o8zLiebEjbW8AYtZiF+1YKDWfdt/pWDtMuG8Xwg==}
+ 
+   ccount@2.0.1:
+     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
+@@ -1587,9 +1600,9 @@ packages:
+     resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
+     engines: {node: '>=6'}
+ 
+-  deepmerge-ts@7.1.5:
+-    resolution: {integrity: sha512-HOJkrhaYsweh+W+e74Yn7YStZOilkoPb6fycpwNLKzSPtruFs48nYis0zy5yJz1+ktUhHxoRDJ27RQAWLIJVJw==}
+-    engines: {node: '>=16.0.0'}
++  deepmerge-ts@8.0.2:
++    resolution: {integrity: sha512-uqbvqLUMrc6p0MO+WBRtTxY55hmyh94WRwI5a++PZe54X+bfVh59FSN7uWCBCW1CCVjzjnrwzfI8zidE2obMMw==}
++    engines: {node: '>=16.9.0'}
+ 
+   defu@6.1.7:
+     resolution: {integrity: sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==}
+@@ -1748,8 +1761,8 @@ packages:
+     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
+     hasBin: true
+ 
+-  jose@6.2.3:
+-    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
++  jose@6.2.13:
++    resolution: {integrity: sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ==}
+ 
+   js-tokens@4.0.0:
+     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
+@@ -1992,13 +2005,18 @@ packages:
+     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+     hasBin: true
+ 
+-  next-auth@5.0.0-beta.31:
+-    resolution: {integrity: sha512-1OBgCKPzo+S7UWWMp3xgvGvIJ0OpV7B3vR4ZDRqD9a4Ch+OT6dakLXG9ivhtmIWVa71nTSXattOHyCg8sNi8/Q==}
++  nanoid@3.3.20:
++    resolution: {integrity: sha512-uKdg2G3GNCKQn9byYOpxbGqrT2fGO5KRt5J/8b3pok8rT6qxGWF6hxMyJiEYtAf+FVyYuD9hRaDqX5uPFYJ4ZQ==}
++    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
++    hasBin: true
++
++  next-auth@5.0.0-beta.32:
++    resolution: {integrity: sha512-CGlChIEWZ6LltNVxrE5yiySMID+Idpmry47JYA5lLwgD8Sx02a8M65VL0TWVz9nbnOioS/tCW/rP/0+mE7Qp4Q==}
+     peerDependencies:
+       '@simplewebauthn/browser': ^9.0.1
+       '@simplewebauthn/server': ^9.0.2
+       next: ^14.0.0-0 || ^15.0.0 || ^16.0.0
+-      nodemailer: ^7.0.7
++      nodemailer: ^7.0.7 || ^8.0.5
+       react: ^18.2.0 || ^19.0.0
+     peerDependenciesMeta:
+       '@simplewebauthn/browser':
+@@ -2014,8 +2032,8 @@ packages:
+       react: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+       react-dom: ^16.8 || ^17 || ^18 || ^19 || ^19.0.0-rc
+ 
+-  next@15.5.19:
+-    resolution: {integrity: sha512-xNOW6tYshGX1/Oi3F8uuk4gpDeWsSUE/1Z0G5uUMekIxaQ0xc03UXd9II0VQHYMWviMeA0OHpJFAKsHf8bTYVg==}
++  next@15.5.28:
++    resolution: {integrity: sha512-JjhLBBY1PNnuwPtcZ7t8yxVeJVYvD2Jyp633J+gRCNbzSt7N0E+xqCf6uQiff3+3qmUkwcF/ksfSsK1xsZ76Tw==}
+     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+     hasBin: true
+     peerDependencies:
+@@ -2051,8 +2069,8 @@ packages:
+     engines: {node: '>=18'}
+     hasBin: true
+ 
+-  oauth4webapi@3.8.6:
+-    resolution: {integrity: sha512-iwemM91xz8nryHti2yTmg5fhyEMVOkOXwHNqbvcATjyajb5oQxCQzrNOA6uElRHuMhQQTKUyFKV9y/CNyg25BQ==}
++  oauth4webapi@3.8.8:
++    resolution: {integrity: sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng==}
+ 
+   object-assign@4.1.1:
+     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
+@@ -2098,14 +2116,14 @@ packages:
+     engines: {node: '>=18'}
+     hasBin: true
+ 
+-  postcss@8.4.31:
+-    resolution: {integrity: sha512-PS08Iboia9mts/2ygV3eLpY5ghnUcfLV/EXTOW1E2qYxJKGGBUtNjN76FYHnMs36RmARn41bC0AZmn+rR0OVpQ==}
+-    engines: {node: ^10 || ^12 || >=14}
+-
+   postcss@8.5.16:
+     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
+     engines: {node: ^10 || ^12 || >=14}
+ 
++  postcss@8.5.32:
++    resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
++    engines: {node: ^10 || ^12 || >=14}
++
+   preact-render-to-string@6.5.11:
+     resolution: {integrity: sha512-ubnauqoGczeGISiOh6RjX0/cdaF8v/oDXIjO85XALCQjwQP+SB4RDXXtvZ6yTYSjG+PC1QRP2AhPgCEsM2EvUw==}
+     peerDependencies:
+@@ -2266,9 +2284,14 @@ packages:
+     engines: {node: '>=10'}
+     hasBin: true
+ 
+-  sharp@0.34.5:
+-    resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==}
+-    engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
++  sharp@0.35.5:
++    resolution: {integrity: sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==}
++    engines: {node: '>=20.9.0'}
++    peerDependencies:
++      '@types/node': '*'
++    peerDependenciesMeta:
++      '@types/node':
++        optional: true
+ 
+   shebang-command@2.0.0:
+     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
+@@ -2285,6 +2308,10 @@ packages:
+     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+     engines: {node: '>=0.10.0'}
+ 
++  source-map-js@1.2.2:
++    resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
++    engines: {node: '>=0.10.0'}
++
+   space-separated-tokens@2.0.2:
+     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
+ 
+@@ -2519,8 +2546,8 @@ packages:
+     engines: {node: '>=8'}
+     hasBin: true
+ 
+-  zod@3.25.76:
+-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
++  zod@4.6.7:
++    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+ 
+   zustand@5.0.14:
+     resolution: {integrity: sha512-/8tAspM5LMPr28b3fwLYrtdj77ECpfZviaP75CMTnwO8ISyaE4GDIG/9rDDYq/cH9D2Xw2A2RXglLInmVBQB/g==}
+@@ -2547,17 +2574,17 @@ snapshots:
+ 
+   '@alloc/quick-lru@5.2.0': {}
+ 
+-  '@auth/core@0.41.2':
++  '@auth/core@0.41.3':
+     dependencies:
+       '@panva/hkdf': 1.2.1
+-      jose: 6.2.3
+-      oauth4webapi: 3.8.6
++      jose: 6.2.13
++      oauth4webapi: 3.8.8
+       preact: 10.24.3
+       preact-render-to-string: 6.5.11(preact@10.24.3)
+ 
+   '@babel/runtime@7.29.7': {}
+ 
+-  '@emnapi/runtime@1.11.1':
++  '@emnapi/runtime@1.11.3':
+     dependencies:
+       tslib: 2.8.1
+     optional: true
+@@ -2679,98 +2706,108 @@ snapshots:
+   '@img/colour@1.1.0':
+     optional: true
+ 
+-  '@img/sharp-darwin-arm64@0.34.5':
++  '@img/sharp-darwin-arm64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-darwin-arm64': 1.2.4
++      '@img/sharp-libvips-darwin-arm64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-darwin-x64@0.34.5':
++  '@img/sharp-darwin-x64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-darwin-x64': 1.2.4
++      '@img/sharp-libvips-darwin-x64': 1.3.4
++    optional: true
++
++  '@img/sharp-freebsd-wasm32@0.35.5':
++    dependencies:
++      '@img/sharp-wasm32': 0.35.5
+     optional: true
+ 
+-  '@img/sharp-libvips-darwin-arm64@1.2.4':
++  '@img/sharp-libvips-darwin-arm64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-darwin-x64@1.2.4':
++  '@img/sharp-libvips-darwin-x64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-arm64@1.2.4':
++  '@img/sharp-libvips-linux-arm64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-arm@1.2.4':
++  '@img/sharp-libvips-linux-arm@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-ppc64@1.2.4':
++  '@img/sharp-libvips-linux-ppc64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-riscv64@1.2.4':
++  '@img/sharp-libvips-linux-riscv64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-s390x@1.2.4':
++  '@img/sharp-libvips-linux-s390x@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linux-x64@1.2.4':
++  '@img/sharp-libvips-linux-x64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linuxmusl-arm64@1.2.4':
++  '@img/sharp-libvips-linuxmusl-arm64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-libvips-linuxmusl-x64@1.2.4':
++  '@img/sharp-libvips-linuxmusl-x64@1.3.4':
+     optional: true
+ 
+-  '@img/sharp-linux-arm64@0.34.5':
++  '@img/sharp-linux-arm64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-arm64': 1.2.4
++      '@img/sharp-libvips-linux-arm64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linux-arm@0.34.5':
++  '@img/sharp-linux-arm@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-arm': 1.2.4
++      '@img/sharp-libvips-linux-arm': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linux-ppc64@0.34.5':
++  '@img/sharp-linux-ppc64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-ppc64': 1.2.4
++      '@img/sharp-libvips-linux-ppc64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linux-riscv64@0.34.5':
++  '@img/sharp-linux-riscv64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-riscv64': 1.2.4
++      '@img/sharp-libvips-linux-riscv64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linux-s390x@0.34.5':
++  '@img/sharp-linux-s390x@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-s390x': 1.2.4
++      '@img/sharp-libvips-linux-s390x': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linux-x64@0.34.5':
++  '@img/sharp-linux-x64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linux-x64': 1.2.4
++      '@img/sharp-libvips-linux-x64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linuxmusl-arm64@0.34.5':
++  '@img/sharp-linuxmusl-arm64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.4
++      '@img/sharp-libvips-linuxmusl-arm64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-linuxmusl-x64@0.34.5':
++  '@img/sharp-linuxmusl-x64@0.35.5':
+     optionalDependencies:
+-      '@img/sharp-libvips-linuxmusl-x64': 1.2.4
++      '@img/sharp-libvips-linuxmusl-x64': 1.3.4
+     optional: true
+ 
+-  '@img/sharp-wasm32@0.34.5':
++  '@img/sharp-wasm32@0.35.5':
+     dependencies:
+-      '@emnapi/runtime': 1.11.1
++      '@emnapi/runtime': 1.11.3
+     optional: true
+ 
+-  '@img/sharp-win32-arm64@0.34.5':
++  '@img/sharp-webcontainers-wasm32@0.35.5':
++    dependencies:
++      '@img/sharp-wasm32': 0.35.5
++    optional: true
++
++  '@img/sharp-win32-arm64@0.35.5':
+     optional: true
+ 
+-  '@img/sharp-win32-ia32@0.34.5':
++  '@img/sharp-win32-ia32@0.35.5':
+     optional: true
+ 
+-  '@img/sharp-win32-x64@0.34.5':
++  '@img/sharp-win32-x64@0.35.5':
+     optional: true
+ 
+   '@jridgewell/gen-mapping@0.3.13':
+@@ -2792,30 +2829,30 @@ snapshots:
+       '@jridgewell/resolve-uri': 3.1.2
+       '@jridgewell/sourcemap-codec': 1.5.5
+ 
+-  '@next/env@15.5.19': {}
++  '@next/env@15.5.28': {}
+ 
+-  '@next/swc-darwin-arm64@15.5.19':
++  '@next/swc-darwin-arm64@15.5.28':
+     optional: true
+ 
+-  '@next/swc-darwin-x64@15.5.19':
++  '@next/swc-darwin-x64@15.5.28':
+     optional: true
+ 
+-  '@next/swc-linux-arm64-gnu@15.5.19':
++  '@next/swc-linux-arm64-gnu@15.5.28':
+     optional: true
+ 
+-  '@next/swc-linux-arm64-musl@15.5.19':
++  '@next/swc-linux-arm64-musl@15.5.28':
+     optional: true
+ 
+-  '@next/swc-linux-x64-gnu@15.5.19':
++  '@next/swc-linux-x64-gnu@15.5.28':
+     optional: true
+ 
+-  '@next/swc-linux-x64-musl@15.5.19':
++  '@next/swc-linux-x64-musl@15.5.28':
+     optional: true
+ 
+-  '@next/swc-win32-arm64-msvc@15.5.19':
++  '@next/swc-win32-arm64-msvc@15.5.28':
+     optional: true
+ 
+-  '@next/swc-win32-x64-msvc@15.5.19':
++  '@next/swc-win32-x64-msvc@15.5.28':
+     optional: true
+ 
+   '@panva/hkdf@1.2.1': {}
+@@ -2830,7 +2867,7 @@ snapshots:
+   '@prisma/config@6.19.3':
+     dependencies:
+       c12: 3.1.0
+-      deepmerge-ts: 7.1.5
++      deepmerge-ts: 8.0.2
+       effect: 3.21.0
+       empathic: 2.0.0
+     transitivePeerDependencies:
+@@ -3340,17 +3377,17 @@ snapshots:
+     dependencies:
+       tslib: 2.8.1
+ 
+-  '@t3-oss/env-core@0.13.11(typescript@5.9.3)(zod@3.25.76)':
++  '@t3-oss/env-core@0.13.11(typescript@5.9.3)(zod@4.6.7)':
+     optionalDependencies:
+       typescript: 5.9.3
+-      zod: 3.25.76
++      zod: 4.6.7
+ 
+-  '@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@3.25.76)':
++  '@t3-oss/env-nextjs@0.13.11(typescript@5.9.3)(zod@4.6.7)':
+     dependencies:
+-      '@t3-oss/env-core': 0.13.11(typescript@5.9.3)(zod@3.25.76)
++      '@t3-oss/env-core': 0.13.11(typescript@5.9.3)(zod@4.6.7)
+     optionalDependencies:
+       typescript: 5.9.3
+-      zod: 3.25.76
++      zod: 4.6.7
+ 
+   '@tailwindcss/node@4.3.2':
+     dependencies:
+@@ -3590,7 +3627,7 @@ snapshots:
+ 
+   cac@6.7.14: {}
+ 
+-  caniuse-lite@1.0.30001800: {}
++  caniuse-lite@1.0.30001819: {}
+ 
+   ccount@2.0.1: {}
+ 
+@@ -3709,7 +3746,7 @@ snapshots:
+ 
+   deep-eql@5.0.2: {}
+ 
+-  deepmerge-ts@7.1.5: {}
++  deepmerge-ts@8.0.2: {}
+ 
+   defu@6.1.7: {}
+ 
+@@ -3877,7 +3914,7 @@ snapshots:
+ 
+   jiti@2.7.0: {}
+ 
+-  jose@6.2.3: {}
++  jose@6.2.13: {}
+ 
+   js-tokens@4.0.0: {}
+ 
+@@ -4300,10 +4337,12 @@ snapshots:
+ 
+   nanoid@3.3.15: {}
+ 
+-  next-auth@5.0.0-beta.31(next@15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7):
++  nanoid@3.3.20: {}
++
++  next-auth@5.0.0-beta.32(next@15.5.28(@types/node@22.20.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7):
+     dependencies:
+-      '@auth/core': 0.41.2
+-      next: 15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
++      '@auth/core': 0.41.3
++      next: 15.5.28(@types/node@22.20.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+       react: 19.2.7
+ 
+   next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+@@ -4311,27 +4350,28 @@ snapshots:
+       react: 19.2.7
+       react-dom: 19.2.7(react@19.2.7)
+ 
+-  next@15.5.19(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
++  next@15.5.28(@types/node@22.20.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+     dependencies:
+-      '@next/env': 15.5.19
++      '@next/env': 15.5.28
+       '@swc/helpers': 0.5.15
+-      caniuse-lite: 1.0.30001800
+-      postcss: 8.4.31
++      caniuse-lite: 1.0.30001819
++      postcss: 8.5.32
+       react: 19.2.7
+       react-dom: 19.2.7(react@19.2.7)
+       styled-jsx: 5.1.6(react@19.2.7)
+     optionalDependencies:
+-      '@next/swc-darwin-arm64': 15.5.19
+-      '@next/swc-darwin-x64': 15.5.19
+-      '@next/swc-linux-arm64-gnu': 15.5.19
+-      '@next/swc-linux-arm64-musl': 15.5.19
+-      '@next/swc-linux-x64-gnu': 15.5.19
+-      '@next/swc-linux-x64-musl': 15.5.19
+-      '@next/swc-win32-arm64-msvc': 15.5.19
+-      '@next/swc-win32-x64-msvc': 15.5.19
+-      sharp: 0.34.5
++      '@next/swc-darwin-arm64': 15.5.28
++      '@next/swc-darwin-x64': 15.5.28
++      '@next/swc-linux-arm64-gnu': 15.5.28
++      '@next/swc-linux-arm64-musl': 15.5.28
++      '@next/swc-linux-x64-gnu': 15.5.28
++      '@next/swc-linux-x64-musl': 15.5.28
++      '@next/swc-win32-arm64-msvc': 15.5.28
++      '@next/swc-win32-x64-msvc': 15.5.28
++      sharp: 0.35.5(@types/node@22.20.0)
+     transitivePeerDependencies:
+       - '@babel/core'
++      - '@types/node'
+       - babel-plugin-macros
+ 
+   node-addon-api@8.9.0: {}
+@@ -4346,7 +4386,7 @@ snapshots:
+       pathe: 2.0.3
+       tinyexec: 1.2.4
+ 
+-  oauth4webapi@3.8.6: {}
++  oauth4webapi@3.8.8: {}
+ 
+   object-assign@4.1.1: {}
+ 
+@@ -4388,17 +4428,17 @@ snapshots:
+     optionalDependencies:
+       fsevents: 2.3.2
+ 
+-  postcss@8.4.31:
++  postcss@8.5.16:
+     dependencies:
+       nanoid: 3.3.15
+       picocolors: 1.1.1
+       source-map-js: 1.2.1
+ 
+-  postcss@8.5.16:
++  postcss@8.5.32:
+     dependencies:
+-      nanoid: 3.3.15
++      nanoid: 3.3.20
+       picocolors: 1.1.1
+-      source-map-js: 1.2.1
++      source-map-js: 1.2.2
+ 
+   preact-render-to-string@6.5.11(preact@10.24.3):
+     dependencies:
+@@ -4614,36 +4654,38 @@ snapshots:
+   semver@7.8.5:
+     optional: true
+ 
+-  sharp@0.34.5:
++  sharp@0.35.5(@types/node@22.20.0):
+     dependencies:
+       '@img/colour': 1.1.0
+       detect-libc: 2.1.2
+       semver: 7.8.5
+     optionalDependencies:
+-      '@img/sharp-darwin-arm64': 0.34.5
+-      '@img/sharp-darwin-x64': 0.34.5
+-      '@img/sharp-libvips-darwin-arm64': 1.2.4
+-      '@img/sharp-libvips-darwin-x64': 1.2.4
+-      '@img/sharp-libvips-linux-arm': 1.2.4
+-      '@img/sharp-libvips-linux-arm64': 1.2.4
+-      '@img/sharp-libvips-linux-ppc64': 1.2.4
+-      '@img/sharp-libvips-linux-riscv64': 1.2.4
+-      '@img/sharp-libvips-linux-s390x': 1.2.4
+-      '@img/sharp-libvips-linux-x64': 1.2.4
+-      '@img/sharp-libvips-linuxmusl-arm64': 1.2.4
+-      '@img/sharp-libvips-linuxmusl-x64': 1.2.4
+-      '@img/sharp-linux-arm': 0.34.5
+-      '@img/sharp-linux-arm64': 0.34.5
+-      '@img/sharp-linux-ppc64': 0.34.5
+-      '@img/sharp-linux-riscv64': 0.34.5
+-      '@img/sharp-linux-s390x': 0.34.5
+-      '@img/sharp-linux-x64': 0.34.5
+-      '@img/sharp-linuxmusl-arm64': 0.34.5
+-      '@img/sharp-linuxmusl-x64': 0.34.5
+-      '@img/sharp-wasm32': 0.34.5
+-      '@img/sharp-win32-arm64': 0.34.5
+-      '@img/sharp-win32-ia32': 0.34.5
+-      '@img/sharp-win32-x64': 0.34.5
++      '@img/sharp-darwin-arm64': 0.35.5
++      '@img/sharp-darwin-x64': 0.35.5
++      '@img/sharp-freebsd-wasm32': 0.35.5
++      '@img/sharp-libvips-darwin-arm64': 1.3.4
++      '@img/sharp-libvips-darwin-x64': 1.3.4
++      '@img/sharp-libvips-linux-arm': 1.3.4
++      '@img/sharp-libvips-linux-arm64': 1.3.4
++      '@img/sharp-libvips-linux-ppc64': 1.3.4
++      '@img/sharp-libvips-linux-riscv64': 1.3.4
++      '@img/sharp-libvips-linux-s390x': 1.3.4
++      '@img/sharp-libvips-linux-x64': 1.3.4
++      '@img/sharp-libvips-linuxmusl-arm64': 1.3.4
++      '@img/sharp-libvips-linuxmusl-x64': 1.3.4
++      '@img/sharp-linux-arm': 0.35.5
++      '@img/sharp-linux-arm64': 0.35.5
++      '@img/sharp-linux-ppc64': 0.35.5
++      '@img/sharp-linux-riscv64': 0.35.5
++      '@img/sharp-linux-s390x': 0.35.5
++      '@img/sharp-linux-x64': 0.35.5
++      '@img/sharp-linuxmusl-arm64': 0.35.5
++      '@img/sharp-linuxmusl-x64': 0.35.5
++      '@img/sharp-webcontainers-wasm32': 0.35.5
++      '@img/sharp-win32-arm64': 0.35.5
++      '@img/sharp-win32-ia32': 0.35.5
++      '@img/sharp-win32-x64': 0.35.5
++      '@types/node': 22.20.0
+     optional: true
+ 
+   shebang-command@2.0.0:
+@@ -4656,6 +4698,8 @@ snapshots:
+ 
+   source-map-js@1.2.1: {}
+ 
++  source-map-js@1.2.2: {}
++
+   space-separated-tokens@2.0.2: {}
+ 
+   stackback@0.0.2: {}
+@@ -4895,7 +4939,7 @@ snapshots:
+       siginfo: 2.0.0
+       stackback: 0.0.2
+ 
+-  zod@3.25.76: {}
++  zod@4.6.7: {}
+ 
+   zustand@5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
+     optionalDependencies:
+diff --git a/DO6SQWGV/src/pnpm-workspace.yaml b/DO6SQWGV/src/pnpm-workspace.yaml
+index be63c38..f58985f 100644
+--- a/DO6SQWGV/src/pnpm-workspace.yaml
++++ b/DO6SQWGV/src/pnpm-workspace.yaml
+@@ -5,3 +5,6 @@ allowBuilds:
+   esbuild: true
+   prisma: true
+   sharp: true
++overrides:
++  "next>postcss": "8.5.32"
++  "@prisma/config>deepmerge-ts": "8.0.2"
+diff --git a/DO6SQWGV/src/prisma/schema/accounting.prisma b/DO6SQWGV/src/prisma/schema/accounting.prisma
+index 402013a..e730dc9 100644
+--- a/DO6SQWGV/src/prisma/schema/accounting.prisma
++++ b/DO6SQWGV/src/prisma/schema/accounting.prisma
+@@ -107,7 +107,7 @@ enum InvoiceStatus {
+ model Invoice {
+   id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+   companyId     String        @map("company_id") @db.Uuid
+-  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
++  company       Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+   contractId    String?       @map("contract_id") @db.Uuid
+   contract      Contract?     @relation(fields: [contractId], references: [id], onDelete: SetNull)
+   projectId     String?       @map("project_id") @db.Uuid
+@@ -172,7 +172,7 @@ enum PaymentMethod {
+ model Payment {
+   id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+   companyId   String        @map("company_id") @db.Uuid
+-  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
++  company     Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+   invoiceId   String?       @map("invoice_id") @db.Uuid
+   invoice     Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+   amountMinor BigInt        @map("amount_minor")
+@@ -191,7 +191,7 @@ model Payment {
+ model Expense {
+   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+   companyId         String?  @map("company_id") @db.Uuid
+-  company           Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
++  company           Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+   categoryAccountId String   @map("category_account_id") @db.Uuid
+   categoryAccount   Account  @relation(fields: [categoryAccountId], references: [id], onDelete: Restrict)
+   description       String
+diff --git a/DO6SQWGV/src/prisma/schema/migrations/20261028130000_restore_financial_history/migration.sql b/DO6SQWGV/src/prisma/schema/migrations/20261028130000_restore_financial_history/migration.sql
+new file mode 100644
+index 0000000..23af2be
+--- /dev/null
++++ b/DO6SQWGV/src/prisma/schema/migrations/20261028130000_restore_financial_history/migration.sql
+@@ -0,0 +1,7 @@
++-- Restore the original financial-history policy (DECISIONS.md).
++ALTER TABLE "invoices" DROP CONSTRAINT "invoices_company_id_fkey";
++ALTER TABLE "payments" DROP CONSTRAINT "payments_company_id_fkey";
++ALTER TABLE "expenses" DROP CONSTRAINT "expenses_company_id_fkey";
++ALTER TABLE "invoices" ADD CONSTRAINT "invoices_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "payments" ADD CONSTRAINT "payments_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "expenses" ADD CONSTRAINT "expenses_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+diff --git a/DO6SQWGV/src/src/app/(app)/layout.tsx b/DO6SQWGV/src/src/app/(app)/layout.tsx
+index 0094390..c71d956 100644
+--- a/DO6SQWGV/src/src/app/(app)/layout.tsx
++++ b/DO6SQWGV/src/src/app/(app)/layout.tsx
+@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
+         userName={session.user.name ?? "Freelancer"}
+         userEmail={session.user.email ?? ""}
+       />
+-      <main className="min-h-[calc(100dvh-3.5rem)] p-4 pb-24 md:ms-sidebar md:p-6 md:pb-6">
++      <main className="min-h-[calc(100dvh-3.5rem)] p-4 pb-24 desktop-sidebar-offset md:p-6 md:pb-6">
+         {children}
+       </main>
+       <MobileNav />
+diff --git a/DO6SQWGV/src/src/components/accounting/invoices-tab.tsx b/DO6SQWGV/src/src/components/accounting/invoices-tab.tsx
+index 10f4133..dd9775b 100644
+--- a/DO6SQWGV/src/src/components/accounting/invoices-tab.tsx
++++ b/DO6SQWGV/src/src/components/accounting/invoices-tab.tsx
+@@ -20,6 +20,7 @@ import {
+ import { Skeleton } from "~/components/ui/skeleton";
+ import { toast } from "~/components/ui/toast";
+ import { minorUnitFactor } from "~/lib/money";
++import { invoiceCsv } from "~/lib/invoice-csv";
+ import { api } from "~/trpc/react";
+ 
+ export const INVOICE_BADGE: Record<
+@@ -50,11 +51,12 @@ function InvoiceCreateDialog({
+ }) {
+   const utils = api.useUtils();
+   const money = useMoney();
+-  const factor = minorUnitFactor(money.currency);
+   const { data: companies } = api.company.list.useQuery({});
+   const { data: products } = api.product.list.useQuery({ activeOnly: true });
+ 
+   const [companyId, setCompanyId] = useState("");
++  const currency = companies?.find((c) => c.id === companyId)?.currencyCode ?? money.currency;
++  const factor = minorUnitFactor(currency);
+   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
+   const [dueDate, setDueDate] = useState("");
+   const [lines, setLines] = useState<DraftLine[]>([
+@@ -161,7 +163,7 @@ function InvoiceCreateDialog({
+                     className="w-20"
+                   />
+                   <Input
+-                    aria-label={`Line ${i + 1} unit price (${money.currency})`}
++                    aria-label={`Line ${i + 1} unit price (${currency})`}
+                     type="number"
+                     min={0}
+                     step={factor === 1 ? 1 : 0.01}
+@@ -209,7 +211,7 @@ function InvoiceCreateDialog({
+                       {
+                         description: p.name,
+                         quantity: 1,
+-                        unitPrice: p.unitPriceMinor / factor,
++                        unitPrice: p.unitPriceMinor / minorUnitFactor(money.currency),
+                         productId: p.id,
+                       },
+                     ]);
+@@ -231,7 +233,7 @@ function InvoiceCreateDialog({
+           </fieldset>
+ 
+           <p className="text-end text-lg font-semibold text-ink">
+-            Total: <MoneyText minor={Math.round(subtotal * factor)} />
++            Total: <MoneyText minor={Math.round(subtotal * factor)} currency={currency} />
+           </p>
+ 
+           <DialogFooter>
+@@ -285,10 +287,29 @@ export function InvoicesTab() {
+             ))}
+           </SelectContent>
+         </Select>
+-        <Button onClick={() => setCreateOpen(true)}>
+-          <Plus aria-hidden />
+-          New invoice
+-        </Button>
++        <div className="flex items-center gap-2">
++          <Button
++            variant="secondary"
++            disabled={!invoices}
++            onClick={() => {
++              if (!invoices) return;
++              const url = URL.createObjectURL(
++                new Blob([invoiceCsv(invoices)], { type: "text/csv;charset=utf-8" }),
++              );
++              const link = document.createElement("a");
++              link.href = url;
++              link.download = "invoices.csv";
++              link.click();
++              setTimeout(() => URL.revokeObjectURL(url), 1000);
++            }}
++          >
++            Export CSV
++          </Button>
++          <Button onClick={() => setCreateOpen(true)}>
++            <Plus aria-hidden />
++            New invoice
++          </Button>
++        </div>
+       </div>
+ 
+       {!invoices?.length ? (
+diff --git a/DO6SQWGV/src/src/components/accounting/payments-tab.tsx b/DO6SQWGV/src/src/components/accounting/payments-tab.tsx
+index f2290ca..ef6f0d8 100644
+--- a/DO6SQWGV/src/src/components/accounting/payments-tab.tsx
++++ b/DO6SQWGV/src/src/components/accounting/payments-tab.tsx
+@@ -31,7 +31,6 @@ function PaymentCreateDialog({
+ }) {
+   const utils = api.useUtils();
+   const money = useMoney();
+-  const factor = minorUnitFactor(money.currency);
+   const { data: companies } = api.company.list.useQuery({});
+ 
+   const [companyId, setCompanyId] = useState("");
+@@ -48,6 +47,10 @@ function PaymentCreateDialog({
+   const openInvoices = invoices?.filter((i) =>
+     ["SENT", "PARTIAL", "OVERDUE"].includes(i.status),
+   );
++  const currency = invoices?.find((i) => i.id === invoiceId)?.currencyCode
++    ?? companies?.find((c) => c.id === companyId)?.currencyCode
++    ?? money.currency;
++  const factor = minorUnitFactor(currency);
+ 
+   const create = api.accounting.createPayment.useMutation();
+ 
+@@ -121,7 +124,7 @@ function PaymentCreateDialog({
+             </Select>
+           </Field>
+ 
+-          <Field id="payAmount" label={`Amount (${money.currency})`} required>
++          <Field id="payAmount" label={`Amount (${currency})`} required>
+             <Input
+               id="payAmount"
+               type="number"
+@@ -228,7 +231,7 @@ export function PaymentsTab() {
+                 <tr key={p.id} className="border-b border-line-glass-subtle">
+                   <td className="px-4 py-2.5 font-medium text-ink">{p.company.name}</td>
+                   <td className="px-4 py-2.5 text-end font-semibold text-ink-success">
+-                    <MoneyText minor={p.amountMinor} />
++                    <MoneyText minor={p.amountMinor} currency={p.invoice?.currencyCode ?? p.company.currencyCode} />
+                   </td>
+                   <td className="px-4 py-2.5 text-ink-secondary">
+                     {new Date(p.paidAt).toLocaleDateString()}
+diff --git a/DO6SQWGV/src/src/components/layout/topbar.tsx b/DO6SQWGV/src/src/components/layout/topbar.tsx
+index 01ed339..be3d7fb 100644
+--- a/DO6SQWGV/src/src/components/layout/topbar.tsx
++++ b/DO6SQWGV/src/src/components/layout/topbar.tsx
+@@ -44,7 +44,7 @@ export function Topbar({
+   userEmail: string;
+ }) {
+   return (
+-    <header className="glass-sidebar sticky top-0 z-[200] flex h-14 items-center justify-between gap-3 border-x-0 border-t-0 ps-4 pe-3 md:ms-sidebar">
++    <header className="glass-sidebar sticky top-0 z-[200] flex h-14 items-center justify-between gap-3 border-x-0 border-t-0 ps-4 pe-3 desktop-sidebar-offset">
+       {/* mobile brand (sidebar hidden below md) */}
+       <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
+         <span
+diff --git a/DO6SQWGV/src/src/lib/invoice-csv.ts b/DO6SQWGV/src/src/lib/invoice-csv.ts
+new file mode 100644
+index 0000000..2a12a74
+--- /dev/null
++++ b/DO6SQWGV/src/src/lib/invoice-csv.ts
+@@ -0,0 +1,43 @@
++import { minorUnitFactor } from "~/lib/money";
++
++export interface InvoiceCsvRow {
++  invoiceNumber: string;
++  company: { name: string };
++  issueDate: Date;
++  dueDate: Date | null;
++  currencyCode: string;
++  totalMinor: number;
++  paidMinor: number;
++  status: string;
++}
++
++export const INVOICE_CSV_HEADER =
++  "invoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status";
++
++function escapeField(value: string): string {
++  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
++}
++
++/** KB-EXP-01: preserve the authenticated list's selection, order and text. */
++export function invoiceCsv(invoices: readonly InvoiceCsvRow[]): string {
++  const rows = invoices.map((invoice) => {
++    const currency = invoice.currencyCode.toUpperCase();
++    const factor = minorUnitFactor(currency);
++    const amount = (minor: number) => (minor / factor).toFixed(factor === 1 ? 0 : 2);
++    const outstanding = ["SENT", "PARTIAL", "OVERDUE"].includes(invoice.status)
++      ? Math.max(0, invoice.totalMinor - invoice.paidMinor)
++      : 0;
++    return [
++      invoice.invoiceNumber,
++      invoice.company.name,
++      invoice.issueDate.toISOString().slice(0, 10),
++      invoice.dueDate?.toISOString().slice(0, 10) ?? "",
++      currency,
++      amount(invoice.totalMinor),
++      amount(invoice.paidMinor),
++      amount(outstanding),
++      invoice.status,
++    ].map(escapeField).join(",");
++  });
++  return `\uFEFF${[INVOICE_CSV_HEADER, ...rows].join("\r\n")}\r\n`;
++}
+diff --git a/DO6SQWGV/src/src/server/api/routers/accounting.ts b/DO6SQWGV/src/src/server/api/routers/accounting.ts
+index ade28bb..b435c43 100644
+--- a/DO6SQWGV/src/src/server/api/routers/accounting.ts
++++ b/DO6SQWGV/src/src/server/api/routers/accounting.ts
+@@ -250,8 +250,8 @@ export const accountingRouter = createTRPCRouter({
+         orderBy: { paidAt: "desc" },
+         take: input?.take ?? 50,
+         include: {
+-          company: { select: { id: true, name: true } },
+-          invoice: { select: { id: true, invoiceNumber: true } },
++          company: { select: { id: true, name: true, currencyCode: true } },
++          invoice: { select: { id: true, invoiceNumber: true, currencyCode: true } },
+         },
+       });
+       return payments.map((p) => ({ ...p, amountMinor: asNumber(p.amountMinor) }));
+diff --git a/DO6SQWGV/src/src/styles/globals.css b/DO6SQWGV/src/src/styles/globals.css
+index 15a647b..ef32343 100644
+--- a/DO6SQWGV/src/src/styles/globals.css
++++ b/DO6SQWGV/src/src/styles/globals.css
+@@ -403,3 +403,10 @@
+     transform: scale(1);
+   }
+ }
++
++/* Keep the shared shell beside the fixed w-60 desktop sidebar. */
++@media (min-width: 48rem) {
++  .desktop-sidebar-offset {
++    margin-inline-start: calc(var(--spacing) * 60);
++  }
++}
+diff --git a/DO6SQWGV/src/tests/invoice-csv.test.ts b/DO6SQWGV/src/tests/invoice-csv.test.ts
+new file mode 100644
+index 0000000..0aaaffa
+--- /dev/null
++++ b/DO6SQWGV/src/tests/invoice-csv.test.ts
+@@ -0,0 +1,74 @@
++import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
++import { invoiceCsv, INVOICE_CSV_HEADER, type InvoiceCsvRow } from "~/lib/invoice-csv";
++import { testDb, truncateAll } from "./helpers";
++
++vi.mock("~/server/auth", () => ({ auth: vi.fn() }));
++import { accountingRouter } from "~/server/api/routers/accounting";
++
++const row: InvoiceCsvRow = {
++  invoiceNumber: "INV-1", company: { name: "Alpha" },
++  issueDate: new Date("2026-10-01T00:00:00Z"), dueDate: null,
++  currencyCode: "USD", totalMinor: 12345, paidMinor: 2345, status: "PARTIAL",
++};
++
++describe("invoice CSV standard", () => {
++  it("emits a UTF-8 BOM and only the exact header for an empty selection", () => {
++    expect(invoiceCsv([])).toBe(`\uFEFF${INVOICE_CSV_HEADER}\r\n`);
++    expect([...Buffer.from(invoiceCsv([])).subarray(0, 3)]).toEqual([239, 187, 191]);
++  });
++  it("preserves order, status codes, calendar dates and partial payment balances", () => {
++    expect(invoiceCsv([row, { ...row, invoiceNumber: "INV-0", dueDate: new Date("2026-10-31T00:00:00Z") }]))
++      .toBe(`\uFEFF${INVOICE_CSV_HEADER}\r\nINV-1,Alpha,2026-10-01,,USD,123.45,23.45,100.00,PARTIAL\r\nINV-0,Alpha,2026-10-01,2026-10-31,USD,123.45,23.45,100.00,PARTIAL\r\n`);
++  });
++  it("preserves Vietnamese text, quotes, commas, newlines and surrounding spaces", () => {
++    expect(invoiceCsv([{ ...row, company: { name: ' Công ty "Ánh Dương", Chi nhánh 1\nHà Nội ' } }]))
++      .toContain('" Công ty ""Ánh Dương"", Chi nhánh 1\nHà Nội "');
++  });
++  it.each(["VND", "JPY", "KRW"])("uses zero decimal minor units for %s", (currencyCode) => {
++    expect(invoiceCsv([{ ...row, currencyCode }])).toContain(`,${currencyCode},12345,2345,10000,PARTIAL`);
++  });
++  it.each(["DRAFT", "VOID", "PAID"])("keeps %s with no receivable balance", (status) => {
++    expect(invoiceCsv([{ ...row, status }])).toContain(`,123.45,23.45,0.00,${status}`);
++  });
++  it("clamps overpayments and preserves negative amounts and currency casing", () => {
++    expect(invoiceCsv([{ ...row, paidMinor: 20000 }])).toContain(",123.45,200.00,0.00,PARTIAL");
++    expect(invoiceCsv([{ ...row, currencyCode: "eur", totalMinor: -10000, paidMinor: 0 }]))
++      .toContain(",EUR,-100.00,0.00,0.00,PARTIAL");
++  });
++});
++
++describe("authenticated export data source", () => {
++  beforeEach(truncateAll);
++  afterAll(() => testDb.$disconnect());
++  const caller = (signedIn: boolean) => accountingRouter.createCaller({
++    db: testDb, headers: new Headers(),
++    session: signedIn ? { user: { id: "staff" }, expires: "2099-01-01" } : null,
++  });
++
++  it("filters companies, retains draft/void, sums payments and preserves screen order", async () => {
++    const a = await testDb.company.create({ data: { name: "A", billingModel: "PER_PROJECT" } });
++    const b = await testDb.company.create({ data: { name: "B", billingModel: "PER_PROJECT" } });
++    const empty = await testDb.company.create({ data: { name: "Empty", billingModel: "PER_PROJECT" } });
++    for (const [index, companyId, status] of [[1, a.id, "DRAFT"], [2, b.id, "VOID"], [3, a.id, "PARTIAL"]] as const) {
++      const invoice = await testDb.invoice.create({ data: {
++        companyId, invoiceNumber: `FILTER-${index}`, issueDate: new Date(`2026-10-0${index}T00:00:00Z`),
++        currencyCode: "USD", subtotalMinor: 12345, totalMinor: 12345, status,
++      } });
++      if (status === "PARTIAL") await testDb.payment.createMany({ data: [2000, 345].map(amountMinor => ({
++        companyId, invoiceId: invoice.id, amountMinor, paidAt: new Date(),
++      })) });
++    }
++    const all = await caller(true).invoices();
++    expect(all.map(i => i.invoiceNumber)).toEqual(["FILTER-3", "FILTER-2", "FILTER-1"]);
++    expect(all[0]?.paidMinor).toBe(2345);
++    const selected = await caller(true).invoices({ companyId: a.id });
++    expect(selected.map(i => i.invoiceNumber)).toEqual(["FILTER-3", "FILTER-1"]);
++    expect(invoiceCsv(selected)).not.toContain("FILTER-2");
++    expect(invoiceCsv(await caller(true).invoices({ companyId: empty.id }))).toBe(`\uFEFF${INVOICE_CSV_HEADER}\r\n`);
++  });
++  it("rejects signed-out invoice queries before reading financial data", async () => {
++    await expect(caller(false).invoices()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
++    await expect(caller(false).invoices({ companyId: "00000000-0000-4000-8000-000000000000" }))
++      .rejects.toMatchObject({ code: "UNAUTHORIZED" });
++  });
++});
+diff --git a/DO6SQWGV/src/tests/money.test.ts b/DO6SQWGV/src/tests/money.test.ts
+new file mode 100644
+index 0000000..8003ffd
+--- /dev/null
++++ b/DO6SQWGV/src/tests/money.test.ts
+@@ -0,0 +1,25 @@
++import { describe, expect, it } from "vitest";
++
++import { formatMinor, minorUnitFactor, toMajor, toMinor } from "~/lib/money";
++
++describe("client currency minor units", () => {
++  it.each(["VND", "JPY", "KRW", "IRR", "IRT"])("keeps whole amounts for %s", (currency) => {
++    expect(minorUnitFactor(currency.toLowerCase())).toBe(1);
++    expect(toMinor(12345, currency)).toBe(12345);
++    expect(toMinor(5000, currency)).toBe(5000);
++    expect(toMajor(12345n, currency)).toBe(12345);
++  });
++
++  it.each(["USD", "EUR", "GBP", "AUD", "CAD", "SGD"])("keeps cents for %s", (currency) => {
++    expect(toMinor(123.45, currency)).toBe(12345);
++    expect(toMinor(1.01, currency)).toBe(101);
++    expect(toMajor(12345n, currency)).toBe(123.45);
++    expect(toMinor(0, currency)).toBe(0);
++    expect(toMinor(-1.25, currency)).toBe(-125);
++  });
++
++  it("formats a saved partial payment in its own currency", () => {
++    expect(formatMinor(5000, "VND")).toBe("₫5,000");
++    expect(formatMinor(12345, "USD")).toBe("$123.45");
++  });
++});

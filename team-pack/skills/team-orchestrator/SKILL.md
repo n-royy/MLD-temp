@@ -62,10 +62,19 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
 5. Wait with `wait_for_update` (blocks up to 4 minutes; returns early on a new item, a status change, pause/end, or
    `reason: "SLOT_DONE"` with `slotDone[]` when a worker wrote its DONE.json). Call it again and again **without
    writing any message in between**. A worker's FINAL_ANSWER message needs no reply.
+   When tools run inside an `exec` cell, use exactly this cell so it is not handed back after 30 s:
+   ```js
+   // @exec: {"yield_time_ms": 270000}
+   text(await tools.mcp__mtm_helper__wait_for_update({}));
+   ```
+   If a cell still answers "Script running", call `wait` on it with `yield_time_ms: 270000`, never a shorter value.
 6. On `SLOT_DONE`: `integrate_item` with `backlogItemKey` (tests come from DONE.json; pass `acknowledgeTestChanges`
    only when DONE.json gives that reason and the brief allows the test change). It checks the slot is committed and
    stays inside the assigned folder, runs `git pull --rebase`, cherry-picks the slot commits, pushes (never force),
    then runs `submit_work` with every gate, logs `SUBMITTED` with the receipt and returns the refreshed `board`.
+   - Before integrating a TASK whose answer is a value, read `answerFile`: if the value is empty, `0` or described as a
+     placeholder, `followup_task` the worker: "compute the best answer on the issued checkout, keep PARTIAL, never a
+     placeholder", and wait for the next `SLOT_DONE`.
    - `INTEGRATION_CONFLICT`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`, `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`,
      `SCRATCH_COMMITTED`: `followup_task` to that worker with the error code and message (one or two lines); wait for
      the next `SLOT_DONE`; integrate again (already integrated commits are not picked twice).

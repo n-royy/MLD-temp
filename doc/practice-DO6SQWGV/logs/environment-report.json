@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-28T12:47:50.9428011Z",
+  "status": "READY",
+  "checks": [
+    {
+      "name": "git",
+      "pass": true,
+      "location": "C:\\Program Files\\Git\\cmd\\git.exe",
+      "detail": null
+    },
+    {
+      "name": "node",
+      "pass": true,
+      "location": "D:\\Programs\\nodejs\\node.exe",
+      "detail": null
+    },
+    {
+      "name": "pnpm",
+      "pass": true,
+      "location": "",
+      "detail": null
+    },
+    {
+      "name": "test-database-privileges",
+      "pass": true,
+      "location": "postgresql://freelanceos:***@127.0.0.1:5433/freelanceos_do6sqwgv_test",
+      "detail": "TEST_DATABASE_URL role can set session_replication_role and create the test database"
+    }
+  ]
+}

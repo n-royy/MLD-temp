@@ -11,8 +11,10 @@ Short rules learned from real matches. Each line names where it came from. They 
 - Every PASS row needs at least one existing `evidence/<file>`; the brief may name required evidence files
   (e.g. a "before fixing" screenshot). (QNW5V6OU BUG-01)
 - TASK answers can be compared by exact string equality: copy the format the brief asks for (e.g. a digits-only
-  JSON string). If the brief points to a commit or data you cannot obtain, say so in the answer and use `PARTIAL`
-  instead of presenting a guess as certain. (QNW5V6OU TASK-01)
+  JSON string). Always submit your best answer computed from the source you have. If the brief points to a commit
+  or data you cannot obtain, compute the answer on the issued checkout, set `PARTIAL` and state the gap in the
+  evidence. Never submit `0`, an empty string or any other placeholder: it always scores 0, while the answer traced
+  on the issued source scored full points twice. (QNW5V6OU, HW828P0Y TASK-01)
 
 ## Engineering
 - Never weaken an existing test to get green; decide intended behaviour from the brief, business rules and the

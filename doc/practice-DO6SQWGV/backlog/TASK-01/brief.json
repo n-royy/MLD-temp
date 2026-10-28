@@ -1,0 +1,47 @@
+{
+  "backlogId": "TASK-01",
+  "backlogType": "TASK",
+  "item": {
+    "id": "c743f645-1a3d-4c8f-9aa8-210060cad507",
+    "key": "TASK-01",
+    "title": "Trace a card position after reordering",
+    "type": "TASK",
+    "backlogId": "TASK-01",
+    "backlogType": "TASK",
+    "backlogTitle": "Trace a card position after reordering",
+    "status": "OPEN",
+    "workStatus": "NOT_STARTED",
+    "revisionNo": 1,
+    "points": 100,
+    "descriptionMd": "# Trace a card position after reordering\n\n## Context\nUnderstand the existing board ordering behavior from the issued source. In an initially empty list on a board, a user creates cards A, B, C sequentially using the normal Create card action. They then drag C between A and B.\n\n## Canonical scope\nUse the issued source at commit 571c531681e672241f18842025c905e499a3641d. Follow normal card creation and the same-list drag-and-drop flow. Exclude templates, imported cards, concurrent changes, and previously existing cards.\n\n## Canonical algorithm\nDetermine the positions assigned by normal creation in the given order. Follow the move operation with A immediately before C and B immediately after C. Apply any rebalance rule that this source would trigger. Report C's final persisted database position.\n\n## Normalization\nThe answer is one unsigned decimal integer string, without whitespace, separators, units, or explanatory prose. Do not return a JSON number.\n\n## Ordering\nThe initial visible order is A, B, C; the final visible order is A, C, B. There is only one answer field.\n\n## Answer format\nSet the position field in submit.json to the required string. Maximum practice score: 100 points. The answer is compared by exact string equality; no AI judgment is used.\n\n## Submission\n\nCreate `answers/TASK-01/`, copy `challenge/TASK-01-submit.json` to `answers/TASK-01/submit.json`, and create its `evidence/` child directory. Record actual test results and relative evidence paths. Every PASS result must reference an existing evidence file. Commit source, tests, evidence, and the completed submission together. Do not add a gitRevision field; give the pushed commit SHA to Game Master separately.\n\n### submit.json contract\n\n`submit.json` must validate against `challenge/TASK-01-submit.schema.json` (JSON Schema 2020-12), delivered with the submit template. Grading checks this schema first: a file that does not validate scores 0.\n\n- Keep exactly the template fields: `schemaVersion`, `backlogId`, `status`, `evidenceFiles`, `position`. Do not add or rename fields.\n- `position` is a JSON string of digits only, for example `\"123\"`, not a JSON number.\n- Evidence paths are `evidence/<file name>`, for files directly inside `answers/TASK-01/evidence/`.\n- Before submitting, set the top-level `status` to `DONE`, `PARTIAL` or `BLOCKED`.",
+    "releaseFiles": [
+      "challenge/TASK-01.md"
+    ],
+    "onStartFiles": [
+      "challenge/TASK-01-submit.json",
+      "challenge/TASK-01-submit.schema.json"
+    ],
+    "startInstruction": "After the team declares START, send the submit template.",
+    "deadlineMinutes": null,
+    "revealedElapsedSec": 1741,
+    "updatedByEventKey": null,
+    "updatedAt": "2026-10-28T13:21:07.612Z",
+    "submission": null
+  },
+  "startInstruction": "After the team declares START, send the submit template.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "TASK-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "position": ""
+  },
+  "minimumVerificationScenarios": null,
+  "requiredTestCases": 0,
+  "answerFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\answers\\TASK-01\\submit.json",
+  "evidenceDir": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\answers\\TASK-01\\evidence",
+  "organizerFiles": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\.mtm-tmp\\TASK-01\\files",
+  "submitSchemaFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\.mtm-tmp\\TASK-01\\submit.schema.json",
+  "validateCommand": "node \"D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\.mtm-tmp\\TASK-01\\validate.mjs\"",
+  "doneFile": "D:\\mtm\\MLD-multi\\matches\\DO6SQWGV.slots\\s3\\DO6SQWGV\\.mtm-tmp\\TASK-01\\DONE.json"
+}

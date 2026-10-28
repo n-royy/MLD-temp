@@ -257,7 +257,7 @@ Diễn biến khác: sau khi tắt 0.9.33 và mở 0.9.35, Player **tự tiếp 
 | 2 | `tools/db-state.ps1` để kiểm trạng thái DB cục bộ trước trận | áp dụng |
 | 3 | Kiểm bản Player trên trang Team pack trước mỗi trận (mục 3 SETUP.md) | quy trình |
 | 4 | Giảm `report_progress` thừa; cân nhắc rút ngắn ngữ cảnh khi chờ | cân nhắc |
-| 5 | Quy tắc PI vs item sắp hết hạn (PI trước, trừ khi item deadline đang dở và nộp được trong ~3 phút) | chờ quyết định |
+| 5 | Quy tắc PI vs item sắp hết hạn (PI trước, trừ khi item deadline đang dở và nộp được trong ~3 phút) | giữ như cũ: PI luôn trước (quyết định 28/10) |
 | 6 | Vòng 5 nên chạy trên DB sạch để xác nhận agent xử lý cascade đúng ở seed này | khi chạy tiếp |
 
 ---

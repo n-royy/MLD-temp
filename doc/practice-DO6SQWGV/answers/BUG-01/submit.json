@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "BUG-01",
+  "status": "DONE",
+  "evidenceFiles": [
+    "evidence/before-layout.json",
+    "evidence/build.txt",
+    "evidence/dashboard_before_fixing.png",
+    "evidence/desktop-layout.json",
+    "evidence/production-dashboard.png",
+    "evidence/production-layout.json",
+    "evidence/production-mobile-layout.json",
+    "evidence/tc-01-desktop-dashboard.png",
+    "evidence/tc-02-production-boards.png",
+    "evidence/tc-02-production-layout.png",
+    "evidence/tc-03-mobile-accounting.png",
+    "evidence/tc-03-mobile-dashboard.png",
+    "evidence/tests.txt",
+    "evidence/typecheck.txt"
+  ],
+  "testResults": [
+    {
+      "id": "BUG-01-TC-01",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-01-desktop-dashboard.png",
+        "evidence/desktop-layout.json"
+      ]
+    },
+    {
+      "id": "BUG-01-TC-02",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-02-production-layout.png",
+        "evidence/tc-02-production-boards.png",
+        "evidence/production-layout.json",
+        "evidence/build.txt"
+      ]
+    },
+    {
+      "id": "BUG-01-TC-03",
+      "result": "PASS",
+      "evidence": [
+        "evidence/tc-03-mobile-dashboard.png",
+        "evidence/tc-03-mobile-accounting.png",
+        "evidence/production-mobile-layout.json"
+      ]
+    }
+  ],
+  "engineeringRecord": {
+    "analysis": "Before fixing, the 240px fixed sidebar covered the main content and top bar, both starting at x=0. The shared layout referenced md:ms-sidebar without defining that utility. Expected both to start beside the sidebar on desktop and retain zero offset on mobile.",
+    "changes": [
+      "Shared app layout and topbar now use desktop-sidebar-offset. globals.css defines its logical margin at the existing 48rem desktop breakpoint, matching sidebar w-60 via the spacing token.",
+      "Assigned baseline failure in cascade.test.ts was caused by the company_delete_cascades_financials migration contradicting DECISIONS.md and original migration. Added a corrective migration and aligned accounting.prisma: invoices/payments RESTRICT and expenses SET NULL, preserving financial history. No existing tests changed."
+    ],
+    "tests": [
+      "All 3 MVS scenarios passed with authenticated seeded data; browser screenshots and bounding boxes verify main/topbar x=240 beside the sidebar at desktop widths and x=0 at 390px.",
+      "Production build and start verified Accounting/Boards at 1024px and Dashboard at 1440px. Mobile Home/Money navigation verified on Dashboard and Accounting.",
+      "pnpm test: 12 passed, 0 failed. pnpm typecheck: exit 0. pnpm build: exit 0.",
+      "Local verification used port 3120 because 3020 was already occupied. A stale dev CSS cache was cleared before rerunning; a dev/build cache collision during an intermediate run was resolved by running the servers sequentially. Final checks passed.",
+      "Development desktop TC-01 passed independently. Mobile navigation TC-03 passed on production; development mobile return navigation encountered a Next development error overlay, so mobile interaction evidence is from production."
+    ],
+    "risks": [
+      "Sidebar width and desktop breakpoint must stay aligned with the shared offset rule."
+    ],
+    "aiCollaboration": "AI inspected source and documented design, implemented the minimal shared layout fix and assigned database baseline correction, and used Playwright browser checks plus the existing suite for verification."
+  }
+}
