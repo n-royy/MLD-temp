@@ -50,6 +50,7 @@ check(exactKeys(info, ['schemaVersion', 'version', 'teamId', 'teamName']) && inf
   /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(info?.teamId ?? '') && info.teamId !== 'YOUR_TEAM_ID', 'TEAM_PACK_INFO');
 check(pkg?.version === runtime?.version && pkg?.version === info?.version, 'VERSION_MISMATCH');
 const files = pkg ? ['package.json', ...(pkg.files ?? []).flatMap(e => filesBelow(root, e))] : [];
+for (const f of ['skills/team-orchestrator/WORKER.md', 'skills/game-preparation/ENVIRONMENT.md']) check(existsSync(join(root, f)), `MISSING:${f}`);
 for (const [skill] of [['team-orchestrator'], ['game-preparation'], ['team-recovery']]) {
   const p = join(root, 'skills', skill, 'SKILL.md');
   check(existsSync(p) && read(p).trim().length > 200, `SKILL_EMPTY:${skill}`);
@@ -70,7 +71,8 @@ if (ws) {
   same(join(root, 'team-runtime.json'), join(ws, '.mtm', 'team-runtime.json'), 'REGISTRATION_RUNTIME');
   same(join(root, 'team-pack-info.json'), join(ws, '.mtm', 'team-pack-info.json'), 'REGISTRATION_IDENTITY');
   for (const n of readdirSync(join(root, 'agents'))) same(join(root, 'agents', n), join(ws, '.codex', 'agents', n), `REGISTRATION_AGENT:${n}`);
-  for (const s of readdirSync(join(root, 'skills'))) same(join(root, 'skills', s, 'SKILL.md'), join(ws, '.agents', 'skills', s, 'SKILL.md'), `REGISTRATION_SKILL:${s}`);
+  // Every skill file (SKILL.md plus WORKER.md, ENVIRONMENT.md, LESSONS.md, products/...) must be registered.
+  for (const f of files.filter(f => f.startsWith('skills/'))) same(join(root, f), join(ws, '.agents', f), `REGISTRATION_SKILL:${f}`);
   const server = join(root, 'bin', 'runtime-server.mjs').replace(/\\/g, '/');
   const cfg = existsSync(join(ws, '.codex', 'config.toml')) ? read(join(ws, '.codex', 'config.toml')) : '';
   check(cfg.includes(JSON.stringify(server)), 'CODEX_CONFIG_MCP_PATH');
