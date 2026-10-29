@@ -67,7 +67,8 @@ const TOOLS = [
     inputSchema: obj({ backlogItemKey: key }, ['backlogItemKey']) },
   { name: 'submit_work', handler: a => session.submitWork(a),
     description: 'Submit one started item ONCE. Commit source + answers/<ID>/submit.json + evidence first and push to the ' +
-      'assigned branch. Pass the real test counts in `tests` (required, executed, passed, failed, skipped, summary): the helper ' +
+      'assigned branch. Test counts come from the answer\'s testResults rows (one per template test case: required = rows, ' +
+      'passed = PASS rows, failed = FAIL rows); `tests` is only for items whose template has no rows. The helper ' +
       'logs the final BACKLOG_TESTS event, verifies the pushed revision (answer valid against the submit schema, every ' +
       'evidence/<file> committed, no existing test weakened, no scratch files), sends it with gitRevision and an idempotency ' +
       'key, retries safely, logs SUBMITTED with the receipt and returns the refreshed board (no refresh_match needed). ' +
@@ -76,7 +77,7 @@ const TOOLS = [
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },
         skipped: { type: 'integer' }, summary: { type: 'string' } }, ['required', 'executed', 'passed', 'failed']),
       acknowledgeTestChanges: { type: 'string', description: 'Only when the brief explicitly allows correcting an existing test: the reason, also written in the answer.' } },
-    ['backlogItemKey', 'tests']) },
+    ['backlogItemKey']) },
   { name: 'report_progress', handler: a => session.report(a.event),
     description: 'Append one progress event (without schemaVersion/playerSessionId; they are added). Types: PREPARATION_STATUS, ' +
       'ENVIRONMENT_READY, GAME_START_STATUS, BACKLOG_STATUS, BACKLOG_TESTS, BLOCKER_OPENED, BLOCKER_RESOLVED, ' +

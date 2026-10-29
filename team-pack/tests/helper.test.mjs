@@ -164,13 +164,14 @@ test('full match flow', async () => {
   g(checkoutRoot, 'commit', '-m', 'TASK-01: keep existing test'); g(checkoutRoot, 'push', 'origin', 'HEAD:main');
   assert.equal(gm.state.submissions.size, 0);
   // Impossible test counts are refused before anything is sent.
-  assert.equal((await h.call('submit_work', { backlogItemKey: 'TASK-01', tests: { required: 1, executed: 2, passed: 1, failed: 0 } })).error.code, 'INVALID_TEST_COUNTS');
+  // Counts the agent passes for an item with test-case rows are ignored: the rows decide (no inflated counts).
   assert.equal(gm.state.submissions.size, 0);
   // Server hiccup: two 503s, retried with the same key.
   gm.state.failNextSubmit = 2;
   const sub = await h.call('submit_work', { backlogItemKey: 'TASK-01', tests: { required: 1, executed: 1, passed: 1, failed: 0, summary: 'MVS passed.' } });
   assert.equal(sub.status, 'SUBMITTED', JSON.stringify(sub));
   assert.equal(sub.testStatus, 'PASSED');
+  assert.deepEqual([sub.tests.required, sub.tests.executed, sub.tests.passed], [1, 1, 1]);
   assert.ok(Array.isArray(sub.board?.items), 'board returned after submit');
   assert.ok(logEvents().some(e => e.type === 'BACKLOG_TESTS' && e.backlogId === 'TASK-01' && e.status === 'PASSED' && e.executed === 1));
   const sent = gm.state.submissions.get('TASK-01');

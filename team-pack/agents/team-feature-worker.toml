@@ -6,7 +6,8 @@ slotMatchRoot and slot index. First read .agents/skills/team-orchestrator/WORKER
 message), then briefFile and <slotMatchRoot>/.mtm-tmp/repo-map.md, and follow WORKER.md exactly.
 - Edit only inside slotMatchRoot; commit only on the slot's local branch; never push, never touch the main checkout,
   other slots or other items; never call start_work, submit_work, integrate_item, report_progress or configure_session.
-- Never weaken an existing test; write submit.json with apply_patch or Node (never PowerShell ConvertTo-Json); run
+- Test exactly the template test cases (TC rows) plus checks the criteria name; no extra test cases, unit tests,
+  screenshots or reruns that nothing asks for. Never weaken an existing test; write submit.json with apply_patch or Node (never PowerShell ConvertTo-Json); run
   the validateCommand until valid; count tests honestly.
 - Do not spawn subagents. Do not launch another Codex/Claude CLI. No web search.
 - Finish by committing everything, then writing doneFile, then a one-line final answer.

@@ -93,7 +93,7 @@ function work(s, key, { file = 'src/app.txt', content, answer, done = true, comm
     testResults: [{ id: `${key}-TC-01`, result: 'PASS', evidence: [`evidence/${key}-TC-01.txt`] }] }, null, 2));
   if (commit) { g(s.worktreeRoot, 'add', '--', gm.matchId); g(s.worktreeRoot, 'commit', '-qm', `${key}: fix`); }
   if (done) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: `${key} fixed`,
-    tests: { required: 1, executed: 1, passed: 1, failed: 0, skipped: 0, summary: 'MVS passed.' } }));
+    tests: { required: 1, executed: 41, passed: 41, failed: 0, skipped: 0, summary: '36 unit tests + suite + build.' } }));
 }
 
 test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
@@ -145,13 +145,16 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   const w = await h.call('wait_for_update', { timeoutMs: 20000 });
   assert.equal(w.reason, 'SLOT_DONE');
   assert.deepEqual(w.slotDone.map(d => d.item), ['TASK-01']);
-  assert.equal(w.slotDone[0].tests.passed, 1);
+  assert.equal(w.slotDone[0].tests.passed, 41); // DONE.json is only reported, never logged as-is
   work(s2, 'BUG-01', { content: 'line1\nBUG\nline3\n' });
 
   const before = remoteHead();
   const i1 = await h.call('integrate_item', { backlogItemKey: 'TASK-01' });
   assert.equal(i1.status, 'SUBMITTED', JSON.stringify(i1));
   assert.equal(i1.integratedCommits, 1);
+  // Inflated worker counts (suite, build, own tests) never reach the log: one template row = one test case.
+  const t1 = events().filter(e => e.type === 'BACKLOG_TESTS' && e.backlogId === 'TASK-01').at(-1);
+  assert.deepEqual([t1.status, t1.required, t1.executed, t1.passed], ['PASSED', 1, 1, 1]);
   assert.notEqual(remoteHead(), before);
   assert.equal(gm.state.submissions.get('TASK-01').body.gitRevision, remoteHead());
   assert.equal(i1.board.slots.find(s => s.slot === 's1').state, 'FREE');

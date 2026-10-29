@@ -29,15 +29,18 @@ instead of exploring.
    `doubts`. Their information is authoritative.
 2. Find the code with `rg -n` and read only the slices you need. Make the smallest correct change at the root cause,
    in the existing style, inside `slotMatchRoot`.
-3. Test: run every MVS scenario and the narrow regression tests of the touched module. MVS is only the minimum: the
-   grader runs other scenarios, so test edge cases (empty input, permissions, boundaries, validation errors,
-   neighbouring features). Count honestly (`executed = passed + failed + skipped`). Max ~3 fix/test rounds.
+3. Test exactly the item's test cases, no more ("Test cases" below): one run per template row (`<ID>-TC-01..n`),
+   following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
+   writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
+   extra pages, viewports or scripts. Max ~3 fix/test rounds.
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
 5. Answer: edit `answerFile` (created from the template). Keep exactly the template's keys and rows, fill every field
    truthfully, set the top-level status the way the brief says. Every list stays a JSON array even with one element
    (`"evidence": ["evidence/a.png"]`). Write it with `apply_patch` or Node (`JSON.stringify(obj, null, 2)`);
    **never with PowerShell `ConvertTo-Json`**. Evidence files go in `evidenceDir` and are referenced as
-   `evidence/<file>` (never with an `answers/<ID>/` prefix, never at repository root). Keep evidence small (tails).
+   `evidence/<file>` (never with an `answers/<ID>/` prefix, never at repository root). Evidence = exactly the files the MVS/brief names as required (e.g. `tc-01-desktop-dashboard.png`,
+   a "before fixing" screenshot), plus one small text file (command + tail) for a row that names none. No extra
+   screenshots, layout dumps or duplicate logs; `evidenceFiles` lists exactly the referenced files.
    A value answer (number, ID or text compared exactly) always holds your best answer computed from the source you
    have. When the brief names a commit or data you cannot obtain, compute it on the issued checkout, set `PARTIAL` and
    state the gap in the evidence; never submit `0`, an empty string or any other placeholder (it always scores 0).
@@ -45,19 +48,34 @@ instead of exploring.
 7. Commit source + tests + answer + evidence. `git -C <worktreeRoot> status --porcelain` must be empty.
 8. Write `doneFile` LAST (it tells the orchestrator you are finished), with Node or `apply_patch`:
    `{"status":"DONE|PARTIAL|BLOCKED","tests":{"required":n,"executed":n,"passed":n,"failed":n,"skipped":n,"summary":"one line"},"summary":"one line","doubts":"optional one line"}`
+   `tests` counts test cases = the template rows (`required` = number of rows; `executed`/`passed`/`failed` = rows
+   run/PASS/FAIL), never the number of unit tests, suite tests, builds or typechecks. The helper recounts from the
+   committed answer rows anyway; existing-suite results go into `summary` and the engineering record as text.
 9. Final answer: one line (`<ID> DONE, tests 5/5, see DONE.json`). No diffs, no logs.
 
-If the orchestrator sends a follow-up (a rejected integration or submit gate), fix exactly that, rerun the affected
+If the orchestrator sends a follow-up (a rejected integration or submit gate), fix exactly that, rerun only the affected test cases (and the existing suite once if a criterion requires it), no new evidence
+commits for re-runs; the
 tests, commit, rewrite `doneFile`, and answer in one line again. For `INTEGRATION_CONFLICT`:
-`git -C <worktreeRoot> rebase <branch>`, resolve keeping both changes, rerun the tests, `git rebase --continue`.
+`git -C <worktreeRoot> rebase <branch>`, resolve keeping both changes, rerun only the test cases touched by the conflict, `git rebase --continue`.
 
 ## Playbook by type
 | Type | How | Done when |
 |---|---|---|
-| PI | Read the symptom, company tools (logs/tickets/monitoring) first, reproduce, root cause, minimal fix | Repro no longer fails + related module tests green |
-| BUG | Reproduce with the MVS, smallest fix at the root cause, keep MVS tests unchanged | All MVS pass + module tests green + evidence |
-| CR | List every spec point and edge case, implement, add own tests beyond MVS | All MVS pass + own tests per spec point + module tests green |
-| TASK | Do exactly what is asked, verify by command/test | Verified result |
+| PI | Read the symptom, company tools (logs/tickets/monitoring) first, reproduce, root cause, minimal fix | Repro no longer fails + every template test case run |
+| BUG | Reproduce with the MVS, smallest fix at the root cause, keep MVS tests unchanged | Every template test case PASS + criteria checks + required evidence |
+| CR | List every spec point and edge case, implement them; add automated tests only if the brief asks, covering exactly the points it lists | Every template test case PASS + criteria checks + required evidence |
+| TASK | Do exactly what is asked, verify by command/test | Every template test case (or the asked verification) done |
+
+## Test cases (what to run and count)
+- The item's test cases are the rows of `submitTemplate.testResults`; their number is `requiredTestCases`. Run each
+  once following its MVS scenario and fill exactly those rows. Never add rows or invent extra scenarios.
+- Run other checks only when an acceptance criterion names them, once, at the end:
+  "existing tests keep passing" → the existing suite once; "typecheck/build passes" → that command once;
+  "add automated tests for X" → write tests for exactly the listed points (no more). They are not test cases: report
+  them as text in the engineering record, not in the counts.
+- Do not write new unit tests, extra browser scripts, extra viewports or pages "to be safe" when nothing asks for
+  them; do not rerun a passing suite unless code changed after the run.
+- An item without rows (`requiredTestCases` 0): do the one verification the brief asks for and count it.
 
 ## Existing tests
 Never weaken, skip, delete or rewrite an existing test to make it pass: fix the product code. Only when the brief

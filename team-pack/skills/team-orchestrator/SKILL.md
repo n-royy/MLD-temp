@@ -68,7 +68,7 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    text(await tools.mcp__mtm_helper__wait_for_update({}));
    ```
    If a cell still answers "Script running", call `wait` on it with `yield_time_ms: 270000`, never a shorter value.
-6. On `SLOT_DONE`: `integrate_item` with `backlogItemKey` (tests come from DONE.json; pass `acknowledgeTestChanges`
+6. On `SLOT_DONE`: `integrate_item` with `backlogItemKey` (test counts come from the answer's template rows; pass `acknowledgeTestChanges`
    only when DONE.json gives that reason and the brief allows the test change). It checks the slot is committed and
    stays inside the assigned folder, runs `git pull --rebase`, cherry-picks the slot commits, pushes (never force),
    then runs `submit_work` with every gate, logs `SUBMITTED` with the receipt and returns the refreshed `board`.

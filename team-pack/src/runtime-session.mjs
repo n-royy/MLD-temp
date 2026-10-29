@@ -511,12 +511,26 @@ export class MatchSession {
     return { full, answer, evidence: check.evidence, schemaChecked: check.schemaChecked };
   }
 
+  /** Test counts of an item = its template test-case rows (TC-01..n), taken from the committed answer.
+   *  Extra checks a worker ran (existing suite, typecheck, build, own scripts) are never counted as test cases. */
+  #rowTests(answer) {
+    const rows = Array.isArray(answer?.testResults) ? answer.testResults : [];
+    if (!rows.length) return null;
+    const res = r => String(r?.result ?? '').toUpperCase();
+    const passed = rows.filter(r => res(r) === 'PASS' || res(r) === 'PASSED').length;
+    const failed = rows.filter(r => res(r) === 'FAIL' || res(r) === 'FAILED').length;
+    if (!passed && !failed) return { required: rows.length, executed: 0, passed: 0, failed: 0, skipped: 0, summary: `0/${rows.length} test cases run.` };
+    const skipped = rows.length - passed - failed;
+    return { required: rows.length, executed: rows.length, passed, failed, skipped,
+      summary: `${passed}/${rows.length} test cases passed${failed ? `, ${failed} failed` : ''}${skipped ? `, ${skipped} not run` : ''}.` };
+  }
+
   /** Final BACKLOG_TESTS event from the counts the agent observed; rejects impossible counts. */
   #logTests(key, tests) {
     const n = k => Number.isSafeInteger(tests?.[k]) && tests[k] >= 0 ? tests[k] : null;
     const counts = { required: n('required'), executed: n('executed'), passed: n('passed'), failed: n('failed'), skipped: n('skipped') ?? 0 };
     if (Object.values(counts).some(v => v === null)) fail('INVALID_TEST_COUNTS', 'tests needs integer required, executed, passed, failed (skipped optional)');
-    const status = counts.failed > 0 ? 'FAILED' : 'PASSED';
+    const status = counts.failed > 0 ? 'FAILED' : counts.executed === 0 ? 'NOT_RUN' : 'PASSED';
     const summary = clip(tests.summary ?? `${counts.passed}/${counts.executed} passed, ${counts.failed} failed.`);
     try { this.log.append({ type: 'BACKLOG_TESTS', backlogId: key, status, ...counts, summary }); }
     catch (error) { fail('INVALID_TEST_COUNTS', error.message); }
@@ -542,7 +556,9 @@ export class MatchSession {
     }
     if (!this.projection) await this.#getProjection();
     const url = this.#endpoint('submit');
-    const testStatus = tests ? this.#logTests(backlogItemKey, tests) : null;
+    // When the answer has test-case rows they decide the counts; `tests` is used only for items without rows.
+    const counted = this.#rowTests(answer) ?? tests ?? null;
+    const testStatus = counted ? this.#logTests(backlogItemKey, counted) : null;
     const bodyFor = id => JSON.stringify({ clientSubmissionId: id, backlogItemKey, gitRevision: full, answer });
     let clientSubmissionId = prior?.clientSubmissionId;
     if (!clientSubmissionId || prior.bodySha !== sha256(bodyFor(prior.clientSubmissionId))) clientSubmissionId = randomUUID();
@@ -600,7 +616,7 @@ export class MatchSession {
       // Refresh once here so the agent needs no separate refresh_match call.
       let board = null;
       try { await this.#getProjection(); this.signature = this.#signature(); board = this.#board(this.lastFresh); } catch { /* next wait_for_update refreshes */ }
-      return { status: 'SUBMITTED', receipt, gitRevision: full, evidence, schemaChecked, changedTests, testStatus, board };
+      return { status: 'SUBMITTED', receipt, gitRevision: full, evidence, schemaChecked, changedTests, testStatus, tests: counted, board };
     }
     this.#api('SUBMIT', backlogItemKey, 'POST', url, 'FAILED', res.status, rid, `Submit ${backlogItemKey} rejected: ${code ?? res.status}.`);
     state[backlogItemKey].outcome = code ?? `HTTP_${res.status}`;
@@ -772,9 +788,9 @@ export class MatchSession {
     const s = this.#slotOf(backlogItemKey);
     if (!s) fail('ITEM_NOT_IN_SLOT', `${backlogItemKey} is not assigned to a slot`);
     if (!tests) {
+      // Only used when the answer has no test-case rows (submit_work counts the rows otherwise).
       const f = join(s.matchRoot, SCRATCH, backlogItemKey, 'DONE.json');
-      try { tests = JSON.parse(readFileSync(f, 'utf8').replace(/^﻿/, '')).tests; } catch { /* below */ }
-      if (!tests) fail('INVALID_TEST_COUNTS', 'pass tests or let the worker write them into DONE.json');
+      try { tests = JSON.parse(readFileSync(f, 'utf8').replace(/^﻿/, '')).tests; } catch { /* optional */ }
     }
     const dirty = (await gitOk(s.path, ['status', '--porcelain'])).trim();
     if (dirty && !allowUncommitted) {

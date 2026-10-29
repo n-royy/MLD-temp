@@ -17,6 +17,10 @@ Short rules learned from real matches. Each line names where it came from. They 
   on the issued source scored full points twice. (QNW5V6OU, HW828P0Y TASK-01)
 
 ## Engineering
+- Test only the item's template test cases (TC-01..n) plus the checks its criteria name. DO6SQWGV workers ran and
+  counted 17/27/41 "tests" for 3/4/5 test cases (suite, build, typecheck, own scripts), wrote unit tests no brief asked
+  for (BUG-02) and produced 14 evidence files for 3 rows (BUG-01): time and tokens with no score. Exception: CR-01
+  criterion 5 asked for automated export tests, so those were required.
 - Never weaken an existing test to get green; decide intended behaviour from the brief, business rules and the
   repository's design documents, not from current code. (QNW5V6OU BUG-02)
 - A test that already fails at baseline is a planted problem: 4 of 5 items required "existing tests pass", so leaving
