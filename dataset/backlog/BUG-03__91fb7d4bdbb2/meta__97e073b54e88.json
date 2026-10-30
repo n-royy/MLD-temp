@@ -1,0 +1,16 @@
+{
+  "key": "BUG-03",
+  "title": "Invoices paid in full stay partially paid",
+  "type": "BUG",
+  "points": 80,
+  "deadlineMinutes": 15,
+  "releaseFiles": [
+    "challenge/BUG-03.md"
+  ],
+  "onStartFiles": [
+    "challenge/BUG-03-submit.json",
+    "challenge/BUG-03-submit.schema.json",
+    "challenge/BUG-03-minimum-verification-scenarios.md",
+    "challenge/BUG-03-mvs.test.ts"
+  ]
+}

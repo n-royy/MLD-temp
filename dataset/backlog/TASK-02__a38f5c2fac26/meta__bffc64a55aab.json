@@ -1,0 +1,15 @@
+{
+  "key": "TASK-02",
+  "title": "Resolve production dependency vulnerabilities",
+  "type": "TASK",
+  "points": 250,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/TASK-02.md"
+  ],
+  "onStartFiles": [
+    "challenge/TASK-02-submit.json",
+    "challenge/TASK-02-submit.schema.json",
+    "challenge/TASK-02-run-checks.mjs"
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "total": 20,
+  "returned": 20,
+  "entries": [
+    {
+      "ts": "2026-10-27T09:40:12Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261027-0940",
+      "message": "Reminder batch finished",
+      "context": {
+        "batchId": "rb-20261027-0940",
+        "sent": 7
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:07Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a142",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1106",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 3,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:06Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a13c",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1102",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 10,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:05Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a131",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1109",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 3,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:04Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a12a",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 10,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:03Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a113",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 10,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:02Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a10f",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1107",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 3,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:01Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-a104",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 30,
+        "batchId": "rb-20261027-0940",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:00Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261027-0940",
+      "message": "Reminder batch started",
+      "context": {
+        "batchId": "rb-20261027-0940",
+        "statusSource": "cache",
+        "snapshotId": "snap-20261027-0558"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:09Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261027-0740",
+      "message": "Reminder batch finished",
+      "context": {
+        "batchId": "rb-20261027-0740",
+        "sent": 5
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:05Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-80c1",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 10,
+        "batchId": "rb-20261027-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:04Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-80b6",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 30,
+        "batchId": "rb-20261027-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:03Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-7f3a",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1101",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 3,
+        "batchId": "rb-20261027-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:02Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-91e8",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1102",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 10,
+        "batchId": "rb-20261027-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:01Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-91d2",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1106",
+        "status": "OVERDUE",
+        "statusSource": "cache",
+        "daysPastDue": 3,
+        "batchId": "rb-20261027-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:00Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261027-0740",
+      "message": "Reminder batch started",
+      "context": {
+        "batchId": "rb-20261027-0740",
+        "statusSource": "cache",
+        "snapshotId": "snap-20261027-0558"
+      }
+    },
+    {
+      "ts": "2026-10-27T06:06:15Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rw-boot",
+      "message": "Worker restarted",
+      "context": {
+        "release": "rel-20261027-2",
+        "config": {
+          "reminders.statusFromCache": true,
+          "reminders.batchEveryMinutes": 120
+        }
+      }
+    },
+    {
+      "ts": "2026-10-26T07:40:09Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261026-0740",
+      "message": "Reminder batch finished",
+      "context": {
+        "batchId": "rb-20261026-0740",
+        "sent": 1
+      }
+    },
+    {
+      "ts": "2026-10-26T07:40:03Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rem-MLD-2c07",
+      "message": "Reminder sent",
+      "context": {
+        "invoice": "INV-MLD-1105",
+        "status": "OVERDUE",
+        "statusSource": "db",
+        "daysPastDue": 10,
+        "batchId": "rb-20261026-0740",
+        "channel": "email"
+      }
+    },
+    {
+      "ts": "2026-10-26T07:40:00Z",
+      "service": "reminder-worker",
+      "level": "INFO",
+      "requestId": "rb-20261026-0740",
+      "message": "Reminder batch started",
+      "context": {
+        "batchId": "rb-20261026-0740",
+        "statusSource": "db"
+      }
+    }
+  ]
+}

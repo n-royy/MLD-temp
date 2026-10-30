@@ -1,0 +1,106 @@
+{
+  "total": 6,
+  "returned": 6,
+  "entries": [
+    {
+      "ts": "2026-10-27T08:45:00Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4414",
+      "message": "Release rel-20261027-4 completed",
+      "context": {
+        "release": "rel-20261027-4",
+        "components": [
+          "status-cache"
+        ],
+        "changes": [
+          "status-cache: expose snapshot age metric"
+        ],
+        "flags": {}
+      }
+    },
+    {
+      "ts": "2026-10-27T06:20:03Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4413",
+      "message": "Release rel-20261027-3 completed",
+      "context": {
+        "release": "rel-20261027-3",
+        "components": [
+          "payment-api"
+        ],
+        "changes": [
+          "payment-api: retry the bank webhook after a timeout"
+        ],
+        "flags": {
+          "payments.webhookRetry": true
+        }
+      }
+    },
+    {
+      "ts": "2026-10-27T06:05:40Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4412",
+      "message": "Release rel-20261027-2 completed",
+      "context": {
+        "release": "rel-20261027-2",
+        "components": [
+          "reminder-worker"
+        ],
+        "changes": [
+          "reminder-worker: read invoice status from status-cache instead of the ledger database (reduces database load)"
+        ],
+        "flags": {
+          "reminders.statusFromCache": true
+        }
+      }
+    },
+    {
+      "ts": "2026-10-27T06:05:02Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4412",
+      "message": "Release rel-20261027-2 started",
+      "context": {
+        "release": "rel-20261027-2",
+        "approvedBy": "release-bot"
+      }
+    },
+    {
+      "ts": "2026-10-27T02:00:12Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4411",
+      "message": "Release rel-20261027-1 completed",
+      "context": {
+        "release": "rel-20261027-1",
+        "components": [
+          "email-gateway"
+        ],
+        "changes": [
+          "Reminder e-mail: Vietnamese salutation and footer"
+        ],
+        "flags": {}
+      }
+    },
+    {
+      "ts": "2026-10-26T15:00:04Z",
+      "service": "deploy",
+      "level": "INFO",
+      "requestId": "dep-4410",
+      "message": "Release rel-20261026-1 completed",
+      "context": {
+        "release": "rel-20261026-1",
+        "components": [
+          "web"
+        ],
+        "changes": [
+          "Dashboard: faster heatmap query"
+        ],
+        "flags": {}
+      }
+    }
+  ]
+}

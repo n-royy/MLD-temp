@@ -1,0 +1,36 @@
+{
+  "backlogId": "BUG-04",
+  "backlogType": "BUG",
+  "startInstruction": "After the team declares START, send BUG-04-submit.json, BUG-04-submit.schema.json, BUG-04-minimum-verification-scenarios.md, BUG-04-mvs.test.ts.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "BUG-04",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "BUG-04-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-04-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-04-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# BUG-04 minimum verification scenarios\n\nThe position cases below are also provided as an executable test file, `BUG-04-mvs.test.ts`. Grading replays this same file against your submitted source: a case scores only when you report it PASS with its evidence **and** the replay passes. Hidden tests then check further cases.\n\n## Running the scenarios\n\n1. Copy `BUG-04-mvs.test.ts` to `src/tests/bug-04-mvs.test.ts` (do not change it).\n2. From `src/`: `pnpm vitest run tests/bug-04-mvs.test.ts > ../answers/BUG-04/evidence/mvs-tests.log 2>&1`\n3. Record each case below in `submit.json`.\n\n## BUG-04-TC-01 – drop above the first card\n\nData: a fresh list whose only card has the position of a newly created card.\n\nExpected: a card dropped above it gets a position strictly between 0 and that card's position.\n\nRequired evidence: `mvs-tests.log`.\n\n## BUG-04-TC-02 – two drops at the top keep their order\n\nData: cards A, B, C created in that order; drag C above A, then B above C.\n\nExpected: positions are positive and strictly ordered B < C < A. In the app, the order is B, C, A after two reloads.\n\nRequired evidence: `mvs-tests.log`, `tc-02-top-order.png` (the list after the second reload).\n\n## BUG-04-TC-03 – other drops unchanged\n\nData: a drop between cards at 65536 and 131072, a drop below the last card at 196608, and a drop into an empty list.\n\nExpected: positions 98304, 262144 and 65536; and, checked together with the fix, a drop above a card at 65536 lands strictly between 0 and 65536.\n\nRequired evidence: `mvs-tests.log`.\n"
+}

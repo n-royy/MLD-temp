@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-CRM-02",
+      "title": "Contact phone numbers and messenger links",
+      "body": "Contacts are entered by hand, so phone numbers arrive in many shapes: '+84 912 345 678', '0912.345.678', '(028) 3823 4567', '0084912345678'. Quick links must always work, or not be shown at all.\n\nNormalising a phone number (phone, mobile, WhatsApp):\n1. Remove spaces, dots, dashes and parentheses. Any other character (letters, '#', '*', 'ext') makes the number invalid.\n2. A leading '+' means the digits that follow are already international.\n3. Otherwise a leading '00' is the international prefix: drop it.\n4. Otherwise a leading single '0' is a Vietnamese national number: replace that 0 with the country code 84.\n5. Anything else is taken as international digits as they are.\nThe result must be 8 to 15 digits and must not start with 0; otherwise the number is invalid.\n\nLinks built from a valid number N (digits only, no '+'):\n- Phone and mobile: tel:+N\n- WhatsApp: https://wa.me/N\n\nTelegram accepts a username in any of these forms: 'name', '@name', 't.me/name', 'https://t.me/name' (also http, and an optional trailing '/'). A username is 5 to 32 characters, letters, digits and underscore only, starting with a letter. The link is https://t.me/name with the username exactly as typed (case preserved).\n\nAn invalid or empty value produces no link: the contact card shows the text without a link. Never build a link from an invalid value."
+    }
+  ]
+}

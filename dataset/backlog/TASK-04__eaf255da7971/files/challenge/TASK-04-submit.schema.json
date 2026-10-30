@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "MTM-26-7UJVLX/TASK-04-submit.schema.json",
+  "title": "TASK-04 submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "backlogId",
+    "status",
+    "evidenceFiles",
+    "journalEntries",
+    "journalLines",
+    "receivableMinor",
+    "taxesPayableMinor",
+    "invoiceAStatus"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "backlogId": {
+      "const": "TASK-04"
+    },
+    "status": {
+      "description": "Overall result when you submit: DONE (all requirements met), PARTIAL (some met), BLOCKED (could not be done; explain why).",
+      "enum": [
+        "DONE",
+        "PARTIAL",
+        "BLOCKED"
+      ]
+    },
+    "evidenceFiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidencePath"
+      }
+    },
+    "journalEntries": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "Number of journal entries written by the scenario."
+    },
+    "journalLines": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "Number of journal lines written by the scenario."
+    },
+    "receivableMinor": {
+      "type": "string",
+      "pattern": "^-?(0|[1-9][0-9]*)$",
+      "description": "Accounts Receivable balance (debit minus credit) in minor units."
+    },
+    "taxesPayableMinor": {
+      "type": "string",
+      "pattern": "^-?(0|[1-9][0-9]*)$",
+      "description": "Taxes Payable balance (credit minus debit) in minor units."
+    },
+    "invoiceAStatus": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "SENT",
+        "PAID",
+        "PARTIAL",
+        "OVERDUE",
+        "VOID"
+      ],
+      "description": "Final stored status of invoice A."
+    }
+  },
+  "$defs": {
+    "evidencePath": {
+      "description": "Path relative to answers/<backlogId>/, directly inside evidence/.",
+      "type": "string",
+      "pattern": "^evidence/[A-Za-z0-9][A-Za-z0-9._-]*$"
+    }
+  }
+}

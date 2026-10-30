@@ -1,0 +1,20 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-EXP-01",
+      "title": "Invoice export file standard (accountant CSV)",
+      "body": "Our accountants import invoice lists into their bookkeeping tool, which only accepts this layout.\n\n1. Encoding: UTF-8 with a byte order mark (the file starts with bytes EF BB BF). Without the BOM, Excel shows Vietnamese names as garbage.\n2. Delimiter: comma. Line endings: CRLF (LF is also accepted by the importer).\n3. Quoting: RFC 4180. A field that contains a comma, a double quote or a line break is wrapped in double quotes, and every double quote inside it is doubled. Text is never trimmed or altered.\n4. The first row is the header, exactly these nine columns in this order, nothing more:\ninvoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status\n5. One row per invoice in the current selection (for example the company filter on screen), including DRAFT and VOID invoices, in the same order as the screen. An empty selection produces a file with only the header row.\n6. Field rules:\n- invoice_number: as stored.\n- company: the company name exactly as stored.\n- issue_date, due_date: see KB-FIN-04.\n- currency: the invoice's ISO 4217 code, upper case (USD, VND...).\n- total, paid, outstanding: amounts in the invoice currency, formatted per KB-FIN-01. paid and outstanding follow KB-AR-02.\n- status: the status code per KB-INV-03.\n\nExample:\ninvoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status\nINV-0042,\"Studio \"\"Mai\"\", Đà Nẵng\",2026-03-02,,USD,250.00,0.00,250.00,SENT\n\nExport files contain client financial data; see KB-SEC-01 for who may obtain them."
+    },
+    {
+      "id": "KB-AR-02",
+      "title": "Paid amount and outstanding (receivable) balance of an invoice",
+      "body": "paid = the sum of all payments linked to the invoice (an invoice can have several partial payments).\n\nOnly issued, unsettled invoices are receivables:\n- SENT, PARTIAL, OVERDUE: outstanding = total - paid, never below 0.\n- PAID: outstanding = 0.\n- DRAFT: not issued yet, nothing is owed: outstanding = 0.\n- VOID: cancelled, nothing is owed: outstanding = 0.\nThis is the same rule as the Finance tab of a company. Reports and exports must not show a balance for draft or void invoices, otherwise the accountant books receivables that do not exist."
+    },
+    {
+      "id": "KB-SEC-01",
+      "title": "Access to client financial data",
+      "body": "Invoice, payment and company financial data may only be read by signed-in staff. Any new screen, endpoint or export that exposes this data must refuse anonymous requests (respond 401/403 or redirect to the login page) and must not include data in the refused response. Do not place exports in public folders or shareable links."
+    }
+  ]
+}

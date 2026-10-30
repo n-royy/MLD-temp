@@ -1,0 +1,26 @@
+{
+  "total": 2,
+  "returned": 2,
+  "entries": [
+    {
+      "ts": "2026-10-27T08:58:44Z",
+      "service": "web",
+      "level": "ERROR",
+      "requestId": "web-MLD-err2",
+      "message": "ChunkLoadError: Loading chunk 812 failed",
+      "context": {
+        "page": "/boards"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:21:09Z",
+      "service": "api",
+      "level": "ERROR",
+      "requestId": "api-MLD-err1",
+      "message": "TRPCError CONFLICT: Only draft invoices can be issued.",
+      "context": {
+        "procedure": "accounting.postInvoice"
+      }
+    }
+  ]
+}

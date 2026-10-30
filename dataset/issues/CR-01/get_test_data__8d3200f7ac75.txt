@@ -1,0 +1,136 @@
+{
+  "fixtureId": "<MATCH_ID>-CR-01-MLD",
+  "backlogItemKey": "CR-01",
+  "description": "Official QA invoice data for team MLD, match <MATCH_ID>. Load it with the CR-01 loader script before producing verification evidence. It replaces every invoice in the application database.",
+  "data": {
+    "loader": "challenge/CR-01-seed.ts",
+    "companies": [
+      {
+        "key": "A",
+        "name": "Lotus Media MLD",
+        "currency": "USD"
+      },
+      {
+        "key": "B",
+        "name": "Han River Foods MLD",
+        "currency": "KRW"
+      },
+      {
+        "key": "VN",
+        "name": "Công ty TNHH \"Sao Mai\" MLD, CN Đà Nẵng\nQuận Hải Châu",
+        "currency": "VND"
+      },
+      {
+        "key": "EMPTY",
+        "name": "Delta Works MLD",
+        "currency": "EUR"
+      }
+    ],
+    "invoices": [
+      {
+        "number": "INV-MLD-0701",
+        "company": "A",
+        "issueDate": "2026-10-12",
+        "dueDate": "2026-11-11",
+        "totalMinor": 45000,
+        "state": "ISSUED",
+        "payments": [
+          {
+            "amountMinor": 10000,
+            "paidAt": "2026-10-14"
+          },
+          {
+            "amountMinor": 5050,
+            "paidAt": "2026-10-18"
+          },
+          {
+            "amountMinor": 4950,
+            "paidAt": "2026-10-20"
+          }
+        ]
+      },
+      {
+        "number": "INV-MLD-0702",
+        "company": "A",
+        "issueDate": "2026-10-02",
+        "dueDate": "2026-10-16",
+        "totalMinor": 12000,
+        "state": "ISSUED",
+        "payments": [
+          {
+            "amountMinor": 7000,
+            "paidAt": "2026-10-05"
+          },
+          {
+            "amountMinor": 5500,
+            "paidAt": "2026-10-09"
+          }
+        ]
+      },
+      {
+        "number": "INV-MLD-0703",
+        "company": "B",
+        "issueDate": "2026-09-28",
+        "dueDate": "2026-10-28",
+        "totalMinor": 880000,
+        "state": "ISSUED",
+        "payments": []
+      },
+      {
+        "number": "INV-MLD-0704",
+        "company": "A",
+        "issueDate": "2026-09-21",
+        "dueDate": null,
+        "totalMinor": 30000,
+        "state": "DRAFT",
+        "payments": []
+      },
+      {
+        "number": "INV-MLD-0705",
+        "company": "VN",
+        "issueDate": "2026-09-15",
+        "dueDate": "2026-10-15",
+        "totalMinor": 2500000,
+        "state": "ISSUED",
+        "payments": [
+          {
+            "amountMinor": 1000000,
+            "paidAt": "2026-09-30"
+          }
+        ]
+      },
+      {
+        "number": "INV-MLD-0706",
+        "company": "B",
+        "issueDate": "2026-09-09",
+        "dueDate": "2026-09-30",
+        "totalMinor": 150000,
+        "state": "VOID",
+        "payments": []
+      },
+      {
+        "number": "INV-MLD-0707",
+        "company": "A",
+        "issueDate": "2026-08-30",
+        "dueDate": "2026-09-29",
+        "totalMinor": 9900,
+        "state": "OVERDUE",
+        "payments": []
+      }
+    ],
+    "scenarios": {
+      "CR-01-TC-01": {
+        "filter": "ALL"
+      },
+      "CR-01-TC-02": {
+        "filter": "A"
+      },
+      "CR-01-TC-03": {
+        "filter": "VN"
+      },
+      "CR-01-TC-05": {
+        "filter": "EMPTY"
+      }
+    }
+  }
+}

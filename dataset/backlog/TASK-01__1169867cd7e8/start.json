@@ -1,0 +1,13 @@
+{
+  "backlogId": "TASK-01",
+  "backlogType": "TASK",
+  "startInstruction": "After the team declares START, send the submit template.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "TASK-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "position": ""
+  },
+  "minimumVerificationScenarios": null
+}

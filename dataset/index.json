@@ -1,0 +1,684 @@
+{
+  "schemaVersion": 1,
+  "matches": {
+    "CTG2YCRL": {
+      "workspace": "D:\\mtm\\MLD",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "e1447cac25bd861ad9fd816db0c682839a7a1672",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "FWBI6I0S": {
+      "workspace": "D:\\mtm\\MLD",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "94d92ae63dc6a0ba00c5a147dc3ffce9d44071d5",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "QNW5V6OU": {
+      "workspace": "D:\\mtm\\MLD",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "16361abe1248ef6436896dd9c8f92a7ec46073af",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "VREGZAVG": {
+      "workspace": "D:\\mtm\\MLD",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "5faa02656235515ee682ed2db33405b34b8f786b",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "0J4N522M": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "ada94fec40beba6c7849b3872338a9231c869d88",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "5APIQYXW": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "99a60b6621d4",
+      "baseCommit": "c9fbb0f637bba6e6a30f343e28dbbea4d82b50a2",
+      "items": {
+        "BUG-01": "BUG-01__8e60798cae99",
+        "BUG-02": "BUG-02__35c3bdbcf701",
+        "BUG-03": "BUG-03__91fb7d4bdbb2",
+        "BUG-04": "BUG-04__7c74c5ef69e2",
+        "CR-01": "CR-01__3f1bba7fda74",
+        "CR-02": null,
+        "CR-03": "CR-03__771f5ebf9461",
+        "PI-01": "PI-01__535193a049b7",
+        "TASK-03": "TASK-03__745cbdbb5498",
+        "TASK-04": "TASK-04__eaf255da7971"
+      }
+    },
+    "DO6SQWGV": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "d7940bd4d0eb37c364e89def0a30d3c73df8a4c2",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "HW828P0Y": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "f79499586f50274c4866d753d5df4a1e32d11e09",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "SY0LA9W2": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "348b5575afe8285debc634ccdde73fb0ec2f7096",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985",
+        "CR-01": "CR-01__7a8373a9f9f9",
+        "TASK-01": "TASK-01__1169867cd7e8",
+        "TASK-02": "TASK-02__a38f5c2fac26"
+      }
+    },
+    "YDYFQHQL": {
+      "workspace": "D:\\mtm\\MLD-multi",
+      "codebase": "b963277a7dc5",
+      "baseCommit": "5078b34300dd795fb33e708d84f9a29fe6f31e88",
+      "items": {
+        "BUG-01": "BUG-01__d188dccf342d",
+        "BUG-02": "BUG-02__80e0760bd985"
+      }
+    }
+  },
+  "codebases": {
+    "b963277a7dc5": {
+      "tree": "b963277a7dc5e0e26c2557f72087809439e3327b",
+      "files": 233,
+      "matches": [
+        "CTG2YCRL",
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "99a60b6621d4": {
+      "tree": "99a60b6621d4384cf0676f29239d5503a82f8560",
+      "files": 235,
+      "matches": [
+        "5APIQYXW"
+      ]
+    }
+  },
+  "items": {
+    "BUG-01__d188dccf342d": {
+      "key": "BUG-01",
+      "type": "BUG",
+      "descriptions": {
+        "da2b9782bd8b": [
+          "0J4N522M",
+          "DO6SQWGV",
+          "HW828P0Y",
+          "SY0LA9W2",
+          "YDYFQHQL"
+        ]
+      },
+      "matches": [
+        "CTG2YCRL",
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "BUG-02__80e0760bd985": {
+      "key": "BUG-02",
+      "type": "BUG",
+      "descriptions": {
+        "aec6afbfd574": [
+          "0J4N522M",
+          "DO6SQWGV",
+          "HW828P0Y",
+          "SY0LA9W2",
+          "YDYFQHQL"
+        ]
+      },
+      "matches": [
+        "CTG2YCRL",
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "CR-01__7a8373a9f9f9": {
+      "key": "CR-01",
+      "type": "CR",
+      "descriptions": {
+        "a64a4b10088d": [
+          "0J4N522M",
+          "DO6SQWGV",
+          "HW828P0Y",
+          "SY0LA9W2"
+        ]
+      },
+      "matches": [
+        "CTG2YCRL",
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2"
+      ]
+    },
+    "TASK-02__a38f5c2fac26": {
+      "key": "TASK-02",
+      "type": "TASK",
+      "descriptions": {
+        "bffc64a55aab": [
+          "0J4N522M",
+          "DO6SQWGV",
+          "HW828P0Y",
+          "SY0LA9W2"
+        ]
+      },
+      "matches": [
+        "CTG2YCRL",
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2"
+      ]
+    },
+    "TASK-01__1169867cd7e8": {
+      "key": "TASK-01",
+      "type": "TASK",
+      "descriptions": {
+        "35d920185027": [
+          "0J4N522M",
+          "DO6SQWGV",
+          "HW828P0Y",
+          "SY0LA9W2"
+        ]
+      },
+      "matches": [
+        "FWBI6I0S",
+        "QNW5V6OU",
+        "VREGZAVG",
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2"
+      ]
+    },
+    "BUG-01__8e60798cae99": {
+      "key": "BUG-01",
+      "type": "BUG",
+      "descriptions": {
+        "723dc3b58ef7": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-02__35c3bdbcf701": {
+      "key": "BUG-02",
+      "type": "BUG",
+      "descriptions": {
+        "9a83b9f44c5e": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-03__91fb7d4bdbb2": {
+      "key": "BUG-03",
+      "type": "BUG",
+      "descriptions": {
+        "97e073b54e88": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-04__7c74c5ef69e2": {
+      "key": "BUG-04",
+      "type": "BUG",
+      "descriptions": {
+        "93284c65c423": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01__3f1bba7fda74": {
+      "key": "CR-01",
+      "type": "CR",
+      "descriptions": {
+        "ad484def0cbe": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-03__771f5ebf9461": {
+      "key": "CR-03",
+      "type": "CR",
+      "descriptions": {
+        "ce12ba98dc33": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01__535193a049b7": {
+      "key": "PI-01",
+      "type": "PI",
+      "descriptions": {
+        "9f2c5dfe9e92": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "TASK-03__745cbdbb5498": {
+      "key": "TASK-03",
+      "type": "TASK",
+      "descriptions": {
+        "d5b524ce1cc3": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "TASK-04__eaf255da7971": {
+      "key": "TASK-04",
+      "type": "TASK",
+      "descriptions": {
+        "67006e591355": [
+          "5APIQYXW"
+        ]
+      },
+      "matches": [
+        "5APIQYXW"
+      ]
+    }
+  },
+  "issues": {
+    "BUG-01/get_test_data__37a2e8a1d24f": {
+      "key": "BUG-01",
+      "tool": "get_test_data",
+      "matches": [
+        "0J4N522M",
+        "5APIQYXW",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "BUG-02/get_test_data__b2d652d30374": {
+      "key": "BUG-02",
+      "tool": "get_test_data",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "BUG-02/kb_search__ca7123ae1015": {
+      "key": "BUG-02",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y"
+      ]
+    },
+    "CR-01/get_test_data__c52437f75620": {
+      "key": "CR-01",
+      "tool": "get_test_data",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y",
+        "SY0LA9W2"
+      ]
+    },
+    "CR-01/kb_search__75d861c5872f": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV"
+      ]
+    },
+    "CR-01/kb_search__57e51f251f6b": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV"
+      ]
+    },
+    "CR-01/kb_search__6912ce07e569": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "5APIQYXW",
+        "DO6SQWGV"
+      ]
+    },
+    "CR-01/kb_search__94fc478b77b6": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV"
+      ]
+    },
+    "CR-01/kb_search__176bb1d97a77": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "0J4N522M",
+        "5APIQYXW",
+        "DO6SQWGV"
+      ]
+    },
+    "TASK-01/get_test_data__f8b646399c3d": {
+      "key": "TASK-01",
+      "tool": "get_test_data",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y"
+      ]
+    },
+    "TASK-02/get_test_data__2e098f2fa359": {
+      "key": "TASK-02",
+      "tool": "get_test_data",
+      "matches": [
+        "0J4N522M",
+        "DO6SQWGV",
+        "HW828P0Y"
+      ]
+    },
+    "BUG-01/search_logs__e6b6a37d3b00": {
+      "key": "BUG-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-02/get_test_data__da9055d9928a": {
+      "key": "BUG-02",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-02/kb_search__bf2a584a5247": {
+      "key": "BUG-02",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-03/get_test_data__c2aaa52208db": {
+      "key": "BUG-03",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-03/kb_search__fc90e27c1054": {
+      "key": "BUG-03",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-04/get_test_data__86617e49dfc4": {
+      "key": "BUG-04",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "BUG-04/search_logs__31e5a3171918": {
+      "key": "BUG-04",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01/get_test_data__8d3200f7ac75": {
+      "key": "CR-01",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01/kb_search__a4d35cd9b175": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01/kb_search__c7ca7b2fcda5": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01/kb_search__d409ef555c8d": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-03/get_test_data__55c9e80d2d3c": {
+      "key": "CR-03",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-03/kb_search__e3dbfb6a4121": {
+      "key": "CR-03",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/get_test_data__31e1d510f81c": {
+      "key": "PI-01",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/kb_search__2c3469b3105b": {
+      "key": "PI-01",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/kb_search__43998206002d": {
+      "key": "PI-01",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__db066833d5bd": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__625c75d43bb6": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__42964e2e76b8": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__64539f1f858d": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__a607f9725e14": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__d0d1a8d41936": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "PI-01/search_logs__4aa2ac230061": {
+      "key": "PI-01",
+      "tool": "search_logs",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "TASK-03/get_test_data__078d4be50bb4": {
+      "key": "TASK-03",
+      "tool": "get_test_data",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "TASK-04/kb_search__f0a5cd532e3f": {
+      "key": "TASK-04",
+      "tool": "kb_search",
+      "matches": [
+        "5APIQYXW"
+      ]
+    },
+    "CR-01/kb_search__f59eeef8f57e": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "HW828P0Y"
+      ]
+    },
+    "CR-01/kb_search__fc8baa147c4b": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "HW828P0Y"
+      ]
+    },
+    "BUG-02/kb_search__7a0dc7b19ff5": {
+      "key": "BUG-02",
+      "tool": "kb_search",
+      "matches": [
+        "SY0LA9W2",
+        "YDYFQHQL"
+      ]
+    },
+    "CR-01/kb_search__34085cc8899d": {
+      "key": "CR-01",
+      "tool": "kb_search",
+      "matches": [
+        "SY0LA9W2"
+      ]
+    }
+  },
+  "gaps": [
+    "5APIQYXW CR-02: discovered, never started (no brief issued)"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-EXP-01",
+      "title": "Invoice export file standard (accountant CSV)",
+      "body": "Our accountants import invoice lists into their bookkeeping tool, which only accepts this layout.\n\n1. Encoding: UTF-8 with a byte order mark (the file starts with bytes EF BB BF). Without the BOM, Excel shows Vietnamese names as garbage.\n2. Delimiter: comma. Line endings: CRLF (LF is also accepted by the importer).\n3. Quoting: RFC 4180. A field that contains a comma, a double quote or a line break is wrapped in double quotes, and every double quote inside it is doubled. Text is never trimmed or altered.\n4. The first row is the header, exactly these nine columns in this order, nothing more:\ninvoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status\n5. One row per invoice in the current selection (for example the company filter on screen), including DRAFT and VOID invoices, in the same order as the screen. An empty selection produces a file with only the header row.\n6. Field rules:\n- invoice_number: as stored.\n- company: the company name exactly as stored.\n- issue_date, due_date: see KB-FIN-04.\n- currency: the invoice's ISO 4217 code, upper case (USD, VND...).\n- total, paid, outstanding: amounts in the invoice currency, formatted per KB-FIN-01. paid and outstanding follow KB-AR-02.\n- status: the status code per KB-INV-03.\n\nExample:\ninvoice_number,company,issue_date,due_date,currency,total,paid,outstanding,status\nINV-0042,\"Studio \"\"Mai\"\", Đà Nẵng\",2026-03-02,,USD,250.00,0.00,250.00,SENT\n\nExport files contain client financial data; see KB-SEC-01 for who may obtain them."
+    },
+    {
+      "id": "KB-INV-03",
+      "title": "Invoice status codes",
+      "body": "An invoice has exactly one status code: DRAFT, SENT, PAID, PARTIAL, OVERDUE, VOID. Data exchange (exports, APIs, integrations) always uses these upper-case codes exactly. The lower-case or translated labels shown in the user interface are display text only and must never be exported.\nLifecycle: created as DRAFT; issuing makes it SENT; payments make it PARTIAL or PAID; an unpaid invoice past its due date may be OVERDUE; issuing then cancelling without payments makes it VOID."
+    },
+    {
+      "id": "KB-FIN-01",
+      "title": "Currency minor units and amount formatting",
+      "body": "Solova stores every amount as an integer number of minor units (column suffix *Minor). Whenever an amount leaves the system (exports, reports, integrations) it is written in major units with exactly the currency's number of minor digits:\n- 2 digits: USD, EUR, GBP, AUD, CAD, SGD (12345 minor = 123.45; 10000 minor = 100.00).\n- 0 digits: VND, JPY, KRW (12345 minor = 12345).\nRules: '.' is the decimal point; no currency symbol; no thousands separator; no exponent; negative amounts use a leading '-'. Always keep the trailing zeros (100.00, not 100). Convert with integer arithmetic or the currency factor; never format with the base currency of the workspace when the invoice has its own currency."
+    }
+  ]
+}

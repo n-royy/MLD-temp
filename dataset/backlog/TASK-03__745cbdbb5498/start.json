@@ -1,0 +1,13 @@
+{
+  "backlogId": "TASK-03",
+  "backlogType": "TASK",
+  "startInstruction": "After the team declares START, send TASK-03-submit.json, TASK-03-submit.schema.json. Deadline: 8 minutes from release; the Game Master server then closes the item and refuses later submissions.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "TASK-03",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "timeUnits": ""
+  },
+  "minimumVerificationScenarios": null
+}

@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-LED-01",
+      "title": "Ledger postings and corrections",
+      "body": "The journal is append-only. Every business event posts one balanced entry; a correction never edits or deletes history, it posts a reversing entry that mirrors the original lines. Voiding an issued invoice therefore adds an entry instead of removing one."
+    }
+  ]
+}

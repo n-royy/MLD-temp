@@ -1,0 +1,20 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-INV-03",
+      "title": "Invoice status codes",
+      "body": "An invoice has exactly one status code: DRAFT, SENT, PAID, PARTIAL, OVERDUE, VOID. Data exchange (exports, APIs, integrations) always uses these upper-case codes exactly. The lower-case or translated labels shown in the user interface are display text only and must never be exported.\nLifecycle: created as DRAFT; issuing makes it SENT; payments make it PARTIAL or PAID; an unpaid invoice past its due date becomes OVERDUE (KB-AR-05); issuing then cancelling without payments makes it VOID."
+    },
+    {
+      "id": "KB-AR-05",
+      "title": "When an invoice is paid, partially paid or overdue",
+      "body": "Status of an issued (not DRAFT, not VOID) invoice, decided in this order:\n1. PAID when paid >= total (paid in full, including overpayment).\n2. PARTIAL when 0 < paid < total. A partially paid invoice stays PARTIAL also after its due date.\n3. OVERDUE when nothing is paid and the due date has passed. The due date is a calendar date: the invoice is still payable during the whole due date and becomes overdue on the following day. Compare calendar dates (YYYY-MM-DD, UTC), never a timestamp against midnight.\n4. SENT otherwise. Invoices without a due date are never overdue.\nThe stored status is refreshed whenever a payment is recorded. Payment reminders are e-mailed by the reminder service for every issued invoice that still has a balance due at the moment the reminder is sent (SENT, PARTIAL or OVERDUE). A reminder for an invoice that was already paid in full when the reminder was sent is wrong."
+    },
+    {
+      "id": "KB-AR-02",
+      "title": "Paid amount and balance due (receivable) of an invoice",
+      "body": "paid = the sum of all payments linked to the invoice (an invoice can have several partial payments, and a client may overpay).\n\nOnly issued, unsettled invoices are receivables. balance due (also called outstanding):\n- SENT, PARTIAL, OVERDUE: balance due = total - paid, never below 0.\n- PAID: balance due = 0, also when the client overpaid.\n- DRAFT: not issued yet, nothing is owed: balance due = 0.\n- VOID: cancelled, nothing is owed: balance due = 0.\nThis is the same rule as the Finance tab of a company. Reports and exports must not show a balance for draft or void invoices, otherwise the accountant books receivables that do not exist."
+    }
+  ]
+}

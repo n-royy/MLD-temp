@@ -1,0 +1,20 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-FIN-01",
+      "title": "Currency minor units and amount formatting",
+      "body": "Solova stores every amount as an integer number of minor units (column suffix *Minor). Whenever an amount leaves the system (exports, reports, integrations) it is written in major units with exactly the currency's number of minor digits:\n- 2 digits: USD, EUR, GBP, AUD, CAD, SGD (12345 minor = 123.45; 10000 minor = 100.00).\n- 0 digits: VND, JPY, KRW (12345 minor = 12345).\nRules: '.' is the decimal point; no currency symbol; no thousands separator; no exponent; negative amounts use a leading '-'. Always keep the trailing zeros (100.00, not 100). Convert with integer arithmetic or the currency factor; never format with the base currency of the workspace when the invoice has its own currency."
+    },
+    {
+      "id": "KB-FIN-04",
+      "title": "Dates in reports and data exchange",
+      "body": "Invoice issue and due dates are calendar dates, not timestamps. Write them as YYYY-MM-DD (ISO 8601), without time or offset. Never convert them through the local time zone: a date stored as 2026-10-01 must be written 2026-10-01 everywhere, also on servers or laptops west of UTC. A missing optional date (for example an invoice without a due date) is an empty field: not 'null', not '-', not 'N/A'."
+    },
+    {
+      "id": "KB-INV-03",
+      "title": "Invoice status codes",
+      "body": "An invoice has exactly one status code: DRAFT, SENT, PAID, PARTIAL, OVERDUE, VOID. Data exchange (exports, APIs, integrations) always uses these upper-case codes exactly. The lower-case or translated labels shown in the user interface are display text only and must never be exported.\nLifecycle: created as DRAFT; issuing makes it SENT; payments make it PARTIAL or PAID; an unpaid invoice past its due date may be OVERDUE; issuing then cancelling without payments makes it VOID."
+    }
+  ]
+}

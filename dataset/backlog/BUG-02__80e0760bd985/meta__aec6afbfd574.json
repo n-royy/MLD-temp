@@ -1,0 +1,18 @@
+{
+  "key": "BUG-02",
+  "title": "Amounts for VND clients are 100 times too large",
+  "type": "BUG",
+  "points": 150,
+  "deadlineMinutes": 18,
+  "releaseFiles": [
+    "challenge/BUG-02.md"
+  ],
+  "onStartFiles": [
+    "challenge/BUG-02-submit.json",
+    "challenge/BUG-02-submit.schema.json",
+    "challenge/BUG-02-minimum-verification-scenarios.md",
+    "challenge/BUG-02-seed.ts",
+    "challenge/BUG-02-report.ts",
+    "challenge/BUG-02-run-checks.mjs"
+  ]
+}

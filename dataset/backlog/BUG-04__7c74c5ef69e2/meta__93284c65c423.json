@@ -1,0 +1,16 @@
+{
+  "key": "BUG-04",
+  "title": "Cards dropped at the top of a list lose their order",
+  "type": "BUG",
+  "points": 80,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/BUG-04.md"
+  ],
+  "onStartFiles": [
+    "challenge/BUG-04-submit.json",
+    "challenge/BUG-04-submit.schema.json",
+    "challenge/BUG-04-minimum-verification-scenarios.md",
+    "challenge/BUG-04-mvs.test.ts"
+  ]
+}

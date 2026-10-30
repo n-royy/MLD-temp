@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-INV-03",
+      "title": "Invoice status codes",
+      "body": "An invoice has exactly one status code: DRAFT, SENT, PAID, PARTIAL, OVERDUE, VOID. Data exchange (exports, APIs, integrations) always uses these upper-case codes exactly. The lower-case or translated labels shown in the user interface are display text only and must never be exported.\nLifecycle: created as DRAFT; issuing makes it SENT; payments make it PARTIAL or PAID; an unpaid invoice past its due date may be OVERDUE; issuing then cancelling without payments makes it VOID."
+    }
+  ]
+}

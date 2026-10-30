@@ -1,0 +1,145 @@
+{
+  "total": 10,
+  "returned": 10,
+  "entries": [
+    {
+      "ts": "2026-10-27T10:02:00Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0e20",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "amountMinor": 27500,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T09:05:03Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0d05",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "amountMinor": 410000,
+        "currency": "KRW",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0,
+        "attempt": 2
+      }
+    },
+    {
+      "ts": "2026-10-27T09:04:58Z",
+      "service": "payment-api",
+      "level": "WARN",
+      "requestId": "pay-MLD-0d05",
+      "message": "Bank webhook timed out, retry scheduled",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "attempt": 1,
+        "retryInSeconds": 5
+      }
+    },
+    {
+      "ts": "2026-10-27T08:30:12Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0c40",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1107",
+        "amountMinor": 64000,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T08:10:20Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0c13",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1109",
+        "amountMinor": 5000,
+        "currency": "USD",
+        "invoiceStatusAfter": "PARTIAL",
+        "balanceDueMinor": 9500
+      }
+    },
+    {
+      "ts": "2026-10-27T07:55:41Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0b77",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "amountMinor": 7400,
+        "currency": "EUR",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T07:10:05Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0b02",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1106",
+        "amountMinor": 18900,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T06:50:33Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0a58",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1102",
+        "amountMinor": 2000000,
+        "currency": "VND",
+        "invoiceStatusAfter": "PARTIAL",
+        "balanceDueMinor": 4500000
+      }
+    },
+    {
+      "ts": "2026-10-27T06:42:10Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0a41",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1101",
+        "amountMinor": 32000,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-26T09:12:40Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-09c1",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1105",
+        "amountMinor": 1250000,
+        "currency": "VND",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    }
+  ]
+}

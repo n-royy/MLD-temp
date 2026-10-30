@@ -1,0 +1,245 @@
+{
+  "total": 26,
+  "returned": 20,
+  "entries": [
+    {
+      "ts": "2026-10-27T10:02:00Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0e20",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "amountMinor": 27500,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T09:55:03Z",
+      "service": "support-desk",
+      "level": "INFO",
+      "requestId": "tck-MLD-3303",
+      "message": "Ticket opened: duplicate payment reminders",
+      "context": {
+        "ticket": "TCK-MLD-3303",
+        "invoice": "INV-MLD-1107",
+        "priority": "high"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:08Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a142",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1106",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:07Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a13c",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1102",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:06Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a131",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1109",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:05Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a12a",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:04Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a113",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:03Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a10f",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1107",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:40:02Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-a104",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T09:05:03Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0d05",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "amountMinor": 410000,
+        "currency": "KRW",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0,
+        "attempt": 2
+      }
+    },
+    {
+      "ts": "2026-10-27T09:04:58Z",
+      "service": "payment-api",
+      "level": "WARN",
+      "requestId": "pay-MLD-0d05",
+      "message": "Bank webhook timed out, retry scheduled",
+      "context": {
+        "invoice": "INV-MLD-1108",
+        "attempt": 1,
+        "retryInSeconds": 5
+      }
+    },
+    {
+      "ts": "2026-10-27T08:30:12Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0c40",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1107",
+        "amountMinor": 64000,
+        "currency": "USD",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T08:10:20Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0c13",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1109",
+        "amountMinor": 5000,
+        "currency": "USD",
+        "invoiceStatusAfter": "PARTIAL",
+        "balanceDueMinor": 9500
+      }
+    },
+    {
+      "ts": "2026-10-27T08:05:17Z",
+      "service": "support-desk",
+      "level": "INFO",
+      "requestId": "tck-MLD-3301",
+      "message": "Ticket opened: client received a payment reminder for an invoice paid this morning",
+      "context": {
+        "ticket": "TCK-MLD-3301",
+        "invoice": "INV-MLD-1101",
+        "priority": "normal"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:55:41Z",
+      "service": "payment-api",
+      "level": "INFO",
+      "requestId": "pay-MLD-0b77",
+      "message": "Payment recorded",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "amountMinor": 7400,
+        "currency": "EUR",
+        "invoiceStatusAfter": "PAID",
+        "balanceDueMinor": 0
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:06Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-80c1",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1103",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:05Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-80b6",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1104",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:04Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-7f3a",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1101",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:03Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-91e8",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1102",
+        "template": "payment-reminder"
+      }
+    },
+    {
+      "ts": "2026-10-27T07:40:02Z",
+      "service": "email-gateway",
+      "level": "INFO",
+      "requestId": "rem-MLD-91d2",
+      "message": "Reminder e-mail delivered",
+      "context": {
+        "invoice": "INV-MLD-1106",
+        "template": "payment-reminder"
+      }
+    }
+  ]
+}

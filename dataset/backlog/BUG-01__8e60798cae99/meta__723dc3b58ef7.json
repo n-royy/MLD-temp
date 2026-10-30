@@ -1,0 +1,16 @@
+{
+  "key": "BUG-01",
+  "title": "Desktop sidebar obscures the main content",
+  "type": "BUG",
+  "points": 100,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/BUG-01.md"
+  ],
+  "onStartFiles": [
+    "challenge/BUG-01-submit.json",
+    "challenge/BUG-01-submit.schema.json",
+    "challenge/BUG-01-minimum-verification-scenarios.md",
+    "challenge/BUG-01-layout-check.mjs"
+  ]
+}

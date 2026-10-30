@@ -1,0 +1,14 @@
+{
+  "key": "TASK-01",
+  "title": "Trace a card position after reordering",
+  "type": "TASK",
+  "points": 100,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/TASK-01.md"
+  ],
+  "onStartFiles": [
+    "challenge/TASK-01-submit.json",
+    "challenge/TASK-01-submit.schema.json"
+  ]
+}

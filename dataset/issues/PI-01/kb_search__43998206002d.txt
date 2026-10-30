@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-OPS-01",
+      "title": "Incident reports: required facts and naming",
+      "body": "Every production incident report names facts exactly as they appear in our systems, so on-call engineers can act on them without guessing.\n\n- Release: the release id as written by the deploy service (rel-YYYYMMDD-N). The root-cause release is the first release whose change introduced the fault, not a later release that happened to run while it was visible.\n- Component: the root-cause component is the component whose change in that release introduced the fault. Use the service name exactly as it appears in logs: web, api, auth, payment-api, reminder-worker, status-cache, email-gateway, support-desk, deploy.\n- Containment: the feature flag key exactly as logged (for example billing.newTaxEngine). Containment means switching that flag off; we never roll back database changes during an incident.\n- Affected records: every record that was wrongly processed, as stored ids (invoice numbers), not the complaints we happened to receive. Customers do not report every case.\n- Request ids: as logged (requestId field).\n\nThe logs are the source of truth. The application source code does not contain the reminder or deploy systems."
+    }
+  ]
+}
