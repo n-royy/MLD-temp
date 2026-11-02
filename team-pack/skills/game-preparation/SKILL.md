@@ -63,7 +63,7 @@ background jobs that continue after READY and are picked up in the game (`JOBS_D
    ```
    Now ENVIRONMENT.md parts B (start background jobs, do NOT wait for them), D, E, and F only if its condition
    holds. Slots: <slot matchRoots from prepare_slots>. Reply in at most 120 words: jobs started (names), repo map
-   written yes/no, serve.mjs/shot.mjs verified yes/no, baseline result if already finished (failing tests by name),
+   written yes/no, serve.mjs verified and ui-login.json written yes/no, baseline result if already finished (failing tests by name),
    baseline patch ready yes/no (+ one line), checkout clean yes/no.
    ```
    `wait_agent`. This step never blocks READY on slot installs or the baseline run: they keep running.

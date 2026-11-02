@@ -77,7 +77,7 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
         return send(res, replay ? 200 : 201, { backlogId: item.key, backlogType: item.backlogType, startInstruction: '', replay,
           submitTemplate: template, minimumVerificationScenarios: item.backlogType === 'BUG' ? { scenarios: [{ id: 'MVS-1' }] } : null,
           files: { [`challenge/${item.key}-submit.json`]: JSON.stringify(template),
-            [`challenge/${item.key}-submit.schema.json`]: JSON.stringify(schema) } });
+            [`challenge/${item.key}-submit.schema.json`]: JSON.stringify(schema), ...(item.files ?? {}) } });
       }
       if (req.method === 'POST' && url.pathname === `/api/v1/matches/${matchUuid}/submissions`) {
         if (!bearerOk(req)) return err(res, 401, 'INVALID_API_KEY');

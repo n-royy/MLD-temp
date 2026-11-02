@@ -10,7 +10,8 @@ one team_feature_worker per item implements, tests and answers it in its own slo
 and deadline items first and never queue them behind another item (dependencies are handled by rebasing the
 dependent slot when the blocker lands, not by waiting).
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any worker starts.
-Background jobs from preparation (slot installs, baseline run) never delay the first spawns; handle JOBS_DONE as SKILL.md 2b says. Spawn subagents only with the
+Background jobs from preparation (slot installs, baseline run) never delay the first spawns; handle JOBS_DONE as SKILL.md 2b says.
+integrate_item replays the organizer MVS file first: on MVS_FAILING / MVS_NOT_RUNNABLE follow up with the worker (allowMvsFailure only at the safety net). Spawn subagents only with the
 native spawn_agent tool and fork_turns "none"; at most 3 run at once. Keep your own context small.
 Never launch another Codex CLI, Claude Code CLI, app-server or independent CLI process for match work.
 Stay inside matchRoot (and the slots) for source, answers and evidence; never force-push or change the remote.

@@ -141,10 +141,11 @@ reruns of a home-made screenshot script and 60 one-second polls in one item).
 - `serve.mjs --mode dev|prod --port <p>`: run from the app folder; if the port already answers, return at once;
   otherwise start the documented dev server (or `start` after a build for prod) detached, poll the URL until HTTP
   200/302 (max ~120 s) and print `READY <url>` or the last 30 log lines. `--stop` frees the port.
-- `shot.mjs --url <path> --width <w> [--height <h>] --out <file> [--wait <selector or text>]`: with the project's
-  browser automation (Playwright when present), sign in once with the seeded test user from the README or seed
-  (cache the session in `.mtm-tmp/tools/auth.json`), open the page, wait for network idle and for loading
-  skeletons/spinners to disappear (and for `--wait` if given), save the screenshot, print the main element boxes
-  as one JSON line. Prefer role/text selectors over product-specific CSS.
-Verify each tool with one short command (a job if it takes longer than ~20 s). If the project has no browser automation, write only
-`serve.mjs` and say so in the reply.
+- Screenshots and downloads are NOT written per match any more: the pack ships a tested runner,
+  `ui-run.mjs` (copied into every slot's `.mtm-tmp/tools/` by start_work; source
+  `<teamSdlcPackWorkspace>/runtime/src/ui-run.mjs`). Write the app's sign-in for it once into
+  `<matchRoot>/.mtm-tmp/tools/ui-login.json`: `{"login": {"user": "<seeded user>", "password": "<seeded dev password>"}}`
+  or `{"login": {"userEnv": "<VAR>", "passwordEnv": "<VAR>"}}` when the seed reads them from the app `.env` (seeded
+  local test accounts only; never the portal account). Workers copy it into their specs.
+Verify serve.mjs with one short command (a job if it takes longer than ~20 s). If the project has no browser
+automation, say so in the reply.

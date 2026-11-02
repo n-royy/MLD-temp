@@ -11,6 +11,28 @@ The orchestrator's message gives: backlog ID, `briefFile`, `worktreeRoot`, `slot
 the same folder (`company-*.txt`). `<slotMatchRoot>/.mtm-tmp/repo-map.md` describes the code base: read it first
 instead of exploring.
 
+## UI evidence (screenshots, downloaded files): ui-run.mjs
+T5QSM1E2: BUG-02 and CR-01 had correct code but lost 3 and 4 test cases because home-made browser scripts failed
+(sidebar covering the controls, sign-in "hydration") and the rows were left NOT_RUN. The pack's runner handles that:
+```
+node .mtm-tmp/tools/ui-run.mjs --app src --base http://localhost:<slot port> --spec .mtm-tmp/<ID>/tc-01.json
+```
+Spec (JSON file or inline): `{"viewport":[1440,900], "login": <from .mtm-tmp/tools/ui-login.json>, "server":
+{"command":"pnpm dev --port <slot port>","port":<slot port>}, "steps":[ {"goto":"/accounting"}, {"tab":"Invoices"},
+{"select":{"label":"Company"},"option":"<company from the QA data>"}, {"fill":{"label":"Unit price"},"value":"24680"},
+{"click":"Create"}, {"waitFor":"Saved"}, {"download":"Export CSV","saveAs":"answers/<ID>/evidence/<exact MVS name>.csv"},
+{"screenshot":"answers/<ID>/evidence/<exact MVS name>.png"} ]}`. Paths are relative to the match folder.
+- Sign-in waits for the URL to leave the login page and the session is reused. A control covered by another element
+  (a layout bug that another item fixes) is reached by neutralising the cover for this session only; the report
+  says which element covered it (`blockedBy`). The app is never modified.
+- Downloads are saved byte for byte under the exact MVS name: never open or re-save them.
+- The report (one JSON line) gives each step's result; on failure, `failureScreenshot` shows the page. Fix the spec
+  (label text, button name, option name, a missing `waitFor`) and run again: keep going while time remains; a row is
+  left NOT_RUN only when the app itself cannot do the step.
+- `integrate_item` refuses PASS rows without the files the MVS names (REQUIRED_EVIDENCE_MISSING) and answers with
+  rows not PASS while more than 4 minutes remain (EARLY_PARTIAL). `validateCommand` already lists the gaps
+  (`requiredEvidence`).
+
 ## Your slot may still be installing (first minutes of the game)
 If `slotInstallState` in the brief is not `DONE`, read and edit code first, then before your first test or server
 run call the helper tool `wait_jobs` with `dir` = the brief's `jobsDir` and `names: [<slotInstallJob>]` (one blocking
@@ -62,7 +84,8 @@ Read the brief's "Grading" and "Submission" sections first; they decide what to 
      engineering record.
    Apply the normalization literally. Deadlines are short (8 minutes).
 4. **Behaviour bug / feature with UI** (layout, currency, CSV export). Take any "before fixing" evidence BEFORE
-   changing code. Load the official QA data with the provided loader. Screenshots with `.mtm-tmp/tools/shot.mjs`.
+   changing code. Load the official QA data with the provided loader. Screenshots and browser downloads with
+   `.mtm-tmp/tools/ui-run.mjs` ("UI evidence" below), never a home-made browser script.
    **Organizer scripts are the grading instruments** (`<ID>-layout-check.mjs`, `-run-checks.mjs`, `-signed-out-check.mjs`,
    `-seed.ts`, `-report.ts`): BUG-01 of 5APIQYXW was scored from the layout report the provided script writes. Run
    them exactly as the MVS file says (arguments, output names, dev and production), never replace them with your own
@@ -106,6 +129,9 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
    following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
    extra pages, viewports or scripts. Max ~3 fix/test rounds.
+   The helper replays the organizer `<ID>-mvs.test.ts` itself at integration (like the grader): a row you report PASS
+   whose replay fails is refused (`MVS_FAILING`, details in `.mtm-tmp/<ID>/mvs-check.json`). Report PASS only after
+   running that file yourself.
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
 5. Answer: edit `answerFile` (created from the template). Keep exactly the template's keys and rows, fill every field
    truthfully, set the top-level status the way the brief says. Every list stays a JSON array even with one element
@@ -193,8 +219,8 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
   `<slotMatchRoot>/.mtm-tmp/jobs`) and ONE blocking `wait_jobs`. Never poll a running command with `write_stdin` or
   1 s waits: every poll is a full model turn. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
-- Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
-  write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
+- Evidence screenshots and downloads: `.mtm-tmp/tools/ui-run.mjs` ("UI evidence" below). Fix the SPEC (labels,
+  names, order), not the tool; read its report and failure screenshot after each run.
 - Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
   message is the one-line final answer after doneFile; put doubts in DONE.json.
 
