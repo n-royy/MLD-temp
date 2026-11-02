@@ -1,0 +1,14 @@
+{
+  "key": "TASK-04",
+  "title": "Trace the ledger after an invoice, a void and two payments",
+  "type": "TASK",
+  "points": 70,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/TASK-04.md"
+  ],
+  "onStartFiles": [
+    "challenge/TASK-04-submit.json",
+    "challenge/TASK-04-submit.schema.json"
+  ]
+}

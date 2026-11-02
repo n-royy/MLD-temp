@@ -1,0 +1,55 @@
+{
+  "total": 4,
+  "returned": 4,
+  "entries": [
+    {
+      "ts": "2026-10-27T09:40:00Z",
+      "service": "status-cache",
+      "level": "WARN",
+      "requestId": "sc-age-0940",
+      "message": "Snapshot read by reminder-worker is older than the freshness hint",
+      "context": {
+        "snapshotId": "snap-20261027-0558",
+        "ageSeconds": 13078,
+        "freshnessHintSeconds": 3600,
+        "consumer": "reminder-worker"
+      }
+    },
+    {
+      "ts": "2026-10-27T08:45:31Z",
+      "service": "status-cache",
+      "level": "INFO",
+      "requestId": "sc-metric",
+      "message": "Metric snapshot_age_seconds exposed",
+      "context": {
+        "release": "rel-20261027-4"
+      }
+    },
+    {
+      "ts": "2026-10-27T05:58:02Z",
+      "service": "status-cache",
+      "level": "INFO",
+      "requestId": "sc-0558",
+      "message": "Snapshot refreshed",
+      "context": {
+        "snapshotId": "snap-20261027-0558",
+        "invoices": 1318,
+        "refreshHours": 6,
+        "nextRefreshAt": "2026-10-27T11:58:00Z"
+      }
+    },
+    {
+      "ts": "2026-10-26T23:58:00Z",
+      "service": "status-cache",
+      "level": "INFO",
+      "requestId": "sc-2358",
+      "message": "Snapshot refreshed",
+      "context": {
+        "snapshotId": "snap-20261026-2358",
+        "invoices": 1311,
+        "refreshHours": 6,
+        "nextRefreshAt": "2026-10-27T05:58:00Z"
+      }
+    }
+  ]
+}

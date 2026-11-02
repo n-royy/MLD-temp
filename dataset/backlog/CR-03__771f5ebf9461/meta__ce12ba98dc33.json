@@ -1,0 +1,17 @@
+{
+  "key": "CR-03",
+  "title": "Contact quick links that always work",
+  "type": "CR",
+  "points": 100,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/CR-03.md"
+  ],
+  "onStartFiles": [
+    "challenge/CR-03-submit.json",
+    "challenge/CR-03-submit.schema.json",
+    "challenge/CR-03-minimum-verification-scenarios.md",
+    "challenge/CR-03-mvs.test.ts",
+    "challenge/CR-03-run-checks.mjs"
+  ]
+}

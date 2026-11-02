@@ -1,0 +1,36 @@
+{
+  "backlogId": "BUG-03",
+  "backlogType": "BUG",
+  "startInstruction": "After the team declares START, send BUG-03-submit.json, BUG-03-submit.schema.json, BUG-03-minimum-verification-scenarios.md, BUG-03-mvs.test.ts. Deadline: 15 minutes from release; the Game Master server then closes the item and refuses later submissions.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "BUG-03",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "BUG-03-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-03-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-03-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# BUG-03 minimum verification scenarios\n\nThe scenarios below are also provided as an executable test file, `BUG-03-mvs.test.ts`. Grading replays this same file against your submitted source: a case scores only when you report it PASS with its evidence **and** the replay passes. Hidden tests then check further cases.\n\n## Running the scenarios\n\n1. Copy `BUG-03-mvs.test.ts` to `src/tests/bug-03-mvs.test.ts` (do not change it).\n2. From `src/`: `pnpm vitest run tests/bug-03-mvs.test.ts > ../answers/BUG-03/evidence/mvs-tests.log 2>&1`\n3. Record each case below in `submit.json`; every row references `evidence/mvs-tests.log`.\n\nAll amounts are minor units; `now` is the moment the status is computed.\n\n## BUG-03-TC-01 – paid in full\n\nData: total 30000, two payments 18000 + 12000, due 2026-12-01, now 2026-11-05 09:00 UTC; and total 30000 with 30500 paid.\n\nExpected: both invoices are `PAID`.\n\n## BUG-03-TC-02 – due-date boundary\n\nData: total 30000, nothing paid, due 2026-11-05.\n\nExpected: `SENT` at 2026-11-05 21:00 UTC (still the due date), `OVERDUE` at 2026-11-06 00:30 UTC.\n\n## BUG-03-TC-03 – unchanged behaviour\n\nData: total 30000, 12000 paid, due 2026-10-01, now 2026-11-05; and a `DRAFT` invoice fully paid.\n\nExpected: the first stays `PARTIAL` after its due date; the draft stays `DRAFT`; and, checked together with the fix, a single payment of exactly 12500 on a 12500 invoice is `PAID`.\n\nRequired evidence for every case: `mvs-tests.log`.\n"
+}

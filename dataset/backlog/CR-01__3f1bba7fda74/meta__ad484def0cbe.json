@@ -1,0 +1,18 @@
+{
+  "key": "CR-01",
+  "title": "Export the filtered invoice list as CSV",
+  "type": "CR",
+  "points": 140,
+  "deadlineMinutes": null,
+  "releaseFiles": [
+    "challenge/CR-01.md"
+  ],
+  "onStartFiles": [
+    "challenge/CR-01-submit.json",
+    "challenge/CR-01-submit.schema.json",
+    "challenge/CR-01-minimum-verification-scenarios.md",
+    "challenge/CR-01-seed.ts",
+    "challenge/CR-01-signed-out-check.mjs",
+    "challenge/CR-01-run-checks.mjs"
+  ]
+}

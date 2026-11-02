@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "format": "MTM_EXAM_LOCK",
+  "immutable": true,
+  "examId": "MTM-26-7UJVLX",
+  "examVersion": "1.1.0",
+  "graderFingerprint": "sha256:c2c87fe94c57cd688bc33f538406976a89c38a6afbb62fa4aadfc547882345fc"
+}

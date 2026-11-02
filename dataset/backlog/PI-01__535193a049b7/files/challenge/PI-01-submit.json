@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "backlogId": "PI-01",
+  "status": "NOT_STARTED",
+  "evidenceFiles": [],
+  "rootCauseRelease": "",
+  "rootCauseComponent": "",
+  "containmentFlag": "",
+  "affectedInvoices": [],
+  "firstWrongfulReminderRequestId": "",
+  "incidentRecord": {
+    "impact": "",
+    "timeline": [],
+    "rootCause": "",
+    "containment": "",
+    "recovery": "",
+    "prevention": ""
+  }
+}

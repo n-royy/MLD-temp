@@ -1,0 +1,14 @@
+{
+  "key": "PI-01",
+  "title": "Clients receive payment reminders for invoices they already paid",
+  "type": "PI",
+  "points": 160,
+  "deadlineMinutes": 15,
+  "releaseFiles": [
+    "challenge/PI-01.md"
+  ],
+  "onStartFiles": [
+    "challenge/PI-01-submit.json",
+    "challenge/PI-01-submit.schema.json"
+  ]
+}

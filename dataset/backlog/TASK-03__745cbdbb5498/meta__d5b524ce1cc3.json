@@ -1,0 +1,14 @@
+{
+  "key": "TASK-03",
+  "title": "Read the heatmap's logged time for one day",
+  "type": "TASK",
+  "points": 50,
+  "deadlineMinutes": 8,
+  "releaseFiles": [
+    "challenge/TASK-03.md"
+  ],
+  "onStartFiles": [
+    "challenge/TASK-03-submit.json",
+    "challenge/TASK-03-submit.schema.json"
+  ]
+}

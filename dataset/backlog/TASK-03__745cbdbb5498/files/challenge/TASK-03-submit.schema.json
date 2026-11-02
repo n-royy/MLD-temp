@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "MTM-26-7UJVLX/TASK-03-submit.schema.json",
+  "title": "TASK-03 submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "backlogId",
+    "status",
+    "evidenceFiles",
+    "timeUnits"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "backlogId": {
+      "const": "TASK-03"
+    },
+    "status": {
+      "description": "Overall result when you submit: DONE (all requirements met), PARTIAL (some met), BLOCKED (could not be done; explain why).",
+      "enum": [
+        "DONE",
+        "PARTIAL",
+        "BLOCKED"
+      ]
+    },
+    "evidenceFiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidencePath"
+      }
+    },
+    "timeUnits": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "description": "One unsigned decimal integer string. Not a JSON number."
+    }
+  },
+  "$defs": {
+    "evidencePath": {
+      "description": "Path relative to answers/<backlogId>/, directly inside evidence/.",
+      "type": "string",
+      "pattern": "^evidence/[A-Za-z0-9][A-Za-z0-9._-]*$"
+    }
+  }
+}

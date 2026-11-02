@@ -1,0 +1,41 @@
+{
+  "fixtureId": "<MATCH_ID>-BUG-02-MLD",
+  "backlogItemKey": "BUG-02",
+  "description": "Official QA data for team MLD, match <MATCH_ID>: two client companies and the amounts to enter through the Accounting screens. Load the companies with the BUG-02 loader script.",
+  "data": {
+    "loader": "challenge/BUG-02-seed.ts",
+    "companies": [
+      {
+        "key": "VND",
+        "name": "Mekong Logistics MLD",
+        "currency": "VND"
+      },
+      {
+        "key": "USD",
+        "name": "Cedar Analytics MLD",
+        "currency": "USD"
+      }
+    ],
+    "steps": {
+      "BUG-02-TC-01": {
+        "action": "Create and issue an invoice",
+        "company": "VND",
+        "lineDescription": "Monthly retainer",
+        "quantity": 2,
+        "unitPrice": "24680"
+      },
+      "BUG-02-TC-02": {
+        "action": "Record a payment applied to that invoice",
+        "company": "VND",
+        "amount": "15000"
+      },
+      "BUG-02-TC-03": {
+        "action": "Create and issue an invoice",
+        "company": "USD",
+        "lineDescription": "Data audit",
+        "quantity": 3,
+        "unitPrice": "41.25"
+      }
+    }
+  }
+}

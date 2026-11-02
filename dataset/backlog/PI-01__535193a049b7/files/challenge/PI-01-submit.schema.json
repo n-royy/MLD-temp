@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "MTM-26-7UJVLX/PI-01-submit.schema.json",
+  "title": "PI-01 submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "backlogId",
+    "status",
+    "evidenceFiles",
+    "rootCauseRelease",
+    "rootCauseComponent",
+    "containmentFlag",
+    "affectedInvoices",
+    "firstWrongfulReminderRequestId",
+    "incidentRecord"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "backlogId": {
+      "const": "PI-01"
+    },
+    "status": {
+      "description": "Overall result when you submit: DONE (all requirements met), PARTIAL (some met), BLOCKED (could not be done; explain why).",
+      "enum": [
+        "DONE",
+        "PARTIAL",
+        "BLOCKED"
+      ]
+    },
+    "evidenceFiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/evidencePath"
+      }
+    },
+    "rootCauseRelease": {
+      "type": "string",
+      "pattern": "^rel-[0-9]{8}-[0-9]+$",
+      "description": "Release id exactly as logged by the deploy service."
+    },
+    "rootCauseComponent": {
+      "type": "string",
+      "enum": [
+        "web",
+        "api",
+        "auth",
+        "payment-api",
+        "reminder-worker",
+        "status-cache",
+        "email-gateway",
+        "support-desk",
+        "deploy"
+      ],
+      "description": "Service name exactly as logged."
+    },
+    "containmentFlag": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Feature flag key exactly as logged."
+    },
+    "affectedInvoices": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Every wrongly processed invoice number, as stored."
+    },
+    "firstWrongfulReminderRequestId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "requestId of the earliest wrongful reminder, as logged."
+    },
+    "incidentRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact",
+        "timeline",
+        "rootCause",
+        "containment",
+        "recovery",
+        "prevention"
+      ],
+      "properties": {
+        "impact": {
+          "type": "string"
+        },
+        "timeline": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rootCause": {
+          "type": "string"
+        },
+        "containment": {
+          "type": "string"
+        },
+        "recovery": {
+          "type": "string"
+        },
+        "prevention": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "evidencePath": {
+      "description": "Path relative to answers/<backlogId>/, directly inside evidence/.",
+      "type": "string",
+      "pattern": "^evidence/[A-Za-z0-9][A-Za-z0-9._-]*$"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "backlogId": "PI-01",
+  "backlogType": "PI",
+  "startInstruction": "After the team declares START, send PI-01-submit.json, PI-01-submit.schema.json. Deadline: 15 minutes from release; the Game Master server then closes the item and refuses later submissions.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "PI-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "rootCauseRelease": "",
+    "rootCauseComponent": "",
+    "containmentFlag": "",
+    "affectedInvoices": [],
+    "firstWrongfulReminderRequestId": "",
+    "incidentRecord": {
+      "impact": "",
+      "timeline": [],
+      "rootCause": "",
+      "containment": "",
+      "recovery": "",
+      "prevention": ""
+    }
+  },
+  "minimumVerificationScenarios": null
+}

@@ -1,0 +1,10 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-AR-05",
+      "title": "When an invoice is paid, partially paid or overdue",
+      "body": "Status of an issued (not DRAFT, not VOID) invoice, decided in this order:\n1. PAID when paid >= total (paid in full, including overpayment).\n2. PARTIAL when 0 < paid < total. A partially paid invoice stays PARTIAL also after its due date.\n3. OVERDUE when nothing is paid and the due date has passed. The due date is a calendar date: the invoice is still payable during the whole due date and becomes overdue on the following day. Compare calendar dates (YYYY-MM-DD, UTC), never a timestamp against midnight.\n4. SENT otherwise. Invoices without a due date are never overdue.\nThe stored status is refreshed whenever a payment is recorded. Payment reminders are e-mailed by the reminder service for every issued invoice that still has a balance due at the moment the reminder is sent (SENT, PARTIAL or OVERDUE). A reminder for an invoice that was already paid in full when the reminder was sent is wrong."
+    }
+  ]
+}

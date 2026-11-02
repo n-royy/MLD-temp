@@ -1,0 +1,20 @@
+{
+  "mode": "search",
+  "articles": [
+    {
+      "id": "KB-FIN-01",
+      "title": "Currency minor units and amount formatting",
+      "body": "Solova stores every amount as an integer number of minor units (column suffix *Minor). Whenever an amount leaves the system (exports, reports, integrations) it is written in major units with exactly the currency's number of minor digits:\n- 2 digits: USD, EUR, GBP, AUD, CAD, SGD (12345 minor = 123.45; 10000 minor = 100.00).\n- 0 digits: VND, JPY, KRW (12345 minor = 12345).\nRules: '.' is the decimal point; no currency symbol; no thousands separator; no exponent; negative amounts use a leading '-'. Always keep the trailing zeros (100.00, not 100). Convert with integer arithmetic or the currency factor; never format with the base currency of the workspace when the invoice has its own currency."
+    },
+    {
+      "id": "KB-AR-02",
+      "title": "Paid amount and outstanding (receivable) balance of an invoice",
+      "body": "paid = the sum of all payments linked to the invoice (an invoice can have several partial payments).\n\nOnly issued, unsettled invoices are receivables:\n- SENT, PARTIAL, OVERDUE: outstanding = total - paid, never below 0.\n- PAID: outstanding = 0.\n- DRAFT: not issued yet, nothing is owed: outstanding = 0.\n- VOID: cancelled, nothing is owed: outstanding = 0.\nThis is the same rule as the Finance tab of a company. Reports and exports must not show a balance for draft or void invoices, otherwise the accountant books receivables that do not exist."
+    },
+    {
+      "id": "KB-AR-05",
+      "title": "When is an invoice overdue",
+      "body": "An issued invoice becomes overdue when its due date has passed and it is not fully paid. Invoices without a due date are never overdue. Reminders are sent 3, 10 and 30 days after the due date. The stored status is refreshed whenever a payment is recorded."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "backlogId": "BUG-01",
+  "backlogType": "BUG",
+  "startInstruction": "After the team declares START, send BUG-01-submit.json, BUG-01-submit.schema.json, BUG-01-minimum-verification-scenarios.md, BUG-01-layout-check.mjs.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "BUG-01",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "BUG-01-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-01-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-01-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# BUG-01 minimum verification scenarios\n\nGrading measures the layout, not only the screenshots: each case is scored from the layout report written by the provided script, and a case scores only when it is reported PASS with its evidence.\n\n## Files provided with this item\n\n| File | Use |\n|---|---|\n| `BUG-01-submit.json` | Submission template, copy to `answers/BUG-01/submit.json` |\n| `BUG-01-submit.schema.json` | JSON Schema that `submit.json` must satisfy |\n| `BUG-01-layout-check.mjs` | Signs in, opens Dashboard, Accounting and Boards at 1440×900, 1024×768 and 390×844, and writes the layout report |\n\n## Running the layout check\n\nFrom the `src/` folder, with the app running and signed-in credentials in `ADMIN_EMAIL` / `ADMIN_PASSWORD` (defaults: the seed values):\n\n```text\nnode <path>/BUG-01-layout-check.mjs http://localhost:3000 development ../answers/BUG-01/evidence/layout-report-dev.json\nnode <path>/BUG-01-layout-check.mjs http://localhost:3000 production  ../answers/BUG-01/evidence/layout-report-prod.json\n```\n\nRun the second command against the production server (`pnpm build`, then `pnpm start`). The script uses Playwright's Chromium if installed (`pnpm exec playwright install chromium`), otherwise the installed Edge or Chrome. Do not edit the reports.\n\n## BUG-01-TC-01 – desktop layout (development)\n\nPrecondition: signed in; `pnpm dev` running; Dashboard statistics present.\n\n1. Run the layout check in `development` mode.\n2. Open Dashboard at 1440 px and take a screenshot.\n\nExpected, for Dashboard, Accounting and Boards at 1440 px and at 1024 px: the sidebar is visible, and the main content and the top bar both start at or right of the sidebar's right edge and use the space beside it.\n\nRequired evidence: `layout-report-dev.json`, `tc-01-desktop-dashboard.png`.\n\n## BUG-01-TC-02 – desktop layout (production)\n\nPrecondition: signed in; production build running (`pnpm build`, `pnpm start`).\n\n1. Run the layout check in `production` mode.\n2. Open Accounting at 1024 px and take a screenshot.\n\nExpected: the same conditions as TC-01, measured on the production build.\n\nRequired evidence: `layout-report-prod.json`, `tc-02-production-layout.png`.\n\n## BUG-01-TC-03 – mobile layout\n\nPrecondition: as TC-01.\n\n1. Use `layout-report-dev.json` from TC-01 (it includes 390×844).\n2. Open Dashboard and Accounting at 390 px wide and take screenshots.\n\nExpected, for Dashboard, Accounting and Boards at 390 px: no desktop sidebar is shown, the mobile navigation is visible, and the main content uses the full width.\n\nRequired evidence: `layout-report-dev.json`, `tc-03-mobile-dashboard.png`, `tc-03-mobile-accounting.png`.\n"
+}

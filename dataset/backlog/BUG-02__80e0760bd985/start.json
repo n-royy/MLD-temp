@@ -1,0 +1,41 @@
+{
+  "backlogId": "BUG-02",
+  "backlogType": "BUG",
+  "startInstruction": "After the team declares START, send the submit template, Minimum Verification Scenarios and the BUG-02 scripts together. Deadline: 18 minutes from release; the Game Master server then closes the item and refuses later submissions.",
+  "submitTemplate": {
+    "schemaVersion": 1,
+    "backlogId": "BUG-02",
+    "status": "NOT_STARTED",
+    "evidenceFiles": [],
+    "testResults": [
+      {
+        "id": "BUG-02-TC-01",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-02-TC-02",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-02-TC-03",
+        "result": "NOT_RUN",
+        "evidence": []
+      },
+      {
+        "id": "BUG-02-TC-04",
+        "result": "NOT_RUN",
+        "evidence": []
+      }
+    ],
+    "engineeringRecord": {
+      "analysis": "",
+      "changes": [],
+      "tests": [],
+      "risks": [],
+      "aiCollaboration": ""
+    }
+  },
+  "minimumVerificationScenarios": "# BUG-02 minimum verification scenarios\n\n## Files provided with this item\n\n| File | Save as | Use |\n|---|---|---|\n| `BUG-02-submit.json` | `answers/BUG-02/submit.json` | Submission template |\n| `BUG-02-submit.schema.json` | (reference only) | JSON Schema that `submit.json` must satisfy |\n| `BUG-02-seed.ts` | `src/prisma/seed-bug02.ts` | Creates your team's two BUG-02 client companies |\n| `BUG-02-report.ts` | `src/prisma/report-bug02.ts` | Writes `currency-report.txt` from the database |\n| `BUG-02-run-checks.mjs` | anywhere outside `answers/` | Runs `pnpm test` and writes `test.log` |\n\n## Preparation (once)\n\n1. Obtain your team's official BUG-02 test data from the QA test data store and save it unchanged as `answers/BUG-02/evidence/bug-02-test-data.json` (the `answers/` folder next to `src/`). `data.steps` lists the exact values to enter for each case.\n2. From the `src/` folder: `pnpm tsx prisma/seed-bug02.ts ../answers/BUG-02/evidence/bug-02-test-data.json`. This creates the companies with keys `VND` and `USD`.\n\n## Evidence rules\n\n- Every evidence file goes in `answers/BUG-02/evidence/` with the exact name below.\n- Screenshots (PNG) come from the running app and show the saved amount.\n- After the three UI cases, write the report from the `src/` folder:\n  `pnpm tsx prisma/report-bug02.ts ../answers/BUG-02/evidence/bug-02-test-data.json ../answers/BUG-02/evidence/currency-report.txt`\n  It reports the latest invoice of each company. Do not edit it, and do not create further invoices for these companies after the cases below.\n- `test.log` is written by `node <path>/BUG-02-run-checks.mjs ../answers/BUG-02/evidence`, run from `src/`. Do not edit it.\n\n## BUG-02-TC-01 – VND invoice\n\n1. Accounting → Invoices → New invoice. Company: the company with key `VND`. One line with the description, quantity and unit price from `data.steps[\"BUG-02-TC-01\"]`.\n2. Create, then Issue the invoice.\n\nExpected: the invoice total is ₫12,345.\n\nRequired evidence: `tc-01-vnd-invoice.png`, `currency-report.txt`.\n\n## BUG-02-TC-02 – VND payment\n\n1. Accounting → Payments. Company `VND`, applies to the invoice from TC-01, amount from `data.steps[\"BUG-02-TC-02\"]`.\n2. Record the payment.\n\nExpected: paid ₫5,000; the invoice is partially paid.\n\nRequired evidence: `tc-02-vnd-payment.png`, `currency-report.txt`.\n\n## BUG-02-TC-03 – USD invoice still correct\n\n1. Accounting → Invoices → New invoice. Company `USD`, values from `data.steps[\"BUG-02-TC-03\"]`.\n2. Create, then Issue the invoice.\n\nExpected: the invoice total is $123.45.\n\nRequired evidence: `tc-03-usd-invoice.png`, `currency-report.txt`.\n\n## BUG-02-TC-04 – existing tests\n\n1. Run `BUG-02-run-checks.mjs`.\n\nExpected: `pnpm test` exits 0 with no failed test.\n\nRequired evidence: `test.log`.\n"
+}
