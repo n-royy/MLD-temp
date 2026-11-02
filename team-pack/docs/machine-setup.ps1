@@ -6,13 +6,18 @@
       (Windows service when one is installed, otherwise the portable binaries in %LOCALAPPDATA%\Programs);
     - the application role/database from the match's env-require\db-setup.sql;
     - <TeamWorkspace>\.mtm-local\postgres.json + README.md (local passwords; never committed);
-    - pnpm (version from the source's packageManager) and a warm pnpm store;
+    - pnpm (version from the source's packageManager) and a warm pnpm store ON THE SAME DRIVE as the team
+      workspace (pnpm hardlinks packages only within one drive; a store on C: with the workspace on D: makes every
+      install copy every file - UV8P4HUS: 4 slot installs took over 5 minutes);
+    - Windows Defender exclusions for the workspace, the store and the database (only when run as administrator;
+      otherwise the command to run is printed);
     - Playwright's Chromium for the project's Playwright version.
   Passwords are generated once, stored only in .mtm-local\postgres.json and never printed.
 
   Usage (PowerShell 7):
     pwsh -NoProfile -File machine-setup.ps1 -TeamWorkspace "D:\mtm\MLD"
   Options: -Postgres Auto|Service|Portable  -Port 5433  -SourceDir <app folder with package.json>  -SkipWarm
+           -StoreDir <pnpm store; default <workspace drive>:\pnpm-store>  -SkipDefender
 #>
 param(
   [string]$TeamWorkspace = 'D:\mtm\MLD',
@@ -23,6 +28,8 @@ param(
   [string]$DbSetupSql,
   [string]$SourceDir,
   [switch]$SkipWarm,
+  [string]$StoreDir,
+  [switch]$SkipDefender,
   # Delete and recreate the portable cluster in -DataDir when its passwords were lost (it holds no team data).
   [switch]$ResetPortable
 )
@@ -139,6 +146,29 @@ if ($DbSetupSql -and (Test-Path $DbSetupSql)) {
   } finally { Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue }
 } else { Write-Warning 'No db-setup.sql found (pass -DbSetupSql). Role not created.' }
 
+# ---------- pnpm store on the workspace drive ----------
+Step 'pnpm store on the workspace drive'
+$wsDrive = [IO.Path]::GetPathRoot((Resolve-Path $TeamWorkspace).Path)
+if (-not $StoreDir) { $StoreDir = Join-Path $wsDrive 'pnpm-store' }
+New-Item -ItemType Directory -Force $StoreDir | Out-Null
+if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+  & pnpm config set store-dir $StoreDir --location global 2>&1 | Select-Object -Last 1
+  "pnpm store: $(& pnpm store path 2>$null)"
+} else { Write-Warning 'pnpm not found yet; the store is set after corepack below.' }
+
+# ---------- Windows Defender exclusions ----------
+$exclusions = @($TeamWorkspace, $StoreDir, $DataDir) | Where-Object { $_ }
+$defenderCmd = "Add-MpPreference -ExclusionPath '$($exclusions -join "','")'; Add-MpPreference -ExclusionProcess 'node.exe','postgres.exe'"
+if (-not $SkipDefender) {
+  Step 'Windows Defender exclusions'
+  $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  if ($admin) {
+    try { Invoke-Expression $defenderCmd; 'Defender exclusions added.' } catch { Write-Warning "Defender exclusions failed: $($_.Exception.Message)" }
+  } else {
+    Write-Warning "Not elevated: Defender keeps scanning node_modules (slow installs, builds and tests). In an administrator PowerShell run:`n  $defenderCmd"
+  }
+}
+
 # ---------- README for the agents ----------
 $readme = @"
 # Local machine prerequisites (team MLD) - never commit these values
@@ -152,7 +182,8 @@ $(if ($startCommand) { "- If it is not running (after a reboot before logon scri
 - Passwords are in ``postgres.json`` next to this file: ``appPassword`` for DATABASE_URL / TEST_DATABASE_URL in the
   git-ignored ``src/.env``; ``superPassword`` only for re-running db-setup.sql (through PGPASSWORD, never printed).
 - Per match: use match-specific database names (``..._<matchId lowercase>`` and ``..._<matchId lowercase>_test``).
-- pnpm store and Playwright Chromium are pre-warmed; ``pnpm install --frozen-lockfile --prefer-offline`` is fast.
+- pnpm store ``$StoreDir`` (same drive as the workspace, so installs hardlink instead of copying) and Playwright
+  Chromium are pre-warmed; ``pnpm install --frozen-lockfile --prefer-offline`` is fast. Do not change the store.
 "@
 Set-Content -Encoding utf8 (Join-Path $local 'README.md') $readme
 
@@ -163,7 +194,8 @@ if (-not $SkipWarm -and $SourceDir -and (Test-Path (Join-Path $SourceDir 'packag
   $pm = if ($pkg.packageManager -match '^pnpm@(.+)$') { $Matches[1] } else { $null }
   & corepack enable pnpm --install-directory (Join-Path $env:APPDATA 'npm') 2>&1 | Select-Object -Last 1
   if ($pm) { & corepack prepare "pnpm@$pm" --activate 2>&1 | Select-Object -Last 1 }
-  $warm = Join-Path $env:LOCALAPPDATA 'MTM\warm'
+  & pnpm config set store-dir $StoreDir --location global 2>&1 | Select-Object -Last 1
+  $warm = Join-Path $wsDrive 'pnpm-warm'
   New-Item -ItemType Directory -Force $warm | Out-Null
   foreach ($f in 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.npmrc') {
     $src = Join-Path $SourceDir $f; if (Test-Path $src) { Copy-Item $src $warm -Force }
@@ -186,6 +218,7 @@ try { $ok = & $psql -w -h 127.0.0.1 -p $Port -U $s.appRole -d postgres -At -c 's
   appRoleLogin = if ("$ok" -eq '1') { 'OK' } else { "FAILED: $ok" }
   node       = (node --version)
   pnpm       = (pnpm --version 2>$null)
+  pnpmStore  = (pnpm store path 2>$null)
   git        = (git --version)
   codex      = (codex --version 2>$null)
   playwright = (Test-Path (Join-Path $env:LOCALAPPDATA 'ms-playwright'))

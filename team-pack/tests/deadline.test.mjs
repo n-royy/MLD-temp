@@ -34,7 +34,7 @@ class Helper {
     return new Promise(r => { this.pending.set(id, r); this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n'); });
   }
   async call(name, args = {}) {
-    if (process.env.TRACE) console.error('CALL', name);
+    if (process.env.TRACE) console.error('CALL', name, new Date().toISOString().slice(11,19));
     const msg = await this.rpc('tools/call', { name, arguments: args });
     const payload = JSON.parse(msg.result.content[0].text);
     return msg.result.isError ? { error: payload.error } : payload;
@@ -124,5 +124,21 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, s4 is the orches
     gm.state.sequence++;
     const w3 = await h.call('wait_for_update', {});
     assert.equal(w3.reason, 'MATCH_UPDATED');
+    // 1.5.4: a background job from preparation that ended wakes the orchestrator once (prep-* jobs never).
+    const jobs = join(matchRoot, '.mtm-tmp', 'jobs'); mkdirSync(jobs, { recursive: true });
+    for (const [n, code] of [['baseline', '1'], ['prep-build', '0']]) {
+      writeFileSync(join(jobs, `${n}.pid`), '999999'); writeFileSync(join(jobs, `${n}.exit`), code);
+      writeFileSync(join(jobs, `${n}.log`), 'Tests  1 failed | 11 passed (12)\n');
+    }
+    const w4 = await h.call('wait_for_update', {});
+    assert.equal(w4.reason, 'JOBS_DONE');
+    assert.deepEqual(w4.jobs.map(j => [j.name, j.state, j.exit]), [['baseline', 'FAILED', 1]]);
+    assert.match(w4.jobs[0].tail, /1 failed/);
+    const s2 = await h.call('start_work', { backlogItemKey: 'CR-09', slot: 's1' });
+    const brief = JSON.parse(readFileSync(s2.briefFile, 'utf8'));
+    assert.equal(brief.jobsDir, jobs); assert.equal(brief.slotInstallJob, 'install-s1'); assert.equal(brief.slotInstallState, 'MISSING');
+    await h.call('release_slot', { slot: 's1' }); // otherwise CR-09 gets its own MATCH_END warning
+    gm.state.sequence++;
+    assert.equal((await h.call('wait_for_update', {})).reason, 'MATCH_UPDATED', 'reported once');
   } finally { h.close(); }
 });

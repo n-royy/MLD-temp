@@ -2,6 +2,7 @@
 // MCP Helper (stdio, newline-delimited JSON-RPC). stdout carries JSON-RPC only.
 import { createInterface } from 'node:readline';
 import { MatchSession, ToolError } from '../src/runtime-session.mjs';
+import { startJobs, waitJobs } from '../src/jobs.mjs';
 
 const session = new MatchSession();
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
@@ -26,7 +27,8 @@ const TOOLS = [
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
     description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
-      'end; reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
+      'end; reported once each), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
+      'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft). ' +
       'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
       'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
@@ -100,7 +102,21 @@ const TOOLS = [
     description: 'Call one Company Tool by name with its arguments. Pass backlogId when the call is for a backlog item.',
     inputSchema: obj({ name: { type: 'string' }, arguments: { type: 'object' }, backlogId: { type: 'string' },
       slotMatchRoot: { type: 'string', description: 'Worker subagents only: your slotMatchRoot; relays the call through the orchestrator helper. Answers over 6000 characters are saved to a file in your slot.' },
-      saveToSlot: { type: 'boolean', description: "Write the full answer into the item's slot (.mtm-tmp/<ID>/company-*.txt) and return only a short head." } }, ['name']) }
+      saveToSlot: { type: 'boolean', description: "Write the full answer into the item's slot (.mtm-tmp/<ID>/company-*.txt) and return only a short head." } }, ['name']) },
+  { name: 'start_jobs', handler: a => startJobs(a),
+    description: 'Start long commands (install, build, migrate, test runs, slot installs) as detached background jobs that ' +
+      'outlive this turn. Each job writes <dir>/<name>.log and, when it ends, <name>.exit. Idempotent: a job that is RUNNING ' +
+      'or DONE is not started again; a LOST one (process gone, no exit code) restarts. Windows commands run in pwsh. ' +
+      'Never put passwords in a command (read them from git-ignored env files). Then call wait_jobs instead of polling logs.',
+    inputSchema: obj({ dir: { type: 'string', description: 'Absolute folder inside a .mtm-tmp folder, e.g. <matchRoot>/.mtm-tmp/jobs.' },
+      jobs: { type: 'array', minItems: 1, maxItems: 12, items: obj({ name: { type: 'string' }, cwd: { type: 'string' }, command: { type: 'string' } }, ['name', 'cwd', 'command']) },
+      restartFailed: { type: 'boolean', description: 'Also restart jobs that ended with a non-zero exit code.' } }, ['dir', 'jobs']) },
+  { name: 'wait_jobs', handler: a => waitJobs(a),
+    description: 'Block (up to 280 s) until the named background jobs (default: every job in dir) are no longer RUNNING, then return ' +
+      'each state (DONE / FAILED with exit code / LOST / RUNNING if the wait timed out) and the tail of its log. One call ' +
+      'replaces minutes of polling; call it again if done is false. In an exec cell use // @exec: {"yield_time_ms": 290000}.',
+    inputSchema: obj({ dir: { type: 'string' }, names: { type: 'array', items: { type: 'string' } },
+      timeoutMs: { type: 'integer', minimum: 1000, maximum: 280000 }, tailLines: { type: 'integer', minimum: 0, maximum: 40 } }, ['dir']) }
 ];
 
 const send = msg => process.stdout.write(JSON.stringify(msg) + '\n');

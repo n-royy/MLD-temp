@@ -1,7 +1,7 @@
 // Match session for the MCP Helper: keeps credentials in memory, talks to Game Master,
 // enforces the submission contract and writes the mandatory progress events.
 import { createHash, randomUUID } from 'node:crypto';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
@@ -10,6 +10,7 @@ import { git, gitOk } from './git.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
+import { jobState } from './jobs.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[a-f0-9]{40,64}$/;
@@ -354,6 +355,8 @@ export class MatchSession {
     while (Date.now() < deadline) {
       const done = this.#newSlotResults();
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
+      const finished = this.#jobsFinished();
+      if (finished.length) return { changed: true, reason: 'JOBS_DONE', jobs: finished, board: this.#board([]) };
       const soon = this.#deadlineSoon();
       if (soon.length) { this.soonUntil = Date.now() + 300000; return { changed: true, reason: 'DEADLINE_SOON', deadlineSoon: soon, board: this.#board([]) }; }
       const status = this.projection?.match?.status;
@@ -828,7 +831,9 @@ export class MatchSession {
       minimumVerificationScenarios: r.minimumVerificationScenarios ?? null, requiredTestCases: required,
       answerFile: submitPath, evidenceDir: join(dirname(submitPath), 'evidence'), organizerFiles: filesDir, submitSchemaFile: schemaFile,
       validateCommand: `node "${join(dir, 'validate.mjs')}"`, doneFile: join(dir, 'DONE.json'),
-      baselineRepair: this.#baselineInfo() };
+      baselineRepair: this.#baselineInfo(),
+      // Background jobs started during preparation (slot install, baseline run) may still be running at game start.
+      jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
     writeFileSync(join(dir, 'brief.json'), JSON.stringify(brief, null, 2));
     try { await this.#publishProxy(s.matchRoot); } catch { /* workers fall back to the orchestrator's saved files */ }
     const map = join(c.matchRoot, SCRATCH, 'repo-map.md');
@@ -838,7 +843,33 @@ export class MatchSession {
     if (existsSync(tools)) cpSync(tools, join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
     return { backlogId: key, backlogType: brief.backlogType, title: item?.title ?? null, replay: r.replay ?? null,
       slot: s.name, slotIndex: s.index, worktreeRoot: s.path, slotMatchRoot: s.matchRoot, briefFile: join(dir, 'brief.json'),
-      doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null };
+      doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null,
+      slotInstallState: brief.slotInstallState };
+  }
+
+  /** <matchRoot>/.mtm-tmp/jobs when preparation started background jobs there, else null. */
+  #jobsDir() {
+    const d = this.cfg?.matchRoot ? join(this.cfg.matchRoot, SCRATCH, 'jobs') : null;
+    return d && existsSync(d) ? d : null;
+  }
+
+  /** Background jobs that finished (DONE / FAILED / LOST) since the last report, each reported once. */
+  #jobsFinished() {
+    const d = this.#jobsDir();
+    if (!d || this.cfg?.phase !== 'GAME') return [];
+    this.jobsReported ??= new Set();
+    const out = [];
+    let names = [];
+    try { names = readdirSync(d).filter(f => f.endsWith('.pid') && !f.startsWith('prep-')).map(f => f.slice(0, -4)); } catch { return []; } // prep-* jobs were awaited during preparation
+    for (const n of names) {
+      const st = jobState(d, n);
+      if (st.state === 'RUNNING' || this.jobsReported.has(`${n}:${st.state}`)) continue;
+      this.jobsReported.add(`${n}:${st.state}`);
+      let tail = '';
+      try { tail = readFileSync(join(d, `${n}.log`), 'utf8').slice(-3000).split(/\r?\n/).filter(l => l.trim()).slice(st.state === 'DONE' ? -2 : -8).join('\n'); } catch { /* no log */ }
+      out.push({ name: n, state: st.state, exit: st.exit, tail: clip(tail, 600) });
+    }
+    return out;
   }
 
   /** New or rewritten DONE.json files of busy slots (each version reported once). */

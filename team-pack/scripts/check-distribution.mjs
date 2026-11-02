@@ -110,7 +110,7 @@ const handshake = () => new Promise(resolveHs => {
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
 });
 const tools = await handshake();
-check(Array.isArray(tools) && ['configure_session', 'refresh_match', 'start_work', 'submit_work', 'report_progress', 'wait_for_update', 'prepare_slots', 'integrate_item', 'apply_baseline']
+check(Array.isArray(tools) && ['configure_session', 'refresh_match', 'start_work', 'submit_work', 'report_progress', 'wait_for_update', 'prepare_slots', 'integrate_item', 'apply_baseline', 'start_jobs', 'wait_jobs']
   .every(t => tools.includes(t)), 'MCP_HANDSHAKE');
 
 const result = problems.length ? { status: 'FAILED', problems } :

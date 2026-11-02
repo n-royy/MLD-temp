@@ -38,34 +38,42 @@ go to one `team_repo_scout` subagent; you keep only its short replies.
    Set a local identity once: `git -C <checkoutRoot> config user.name "MLD Digital Cuder"` and
    `git -C <checkoutRoot> config user.email "mld-digital-cuder@users.noreply.github.com"`.
    Record `revision = git rev-parse HEAD` (full SHA).
-4. **ENVIRONMENT** - `IN_PROGRESS`, then `spawn_agent` (team_repo_scout, `fork_turns: "none"`):
+**Time matters here** (UV8P4HUS 1.5.3: 26 minutes, and the match clock was already running at ENVIRONMENT_READY).
+READY needs only: doctor READY, build PASS, match login. Everything else (slot installs, baseline test run) runs as
+background jobs that continue after READY and are picked up in the game (`JOBS_DONE`).
+
+4. **ENVIRONMENT + BUILD** - report `ENVIRONMENT` `IN_PROGRESS` and `BUILD` `IN_PROGRESS`, then `spawn_agent`
+   (team_repo_scout, `fork_turns: "none"`):
    ```
    Preparation specialist for match <matchId>. checkoutRoot: <path>. matchRoot: <path>. teamWorkspace: <path>.
-   Follow <teamWorkspace>/.agents/skills/game-preparation/ENVIRONMENT.md "0. Speed rules" and part A only
-   (environment of the main checkout; per-match database names; machine prerequisites from .mtm-local). Reply in at most 120 words: OK or BLOCKED (+ exact error); the git-ignored env
-   file(s) relative to matchRoot that hold local values; the exact database-name and port strings in them.
+   Follow <teamWorkspace>/.agents/skills/game-preparation/ENVIRONMENT.md "0. Speed rules" and part A (environment
+   and build of the main checkout, per-match database names, machine prerequisites from .mtm-local; long commands
+   only through start_jobs/wait_jobs). Reply in at most 120 words: OK or BLOCKED (+ exact error); build PASS/FAIL;
+   the git-ignored env file(s) relative to matchRoot that hold local values; the exact database-name and port
+   strings in them.
    ```
-   `wait_agent` until it answers. `COMPLETED` when it says OK; on BLOCKED report `BLOCKED` with its one-line error.
+   `wait_agent` until it answers. `ENVIRONMENT` `COMPLETED` when it says OK (BLOCKED: report `BLOCKED` with its
+   one-line error); `BUILD` `COMPLETED` when the build passed and `git -C <checkoutRoot> status --porcelain
+   --untracked-files=no` is empty (check it yourself).
 5. **Slots** - `prepare_slots` with `count: 4` (s1-s3 for workers, s4 for your own PI/TASK work) and `copyFiles` = the env file(s) from the reply, each with
    `replace` turning the TEST database name into `<name>_{slot}` (and the app database too only when the env-require
    README demands one per working copy) and the app port `<p>` into `<p + 10·n>` (write the port as text, e.g.
    `"PORT=3000": "PORT=30{n}0"` style). It does not change tracked files.
-6. **BUILD** - `IN_PROGRESS`, then `followup_task` to the scout:
+6. **Background jobs, repo map, tools** - `followup_task` to the scout:
    ```
-   Now ENVIRONMENT.md parts B, C, D, E and F, following "0. Speed rules" (B and C in parallel; cache by tree). Slots: <slot matchRoots from prepare_slots>. Reply in at most 150 words:
-   build PASS/FAIL (+ error), slots ready yes/no, failing baseline tests by name with a one-line cause guess,
-   repo map written yes/no, tools serve.mjs/shot.mjs verified yes/no, baseline patch ready yes/no (+ one-line
-   summary), git status of the checkout clean yes/no.
+   Now ENVIRONMENT.md parts B (start background jobs, do NOT wait for them), D, E, and F only if its condition
+   holds. Slots: <slot matchRoots from prepare_slots>. Reply in at most 120 words: jobs started (names), repo map
+   written yes/no, serve.mjs/shot.mjs verified yes/no, baseline result if already finished (failing tests by name),
+   baseline patch ready yes/no (+ one line), checkout clean yes/no.
    ```
-   `wait_agent`. `COMPLETED` only if the build succeeded and the checkout has no tracked changes (check
-   `git -C <checkoutRoot> status --porcelain --untracked-files=no` yourself: it must be empty). Slot problems are not
-   a build failure: note them; the game falls back to fewer slots or single-agent work.
+   `wait_agent`. This step never blocks READY on slot installs or the baseline run: they keep running.
 7. **MATCH_LOGIN** - `login_match`, then `refresh_match`. It must show this match ID and team `teamId`. Do not act on
    any backlog item even if some are visible.
 8. Append readiness:
    `report_progress {"event":{"type":"ENVIRONMENT_READY","requestId":<descriptor.requestId>,"repository":<descriptor.repository exactly>,"revision":<full SHA from step 3>,"build":"PASS","matchLogin":"PASS"}}`
-9. Finish the turn with a short plain summary (at most 8 lines): build result, slots ready, baseline failing tests
-   with cause guess, baseline patch ready yes/no with its one-line summary, known risks. Player validates the log, tells Game Master the team is PREPARED, and later resumes
+9. Finish the turn with a short plain summary (at most 8 lines): build result, slots created, background jobs still
+   running (names; jobs dir `<matchRoot>/.mtm-tmp/jobs`), baseline result if known, baseline patch ready yes/no,
+   known risks. Player validates the log, tells Game Master the team is PREPARED, and later resumes
    this same conversation with `START_GAME_V4`. Do not start backlog work before that frame.
 
 ## If the scout cannot be used

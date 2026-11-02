@@ -15,10 +15,18 @@ only the orchestrator writes progress events.
   Only when `.mtm-local/README.md` does not exist at all (machine never prepared) fall back to "Toolchain installs"
   below, reuse anything already on disk (e.g. `%LOCALAPPDATA%\Programs\PostgreSQL16`), and start the reply with
   `MACHINE_NOT_PREPARED` so the team runs machine-setup.ps1 before the next match.
-- **Run independent work at the same time.** Start long jobs in the background (`Start-Process pwsh -ArgumentList
-  '-NoProfile','-Command',"<cmd> *> <log>" -PassThru`, or several jobs in one command), keep their PIDs and logs in
-  `.mtm-tmp/`, and wait for all of them in ONE call with a long `yield_time_ms`. Example for B+C: production build,
-  baseline test run and the slot installs all run together.
+- **Long commands only as jobs, never by polling** (UV8P4HUS: 35 of 84 scout turns were log-tail polls, because an
+  exec call returns after about 30 s whatever `yield_time_ms` says; each poll re-sent ~41k tokens). Start them with
+  the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
+  `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
+  `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
+  `install-s1`..`install-s4` for slots, `baseline` for the baseline test run. Run independent jobs together.
+- **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
+  LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
+  127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
+  in your reply. BLOCKED is only for a real environment failure (database, install, build).
+- **Stay off the critical path.** READY needs only doctor READY and build PASS. Slot installs and the baseline run
+  are started as jobs and NOT awaited: they finish during the first minutes of the game.
 - **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline` (also in slots, in parallel).
 - **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
   folder). If `<teamWorkspace>/.mtm-cache/<key>/` exists (same seed as an earlier match), copy its `repo-map.md`,
@@ -38,8 +46,12 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
      the checkout's git-ignored env file (e.g. `..._<matchId>` and `..._<matchId>_test`); the application role has
      CREATEDB. Before baseline tests, confirm the database's recorded migrations equal the checkout's migration
      folder; if the tool warns about migrations missing from the folder, you are on a stale database: switch names.
-   - Install dependencies with the locked command (`pnpm install --frozen-lockfile`, `npm ci`, ...).
-   - Run the provided setup/migration/seed steps and any `doctor`/check script until it reports ready.
+   - Job `prep-install`: the locked install (`pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...);
+     `wait_jobs`.
+   - Then in parallel: job `prep-build` (the documented build, e.g. `prepare-source.ps1` or `pnpm run build`) and job
+     `prep-db` (the provided migration and seed steps, then the `doctor`/check script). One `wait_jobs` for both.
+     The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
+     `git status --porcelain` shows no tracked changes.
    - Missing toolchain or service: install it yourself, see "Toolchain installs" below. No human can help
      once the match starts, so never wait for one.
 
@@ -50,7 +62,9 @@ First refresh PATH in your shell (the Player process may predate recent installs
 - pnpm via corepack (shims in `%APPDATA%\npm`; it follows `packageManager` in package.json, e.g. 10.12.3).
 - .NET SDK 8.0.427 in `%LOCALAPPDATA%\Microsoft\dotnet` (`DOTNET_ROOT`).
 - Temurin JDK 21 (`JAVA_HOME`) and Maven 3.9.16 (`MAVEN_HOME`) in `%LOCALAPPDATA%\Programs`.
-- PostgreSQL 16 service on 127.0.0.1:5433, psql at `C:\Program Files\PostgreSQL\16\bin\psql.exe`.
+- PostgreSQL 16 on 127.0.0.1:5433 as prepared by `machine-setup.ps1` (portable cluster or service; the exact psql
+  path and start command are in `<teamWorkspace>/.mtm-local/README.md`).
+- pnpm store on the same drive as the workspace (see `.mtm-local/README.md`); never change it.
 
 ## Toolchain installs (always allowed, no approval needed)
 Any runtime, SDK, package manager, CLI or service the source needs may be installed without asking and without
@@ -78,21 +92,20 @@ Rules for installs:
 - Keep installer output short (`| Select-Object -Last 5`), and time-box each install to ~10 minutes.
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
-## B. BUILD (main checkout)
-Run the documented build (for example `prepare-source.ps1` or `pnpm run build`) and a fast baseline
-   test run if one exists (time-box ~10 minutes). Note every failing baseline test by name in your final answer, with
-   a one-line guess of the cause from the design documents: during the game the orchestrator must resolve it in the
-   first item whose criteria require existing tests to pass. Do not change tracked files now. `COMPLETED` only if the build succeeds. Then confirm `git status --porcelain` shows no tracked changes
-   (untracked/ignored env files are fine; if a tracked file changed, restore it with `git checkout -- <file>`).
+## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
+With one `start_jobs` call: `install-s1`..`install-s4` (in each slot app folder, the same locked install plus
+`--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
+and E while they run. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
+If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
+guess from the design documents.
+Do not change tracked files.
 
-## C. SLOTS (after the orchestrator ran `prepare_slots`)
-For every slot `<checkoutRoot>.slots/sN/<folder>`, all slots in parallel and in parallel with B:
-- install dependencies with the same locked command as the main checkout plus `--prefer-offline`;
+## C. SLOT DATABASES (rules for the slot jobs of part B)
 - databases: follow the env-require README. If it says working copies share the app database and only the TEST
   database must differ (Solova does), the slot env already has its own test database name and the tests create it:
   nothing to migrate or seed. If each copy needs its own app database, clone the main one instead of migrating and
   seeding again (PostgreSQL: `CREATE DATABASE <slot db> TEMPLATE <main db>` while nothing is connected to it);
-- no build in a slot; one fast test (or a typecheck) proves the slot works.
+- no build in a slot and no extra check: the first test a worker runs proves the slot.
 Do not change tracked files in a slot either.
 
 ## D. REPO MAP
@@ -102,8 +115,14 @@ per module the key files; exact narrow test commands (single file / single modul
 migration/seed commands; how to run the app (port) ; the baseline failing tests with the one-line cause guess;
 design documents worth reading (`DECISIONS.md`, `BUILD_REPORT.md`, specs). Facts only, no speculation.
 
-## F. BASELINE PATCH (when B found failing baseline tests)
+## F. BASELINE PATCH (only when the `baseline` job already finished with failures before you reply)
 The game commits this patch at minute 0, before any worker starts (`apply_baseline`), so it must be right.
+Scope: only a database schema / migration / configuration drift that contradicts the design documents (the
+classic case: a later migration undoes a documented RESTRICT). **Never patch product logic** (functions in
+`src/lib`, services, UI): a failing test there is usually the planted defect of a backlog item that is not revealed
+yet (UV8P4HUS: the patch "fixed" `deriveInvoiceStatus`, the code of BUG-03, and took 5 minutes). Report such a
+failure as "probably a backlog item" instead. Time-box: 3 minutes; if not done, prepare nothing. If the baseline is
+still running, skip F: the orchestrator handles the result in the game.
 1. Decide the wrong side from the design documents (`DECISIONS.md`, specs, original migrations, `BUILD_REPORT.md`),
    exactly as WORKER.md "Baseline failures" says. Prepare a patch only when the code drifted from the documented
    design and the fix is clear (e.g. a later migration contradicts a documented rule: add a NEW migration that
@@ -127,5 +146,5 @@ reruns of a home-made screenshot script and 60 one-second polls in one item).
   (cache the session in `.mtm-tmp/tools/auth.json`), open the page, wait for network idle and for loading
   skeletons/spinners to disappear (and for `--wait` if given), save the screenshot, print the main element boxes
   as one JSON line. Prefer role/text selectors over product-specific CSS.
-Use run commands with a large `yield_time_ms` here too. If the project has no browser automation, write only
+Verify each tool with one short command (a job if it takes longer than ~20 s). If the project has no browser automation, write only
 `serve.mjs` and say so in the reply.

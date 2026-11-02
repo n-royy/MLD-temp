@@ -22,6 +22,16 @@ small: never paste briefs, diffs or logs into it.
    `GAME_START_STATUS` `BACKLOG_SYNC` `COMPLETED`. `refresh_match` already logs `DISCOVERED` for each new item.
    The board lists `slots` (prepared during preparation: s1..s3 for workers, s4 for you). If it has none, call
    `prepare_slots` with the values from your preparation summary, or work single-agent ("Doing an item yourself").
+2b. **Background jobs from preparation** (slot installs `install-sN`, the `baseline` test run in
+   `<matchRoot>/.mtm-tmp/jobs`) may still be running: do not wait for them. Spawn workers at once; each worker waits
+   for its own slot install (`slotInstallState` in its brief). `wait_for_update` returns `reason: "JOBS_DONE"` with
+   `jobs[]` when they end:
+   - `install-sN` or `baseline` LOST (killed with the preparation turn), or `install-sN` FAILED: `start_jobs` with
+     `restartFailed: true` for that job (same command as in its
+     `<name>.cmd.txt`); the worker in that slot keeps waiting.
+   - `baseline` FAILED and no baseline patch was applied: name one baseline owner ("Baseline failures" below) and
+     `send_message` that worker once: `Baseline owner: <test names> fail at baseline (log <path>); WORKER.md
+     "Baseline failures"`. Workers started later get the known-failure note in their spawn message.
 3. `company_tools_list` once. These are the customer's internal systems (tickets, logs, docs, monitoring...).
    Their information is authoritative and using them is part of the evaluation. Workers query them themselves
    through your helper (relay); you call them only for an item's QA data at start (loop step 3) and for items you do
@@ -43,7 +53,8 @@ small: never paste briefs, diffs or logs into it.
   ```
 - Follow-up message for a queued item in the same slot (after `integrate_item` returned `next`):
   `Next item <ID> (<TYPE>): briefFile <path>. Your slot was reset to the branch head, which includes <previous ID>. <deadline>.`
-- Messages to a working worker: only the blocker note ("Wave planning" step 4) and the safety net. `followup_task`
+- Messages to a working worker: only the blocker note ("Wave planning" step 4), the baseline-owner note (2b) and
+  the safety net. `followup_task`
   only to fix a rejected gate, to hand over the `next` item, or to replace a placeholder value.
 - Never put credentials, the API key or descriptor objects in a message.
 

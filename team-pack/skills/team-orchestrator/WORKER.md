@@ -11,6 +11,12 @@ The orchestrator's message gives: backlog ID, `briefFile`, `worktreeRoot`, `slot
 the same folder (`company-*.txt`). `<slotMatchRoot>/.mtm-tmp/repo-map.md` describes the code base: read it first
 instead of exploring.
 
+## Your slot may still be installing (first minutes of the game)
+If `slotInstallState` in the brief is not `DONE`, read and edit code first, then before your first test or server
+run call the helper tool `wait_jobs` with `dir` = the brief's `jobsDir` and `names: [<slotInstallJob>]` (one blocking
+call; never poll). FAILED/LOST: run the slot's locked install yourself as a job (`start_jobs`, same command as in
+`<jobsDir>/<slotInstallJob>.cmd.txt`) and `wait_jobs` again. Long test runs and builds can use the same two tools.
+
 ## When another item blocks your evidence
 If your note says another item fixes something your scenario needs (e.g. a layout bug hiding content), do
 everything else first (code, unit tests, data checks, organizer scripts that do not need the fixed screen). When
@@ -182,9 +188,10 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
 `.agents/skills/game-preparation/ENVIRONMENT.md` (user scope, no admin), then continue.
 
 ## Speed (from BCYRV9M9: 23-60 one-second polls and up to 14 reruns of a home-made screenshot script per item)
-- Long commands (install, build, test, typecheck, prisma, dev/prod server start, browser scripts): run them with a
-  large `yield_time_ms` (120000-300000) so ONE call returns the finished result. Never poll a running command with
-  `write_stdin` and a 1 s yield: every poll is a full model turn. Start a server with the slot's
+- Long commands (install, build, full test runs, typecheck, prisma): an exec call returns after about 30 s whatever
+  `yield_time_ms` it asks for (UV8P4HUS), so anything longer goes through `start_jobs` (dir
+  `<slotMatchRoot>/.mtm-tmp/jobs`) and ONE blocking `wait_jobs`. Never poll a running command with `write_stdin` or
+  1 s waits: every poll is a full model turn. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
   write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
