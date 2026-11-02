@@ -17,12 +17,45 @@ run call the helper tool `wait_jobs` with `dir` = the brief's `jobsDir` and `nam
 call; never poll). FAILED/LOST: run the slot's locked install yourself as a job (`start_jobs`, same command as in
 `<jobsDir>/<slotInstallJob>.cmd.txt`) and `wait_jobs` again. Long test runs and builds can use the same two tools.
 
+## UI evidence: foundation steps and subject steps
+T5QSM1E2 lost 3/4 rows of BUG-02 (sidebar of BUG-01 intercepted the Accounting tab clicks) and 4/5 rows of CR-01
+(home-made sign-in script never finished hydration) with correct code: a `NOT_RUN` row scores 0.
+- Split every MVS scenario into **subject steps** (the behaviour this item fixes or adds, e.g. the BUG-02 invoice
+  form and its saved amount) and **foundation steps** (only reach the state: sign in, open a page or tab, load QA
+  data with the organizer loader).
+- Subject steps are done for real through the UI the MVS names. Never create the data under test by API, database
+  or script when the MVS says to enter it on a screen; never edit, crop or compose a screenshot.
+- Foundation steps may take a lawful shorter path that does not change what the row proves: the signed-in session
+  `shot.mjs` saves (run it once, then your own browser script uses `browser.newContext({ storageState:
+  '.mtm-tmp/tools/auth.json' })` as CR-03 did, instead of typing credentials), opening the page or tab by its URL, keyboard (Tab,
+  Enter, arrow keys) instead of a click on a covered control, ordinary scrolling, a larger desktop viewport that
+  still meets the MVS size rule. Wait for a visible element of the target screen, not for `networkidle`.
+- No shortcut when the item or the row is about that step itself: an item about sign-in, sessions, permissions,
+  navigation or layout, or a signed-out row (CR-01 TC-04), does the step exactly as written.
+- Never: `click({ force: true })`, dispatching DOM events, injecting CSS/JS into the page, or patching the running
+  app with a change that is not in your commit. Never commit another item's fix in your item: briefs list
+  "unrelated UI changes" as out of scope.
+- Every shorter path used goes into that row's `note`, e.g. "opened Accounting by URL with the keyboard because the
+  desktop sidebar (BUG-01) covers the tab; invoice entered and issued through the form".
+
+## Check the evidence path first (UI items)
+Before changing code, open each screen your evidence rows need once (`shot.mjs` or one browser step) and confirm the
+controls you must operate are reachable. A covered control, a redirect loop, a sign-in that never completes or a
+blank page is found now, not at the end, and you try the foundation paths above while the code is still open.
+
 ## When another item blocks your evidence
-If your note says another item fixes something your scenario needs (e.g. a layout bug hiding content), do
-everything else first (code, unit tests, data checks, organizer scripts that do not need the fixed screen). When
-the orchestrator tells you the blocker is on the branch, `git -C <worktreeRoot> rebase <branch>` (commit first),
-restart your server, then take the final screenshots. If the message has not come and your deadline is near,
-submit what is verified and mark the blocked rows honestly.
+If your note says another item fixes something your scenario needs (e.g. a layout bug hiding content), or the
+check above finds it, do everything else first (code, unit tests, data checks, organizer scripts that do not need
+the fixed screen), then reach the screen by a foundation path above and take the evidence on your own revision; the
+blocking defect may stay visible in the screenshot as long as the row's required content is readable. When the
+orchestrator tells you the blocker is on the branch, `git -C <worktreeRoot> rebase <branch>` (commit first), restart
+your server and retake only the rows that still lack evidence.
+
+## Do not give up a row while time remains
+A UI row stays `NOT_RUN` only when every lawful foundation path failed, or your deadline (or the match end) is less
+than 3 minutes away. Until then keep trying the next path; commit after each passing row so the orchestrator's
+safety net can integrate what is verified. A home-made browser script that failed twice is replaced by `shot.mjs` or
+by another foundation path, not by `NOT_RUN`. Put each failed path in that row's `note` and in DONE.json `doubts`.
 
 ## Next item in the same slot (rare)
 When a queued item has no deadline and your slot frees first, the orchestrator may hand it to you by follow-up.
@@ -194,7 +227,8 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
   1 s waits: every poll is a full model turn. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
-  write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
+  write your own browser script only if it is missing or cannot do the step, and fix it at most twice; then switch
+  to another foundation path ("UI evidence" above).
 - Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
   message is the one-line final answer after doneFile; put doubts in DONE.json.
 
