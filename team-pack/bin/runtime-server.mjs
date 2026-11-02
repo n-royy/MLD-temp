@@ -55,13 +55,18 @@ const TOOLS = [
     description: "Bring a worker's committed slot work onto the assigned branch and submit it: checks the slot is committed, " +
       'only the assigned folder changed and no credential is in the diff; git pull --rebase, cherry-pick the slot commits, ' +
       'push (never force); then runs submit_work unchanged (all its gates) with the counts from the slot DONE.json unless ' +
-      '`tests` is given. INTEGRATION_CONFLICT aborts cleanly and nothing is pushed or sent. Frees the slot when submitted.',
+      '`tests` is given. Before that it replays the organizer <ID>-mvs.test.ts in the slot like the grader: MVS_FAILING when a row ' +
+      'reported PASS fails the replay, MVS_NOT_RUNNABLE when the file cannot run while rows claim PASS (result.mvsCheck has the ' +
+      'details, also rows that pass but were not reported PASS). Then the evidence the MVS file names: REQUIRED_EVIDENCE_MISSING ' +
+      'when a PASS row lacks a required file, EARLY_PARTIAL when rows are not PASS with more than 4 minutes left (result.evidenceCheck). INTEGRATION_CONFLICT aborts cleanly and nothing is pushed or sent. Frees the slot when submitted.',
     inputSchema: obj({ backlogItemKey: key,
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },
         skipped: { type: 'integer' }, summary: { type: 'string' } }, ['required', 'executed', 'passed', 'failed']),
       acknowledgeTestChanges: { type: 'string' },
       allowUncommitted: { type: 'boolean', description: 'Safety net only: integrate the last commit and ignore uncommitted edits.' },
-      next: { type: 'string', description: "After a successful submit, start this item in the same slot (next item of the worker's group); the result carries next = its slot summary." } },
+      next: { type: 'string', description: "After a successful submit, start this item in the same slot (next item of the worker's group); the result carries next = its slot summary." },
+      allowMvsFailure: { type: 'boolean', description: 'Safety net only: integrate even though the organizer MVS replay fails or cannot run (those rows will score 0).' },
+      acceptGaps: { type: 'string', description: 'Reason (20+ characters) to integrate although rows are not PASS with time left (EARLY_PARTIAL) or PASS rows lack MVS-required evidence (REQUIRED_EVIDENCE_MISSING).' } },
     ['backlogItemKey']) },
   { name: 'apply_baseline', handler: a => session.applyBaseline(a),
     description: 'Commit and push the baseline repair prepared and tested by the scout (<matchRoot>/.mtm-tmp/baseline/baseline.patch) ' +

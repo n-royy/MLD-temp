@@ -147,6 +147,18 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    - `INTEGRATION_CONFLICT`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`, `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`,
      `SCRATCH_COMMITTED`: `followup_task` to that worker with the error code and message (one or two lines); wait for
      the next `SLOT_DONE`; integrate again (already integrated commits are not picked twice).
+   - `MVS_FAILING` (1.6.0: the helper replays the organizer `<ID>-mvs.test.ts` in the slot before pushing, like the
+     grader; a row reported PASS whose replay fails would score 0): `followup_task` the worker with the failing rows
+     and test names from `error.details`; it fixes the code (or reports those rows FAIL) and rewrites DONE.json.
+   - `MVS_NOT_RUNNABLE` (the MVS file does not even load: missing module, wrong export) : same follow-up. Pass
+     `allowMvsFailure: true` only at the safety net.
+   - On success, `mvsCheck.passingButNotReported` lists rows whose replay passes but that are not reported PASS: if
+     time allows, `followup_task` the worker once to add their evidence and report them PASS (they score nothing as
+     NOT_RUN).
+   - `REQUIRED_EVIDENCE_MISSING` / `EARLY_PARTIAL` (1.6.1, from the evidence the MVS file names; `error.details`
+     lists the rows and files, and the minutes left): `followup_task` the worker with that list: "produce these with
+     ui-run.mjs, then finish the rows". Pass `acceptGaps` (a 20+ character reason) only when the app truly cannot do
+     the step, or at the safety net.
    - `EXISTING_TESTS_MODIFIED`: see "Existing tests" in WORKER.md; follow up with the worker, never weaken a test.
    - `SUBMIT_OUTCOME_UNCERTAIN`: call `integrate_item` again unchanged (same idempotency key).
    - `REVISION_NOT_PUSHED`, `GIT_PULL_FAILED`, `GIT_PUSH_FAILED`, `MAIN_DIRTY`: yours, not the worker's - check
@@ -175,7 +187,8 @@ DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it cl
 1. `send_message` that worker: "<ID>: <minutesLeft> min left. Commit what you have now, fill the answer honestly
    (PARTIAL if a criterion is not met), validate, write doneFile."
 2. `wait_for_update` with `timeoutMs: 60000` (honoured only right after DEADLINE_SOON). On `SLOT_DONE`, integrate.
-3. Still no DONE.json: `integrate_item` with `allowUncommitted: true` and the honest test counts - an unsubmitted
+3. Still no DONE.json: `integrate_item` with `allowUncommitted: true` (and `allowMvsFailure: true` / `acceptGaps` if a
+   gate refuses) and the honest test counts - an unsubmitted
    item scores 0 anyway. If the answer is not valid yet, the gate says so; then `release_slot` and move on.
 For your own item in s4, the same steps apply to yourself: commit, answer, doneFile, `integrate_item`.
 

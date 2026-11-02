@@ -11,6 +11,8 @@ import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
 import { jobState } from './jobs.mjs';
+import { compareRows, replayMvs } from './mvs.mjs';
+import { evidenceGaps, requiredEvidence } from './evidence.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[a-f0-9]{40,64}$/;
@@ -30,6 +32,10 @@ const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updat
 // DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
 const SOON_MINUTES = 3;
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
+const EVIDENCE_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'evidence.mjs');
+const UI_RUN = join(dirname(fileURLToPath(import.meta.url)), 'ui-run.mjs');
+// 1.6.1: an answer with open rows is not integrated while more than this many minutes remain (EARLY_PARTIAL).
+const EARLY_MINUTES = 4;
 
 export class ToolError extends Error {
   constructor(code, message, details) { super(message ?? code); this.code = code; this.details = details; }
@@ -811,11 +817,13 @@ export class MatchSession {
     const lib = join(s.matchRoot, SCRATCH, '_mtm');
     mkdirSync(lib, { recursive: true });
     copyFileSync(SCHEMA_MODULE, join(lib, 'schema.mjs'));
+    copyFileSync(EVIDENCE_MODULE, join(lib, 'evidence.mjs'));
     writeFileSync(join(dir, 'validate.mjs'), [
       "import { existsSync, readFileSync } from 'node:fs';",
       "import { dirname, join } from 'node:path';",
       "import { fileURLToPath } from 'node:url';",
       "import { answerProblems } from '../_mtm/schema.mjs';",
+      "import { evidenceGaps, requiredEvidence } from '../_mtm/evidence.mjs';",
       'const here = dirname(fileURLToPath(import.meta.url));',
       `const answerDir = join(here, '..', '..', 'answers', ${JSON.stringify(key)});`,
       "const schema = existsSync(join(here, 'submit.schema.json')) ? JSON.parse(readFileSync(join(here, 'submit.schema.json'), 'utf8')) : null;",
@@ -823,7 +831,10 @@ export class MatchSession {
       "try { answer = JSON.parse(readFileSync(join(answerDir, 'submit.json'), 'utf8').replace(/^\\uFEFF/, '')); }",
       "catch (e) { console.log(JSON.stringify({ valid: false, problems: ['submit.json: ' + e.message] })); process.exit(1); }",
       'const r = answerProblems(schema, answer, ref => existsSync(join(answerDir, ref)));',
-      'console.log(JSON.stringify({ valid: r.problems.length === 0, schemaChecked: r.schemaChecked, problems: r.problems.slice(0, 20) }));',
+      // Required evidence named by the MVS file (informational here; integrate_item enforces it).
+      `const mvsMd = join(here, 'files', 'challenge', ${JSON.stringify(`${key}-minimum-verification-scenarios.md`)});`,
+      "const gaps = existsSync(mvsMd) ? evidenceGaps(answer, requiredEvidence(readFileSync(mvsMd, 'utf8')), f => existsSync(join(answerDir, 'evidence', f))) : null;",
+      'console.log(JSON.stringify({ valid: r.problems.length === 0, schemaChecked: r.schemaChecked, problems: r.problems.slice(0, 20), requiredEvidence: gaps }));',
       'process.exit(r.problems.length ? 1 : 0);', ''].join('\n'));
     const item = this.#items().find(i => i.key === key) ?? null;
     const brief = { backlogId: key, backlogType: r.backlogType ?? item?.backlogType ?? null, item,
@@ -841,10 +852,77 @@ export class MatchSession {
     // Ready-made run/evidence scripts the scout verified during preparation (e.g. serve.mjs, shot.mjs).
     const tools = join(c.matchRoot, SCRATCH, 'tools');
     if (existsSync(tools)) cpSync(tools, join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
+    // The pack's tested UI evidence runner (1.6.1) always wins over a per-match copy.
+    mkdirSync(join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
+    copyFileSync(UI_RUN, join(s.matchRoot, SCRATCH, 'tools', 'ui-run.mjs'));
     return { backlogId: key, backlogType: brief.backlogType, title: item?.title ?? null, replay: r.replay ?? null,
       slot: s.name, slotIndex: s.index, worktreeRoot: s.path, slotMatchRoot: s.matchRoot, briefFile: join(dir, 'brief.json'),
       doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null,
       slotInstallState: brief.slotInstallState };
+  }
+
+  /** MVS replay gate: a row reported PASS whose replay fails, or an MVS file that cannot run while rows claim PASS,
+   *  blocks integration (each would score 0). Rows not reported PASS whose replay passes are returned as a hint. */
+  async #mvsGate(s, key, allowMvsFailure) {
+    const dir = join(s.matchRoot, SCRATCH, key);
+    const mvsFile = join(dir, 'files', 'challenge', `${key}-mvs.test.ts`);
+    let answer = null;
+    try { answer = JSON.parse(readFileSync(join(s.matchRoot, 'answers', key, 'submit.json'), 'utf8').replace(/^\uFEFF/, '')); } catch { /* the submit gates report it */ }
+    const started = Date.now();
+    const replay = await replayMvs({ key, matchRoot: s.matchRoot, mvsFile, scratch: dir });
+    const cmp = compareRows(answer, replay);
+    const check = { status: replay.status, stage: replay.stage ?? null, seconds: Math.round((Date.now() - started) / 1000), rows: replay.rows,
+      claimedPassButFailing: cmp.claimedPass, passingButNotReported: cmp.greenNotPass, failing: replay.failing, detail: replay.detail ?? null };
+    try { writeFileSync(join(dir, 'mvs-check.json'), JSON.stringify(check, null, 2)); } catch { /* informational */ }
+    if (allowMvsFailure) return { ...check, overridden: true };
+    if (cmp.claimedPass.length) {
+      fail('MVS_FAILING', `${key}: the organizer MVS replay fails for rows reported PASS (${cmp.claimedPass.join(', ')}); they would score 0. ` +
+        'Fix the code (or report those rows FAIL honestly), commit, rewrite DONE.json. Details in .mtm-tmp/<ID>/mvs-check.json.',
+        { rows: cmp.claimedPass, failing: replay.failing.slice(0, 5) });
+    }
+    if (replay.status === 'ERROR' && (answer?.testResults ?? []).some(r => r.result === 'PASS') && existsSync(mvsFile)) {
+      fail('MVS_NOT_RUNNABLE', `${key}: the organizer MVS file could not run on the slot (${clip(replay.detail ?? '', 200)}); the grader replays it too. ` +
+        'Fix the cause (missing module, wrong export, broken import) or pass allowMvsFailure at the safety net.', { detail: replay.detail });
+    }
+    return check;
+  }
+
+  /** Evidence gate: PASS rows must reference (and have) the files the MVS requires (REQUIRED_EVIDENCE_MISSING);
+   *  an answer with rows not PASS is refused while more than EARLY_MINUTES remain before the item's deadline or the
+   *  match end (EARLY_PARTIAL). acceptGaps (a reason of 20+ characters) overrides both. */
+  #evidenceGate(s, key, acceptGaps) {
+    if (acceptGaps != null && (typeof acceptGaps !== 'string' || acceptGaps.trim().length < 20)) fail('INVALID_ACCEPT_GAPS', 'acceptGaps needs a reason of at least 20 characters');
+    const dir = join(s.matchRoot, SCRATCH, key);
+    let md = null;
+    const mdFile = join(dir, 'files', 'challenge', `${key}-minimum-verification-scenarios.md`);
+    if (existsSync(mdFile)) md = readFileSync(mdFile, 'utf8');
+    else { try { const b = JSON.parse(readFileSync(join(dir, 'brief.json'), 'utf8')); if (typeof b.minimumVerificationScenarios === 'string') md = b.minimumVerificationScenarios; } catch { /* none */ } }
+    if (!md) return { status: 'SKIPPED', detail: 'no minimum verification scenarios file' };
+    const req = requiredEvidence(md);
+    if (!Object.keys(req.rows).length && !req.general.length) return { status: 'SKIPPED', detail: 'the MVS names no required evidence' };
+    let answer = null;
+    try { answer = JSON.parse(readFileSync(join(s.matchRoot, 'answers', key, 'submit.json'), 'utf8').replace(/^\uFEFF/, '')); } catch { /* the submit gates report it */ }
+    const evDir = join(s.matchRoot, 'answers', key, 'evidence');
+    const gaps = evidenceGaps(answer, req, f => existsSync(join(evDir, f)));
+    const item = this.#items().find(i => i.key === key);
+    const lefts = [this.#minutesLeft(item), this.#matchMinutesLeft()].filter(v => v !== null);
+    const minutesLeft = lefts.length ? Math.min(...lefts) : null;
+    const check = { status: 'OK', required: req, ...gaps, minutesLeft };
+    try { writeFileSync(join(dir, 'evidence-check.json'), JSON.stringify(check, null, 2)); } catch { /* informational */ }
+    if (acceptGaps) return { ...check, status: gaps.passMissing.length || gaps.open.length ? 'ACCEPTED_GAPS' : 'OK', acceptGaps: clip(acceptGaps, 200) };
+    if (gaps.passMissing.length) {
+      fail('REQUIRED_EVIDENCE_MISSING', `${key}: rows reported PASS lack evidence files the MVS requires: ` +
+        gaps.passMissing.map(p => `${p.row} (${p.missing.join(', ')})`).join('; ') + '. Produce them (ui-run.mjs for screenshots and downloads) and reference them, or report the row honestly.',
+        { passMissing: gaps.passMissing });
+    }
+    const unfinished = gaps.open.length > 0 || gaps.generalMissing.length > 0;
+    if (unfinished && minutesLeft !== null && minutesLeft > EARLY_MINUTES) {
+      fail('EARLY_PARTIAL', `${key}: ${gaps.open.length} row(s) not PASS${gaps.generalMissing.length ? ` and ${gaps.generalMissing.length} required-once file(s) missing` : ''} ` +
+        `with ${minutesLeft} minutes left. Keep the worker on it: produce the missing evidence (ui-run.mjs) and finish the rows. ` +
+        'Pass acceptGaps with the reason only when they truly cannot be done.',
+        { minutesLeft, open: gaps.open, generalMissing: gaps.generalMissing });
+    }
+    return check;
   }
 
   /** <matchRoot>/.mtm-tmp/jobs when preparation started background jobs there, else null. */
@@ -897,7 +975,7 @@ export class MatchSession {
     return out;
   }
 
-  async integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null }) {
+  async integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null, allowMvsFailure = false, acceptGaps = null }) {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'integrate_item is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
@@ -913,6 +991,10 @@ export class MatchSession {
       fail('SLOT_UNCOMMITTED', `${s.name} has uncommitted changes; the worker must commit them (or pass allowUncommitted at the safety net)`,
         { files: dirty.split(/\r?\n/).slice(0, 10) });
     }
+    // 1.6.0: replay the organizer MVS file in the slot, as the grader will, before anything is pushed or submitted.
+    const mvsCheck = await this.#mvsGate(s, backlogItemKey, allowMvsFailure);
+    // 1.6.1: the evidence files the MVS names, and no open rows while time remains.
+    const evidenceCheck = this.#evidenceGate(s, backlogItemKey, acceptGaps);
     const cur = (await gitOk(c.checkoutRoot, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
     if (cur !== c.repository.branch) fail('BRANCH_MISMATCH', `checkoutRoot is on ${cur}, not ${c.repository.branch}`);
     const mainDirty = (await gitOk(c.checkoutRoot, ['status', '--porcelain', '--untracked-files=no'])).trim();
@@ -953,7 +1035,7 @@ export class MatchSession {
     // Every existing submit gate runs unchanged on the pushed revision.
     const result = await this.submitWork({ backlogItemKey, gitRevision: 'HEAD', tests, acknowledgeTestChanges });
     if (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY') this.#releaseSlot(s.name, backlogItemKey);
-    const out = { ...result, slot: s.name, integratedCommits: commits.length };
+    const out = { ...result, slot: s.name, integratedCommits: commits.length, mvsCheck, evidenceCheck };
     // Group chaining: start the next item of this worker's group in the same slot (reset to the new branch head).
     if (next && (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY')) {
       try { out.next = await this.startWork({ backlogItemKey: next, slot: s.name }); }
