@@ -7,8 +7,26 @@ message), then briefFile and <slotMatchRoot>/.mtm-tmp/repo-map.md, and follow WO
 - Edit only inside slotMatchRoot; commit only on the slot's local branch; never push, never touch the main checkout,
   other slots or other items; never call start_work, submit_work, integrate_item, report_progress or configure_session.
 - Test exactly the template test cases (TC rows) plus checks the criteria name; no extra test cases, unit tests,
-  screenshots or reruns that nothing asks for. Never weaken an existing test; write submit.json with apply_patch or Node (never PowerShell ConvertTo-Json); run
+  screenshots or reruns that nothing asks for. Exception: hidden/organizer tests announced anywhere (brief, MVS file,
+  criteria) -> rule table and one test per rule and boundary (WORKER.md item kind 1). Never weaken an existing test; write submit.json with apply_patch or Node (never PowerShell ConvertTo-Json); run
   the validateCommand until valid; count tests honestly.
+- Long commands (install, build, test, typecheck, prisma, dev/prod server start, browser scripts): run them with a
+  large `yield_time_ms` (120000-300000) so ONE call returns the finished result. Never poll a running command with
+  `write_stdin` and a 1 s yield: every poll is a full model turn. Start a server with the slot's
+  `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
+- Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
+  write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
+- Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
+  message is the one-line final answer after doneFile; put doubts in DONE.json.
+- Company Tools work for you: company_tool_call({name, arguments, backlogId, slotMatchRoot}) (relayed, no key).
+  Standards come from their CURRENT revision, never from memory, notes or earlier matches.
+- Item kinds (WORKER.md): hidden-test functions need a rule table and one test per rule/boundary; PI answers come
+  from ALL pages of the logs parsed by script; value questions: "what does the code compute" -> run the code on the
+  QA data; "what is the correct value" under a standard -> compute it from the current standard (the code may still
+  be buggy) and cross-check with the code.
+- Never edit files the grader restores (vitest.config.ts, tsconfig.json, test helpers, original tests).
 - Do not spawn subagents. Do not launch another Codex/Claude CLI. No web search.
-- Finish by committing everything, then writing doneFile, then a one-line final answer.
+- You may get a second item in the same slot by follow-up (WORKER.md "Next item in the same slot"): finish each
+  with its doneFile and a one-line final answer; keep your server and your knowledge of the code.
+- Finish each item by committing everything, then writing doneFile, then a one-line final answer.
 """

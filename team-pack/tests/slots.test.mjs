@@ -101,7 +101,7 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   await h.call('configure_session', { descriptors: [prepare] });
   // Preparation: slots with per-slot database names; tracked files cannot be copied.
   assert.equal((await h.call('prepare_slots', { count: 2, copyFiles: ['src/app.txt'] })).error.code, 'COPY_FILE_TRACKED');
-  assert.equal((await h.call('prepare_slots', { count: 4 })).error.code, 'INVALID_SLOT_COUNT');
+  assert.equal((await h.call('prepare_slots', { count: 5 })).error.code, 'INVALID_SLOT_COUNT');
   const prep = await h.call('prepare_slots', { count: 2, copyFiles: [{ path: 'src/.env', replace: { solova_SLOT0001: 'solova_SLOT0001_{slot}', 'PORT=3000': 'PORT=30{n}0' } }] });
   assert.equal(prep.slots.length, 2);
   const env1 = readFileSync(join(prep.slots[0].matchRoot, 'src', '.env'), 'utf8');
@@ -117,7 +117,10 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   gm.reveal({ key: 'CR-01', backlogType: 'CR', title: 'Export', revisionNo: 1, workStatus: 'NOT_STARTED' });
   const board = await h.call('refresh_match');
   assert.deepEqual(board.slots.map(s => s.state), ['FREE', 'FREE']);
+  mkdirSync(join(matchRoot, '.mtm-tmp', 'tools'), { recursive: true });
+  writeFileSync(join(matchRoot, '.mtm-tmp', 'tools', 'serve.mjs'), 'console.log("READY")\n');
   const s1 = await h.call('start_work', { backlogItemKey: 'TASK-01', slot: 's1' });
+  assert.ok(existsSync(join(s1.slotMatchRoot, '.mtm-tmp', 'tools', 'serve.mjs')), 'scout tools are copied into the slot');
   assert.equal(s1.slot, 's1');
   assert.ok(!('submitTemplate' in s1) && !('item' in s1), 'orchestrator gets a short summary, not the brief');
   const brief = JSON.parse(readFileSync(s1.briefFile, 'utf8'));

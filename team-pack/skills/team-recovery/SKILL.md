@@ -28,10 +28,13 @@ MTM Player started a replacement orchestrator with fresh access. The previous se
   - outcome `SENDING`/`UNCERTAIN` → call `submit_work` again unchanged (the same key is reused);
 - For items you had started: `git status` / `git log origin/<branch>..HEAD` in the checkout; keep valid local work,
   push unpushed commits, then finish and submit them. `start_work` again is a harmless replay that returns the template.
+- Queued items live only in the previous orchestrator's context: re-plan the remaining items ("Wave planning") after
+  handling the busy slots below. `<checkoutRoot>/.git/mtm/baseline.json` tells whether the baseline repair is in.
 - Slots: the board's `slots` (from `<checkoutRoot>/.git/mtm/slots.json`) survive the restart, workers do not.
   For each slot with an item: if `<slotMatchRoot>/.mtm-tmp/<ID>/DONE.json` exists and the slot is committed, call
   `integrate_item`; otherwise `start_work` with the same `slot` (a replay that keeps the slot's work) and spawn a fresh
   `team_feature_worker` (`fork_turns: "none"`) whose message adds: "Resume: inspect `git -C <worktreeRoot> log` and
   `status`, keep valid work, finish the item." Never reset a slot that holds unintegrated work.
+  Slot s4 (role orchestrator) gets no worker: finish its item yourself ("Doing an item yourself") or integrate it.
 - Then continue with `.agents/skills/team-orchestrator/SKILL.md` (the loop). Do not end the turn while the match is
   IN_PROGRESS.

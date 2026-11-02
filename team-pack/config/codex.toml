@@ -3,7 +3,7 @@
 # servers, so credits go to match work only.
 notify = []
 
-# Team configuration agent-test-1 (1.3.0, orchestrator + subagents): gpt-6.1-sol, low reasoning effort for every agent. MTM Player launches
+# Team defaults (orchestrator + subagents): gpt-6.1-sol, low reasoning effort. MTM Player's model policy can override them. MTM Player launches
 # `codex exec` without a model flag, so these defaults decide the model actually used.
 model = "gpt-6.1-sol"
 model_reasoning_effort = "low"
@@ -35,17 +35,5 @@ tool_timeout_sec = 300
 # they run without a per-call approval review; shell commands keep the normal review.
 default_tools_approval_mode = "approve"
 
-[mcp_servers.node_repl]
-enabled = false
-
-[mcp_servers.overleaf]
-enabled = false
-
-[mcp_servers.shadcn]
-enabled = false
-
-[mcp_servers.stitch]
-enabled = false
-
-[mcp_servers.sauce-labs]
-enabled = false
+# Codex >= 0.164 rejects an [mcp_servers.<name>] table without command/url ("invalid transport") and then
+# ignores this whole file. Personal MCP servers are not declared in the user config, so no stubs are needed.

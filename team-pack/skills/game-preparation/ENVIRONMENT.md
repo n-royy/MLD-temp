@@ -6,6 +6,26 @@ tracked files: the reported revision must be the clean checkout. Long commands: 
 the tail of their output. Where this file says "report" or "COMPLETED/BLOCKED", put it in your reply:
 only the orchestrator writes progress events.
 
+## 0. Speed rules (1TAKRYNC / 7GAZA14X: 16 minutes of preparation, 10 of them avoidable)
+- **Machine prerequisites are ready before the match** (`docs/machine-setup.ps1`, run once by the team):
+  PostgreSQL on the documented port, the app role, pnpm, a warm package store and Playwright Chromium, described in
+  `<teamWorkspace>/.mtm-local/README.md`. Use them. Never download or install PostgreSQL, never `initdb` a private
+  cluster and never start a server on another port during a match: if the database is not reachable, run only the
+  start command that README gives; if it still fails, reply `BLOCKED MACHINE_PREREQUISITE_MISSING <error>`.
+  Only when `.mtm-local/README.md` does not exist at all (machine never prepared) fall back to "Toolchain installs"
+  below, reuse anything already on disk (e.g. `%LOCALAPPDATA%\Programs\PostgreSQL16`), and start the reply with
+  `MACHINE_NOT_PREPARED` so the team runs machine-setup.ps1 before the next match.
+- **Run independent work at the same time.** Start long jobs in the background (`Start-Process pwsh -ArgumentList
+  '-NoProfile','-Command',"<cmd> *> <log>" -PassThru`, or several jobs in one command), keep their PIDs and logs in
+  `.mtm-tmp/`, and wait for all of them in ONE call with a long `yield_time_ms`. Example for B+C: production build,
+  baseline test run and the slot installs all run together.
+- **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline` (also in slots, in parallel).
+- **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
+  folder). If `<teamWorkspace>/.mtm-cache/<key>/` exists (same seed as an earlier match), copy its `repo-map.md`,
+  `tools/` and `baseline/` into `<matchRoot>/.mtm-tmp/` and only VERIFY them (patch `git apply --check`, one shot,
+  one serve) instead of writing them again. At the end of preparation copy those three into the cache. The cache
+  holds no secrets (no env files, no auth.json).
+
 ## A. ENVIRONMENT (main checkout)
 Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requirements.json`,
    `exam-info.json` and `src/.env.example`. Follow them literally (ports, database names, package manager versions).
@@ -66,11 +86,13 @@ Run the documented build (for example `prepare-source.ps1` or `pnpm run build`) 
    (untracked/ignored env files are fine; if a tracked file changed, restore it with `git checkout -- <file>`).
 
 ## C. SLOTS (after the orchestrator ran `prepare_slots`)
-For every slot `<checkoutRoot>.slots/sN/<folder>`:
-- install dependencies with the same locked command as the main checkout (the package store is shared, so it is fast);
-- the slot's git-ignored env file was copied with slot-specific database names/ports: create those databases and run
-  the same migration/seed steps there (never on another match's or another slot's database);
-- no full build is needed in a slot; a quick typecheck or one fast test proves the slot works.
+For every slot `<checkoutRoot>.slots/sN/<folder>`, all slots in parallel and in parallel with B:
+- install dependencies with the same locked command as the main checkout plus `--prefer-offline`;
+- databases: follow the env-require README. If it says working copies share the app database and only the TEST
+  database must differ (Solova does), the slot env already has its own test database name and the tests create it:
+  nothing to migrate or seed. If each copy needs its own app database, clone the main one instead of migrating and
+  seeding again (PostgreSQL: `CREATE DATABASE <slot db> TEMPLATE <main db>` while nothing is connected to it);
+- no build in a slot; one fast test (or a typecheck) proves the slot works.
 Do not change tracked files in a slot either.
 
 ## D. REPO MAP
@@ -79,3 +101,31 @@ stack and versions; folder layout (app root, routers/controllers, services, data
 per module the key files; exact narrow test commands (single file / single module) and the full suite command;
 migration/seed commands; how to run the app (port) ; the baseline failing tests with the one-line cause guess;
 design documents worth reading (`DECISIONS.md`, `BUILD_REPORT.md`, specs). Facts only, no speculation.
+
+## F. BASELINE PATCH (when B found failing baseline tests)
+The game commits this patch at minute 0, before any worker starts (`apply_baseline`), so it must be right.
+1. Decide the wrong side from the design documents (`DECISIONS.md`, specs, original migrations, `BUILD_REPORT.md`),
+   exactly as WORKER.md "Baseline failures" says. Prepare a patch only when the code drifted from the documented
+   design and the fix is clear (e.g. a later migration contradicts a documented rule: add a NEW migration that
+   restores it; never edit old migrations). Never change a test in this patch. If unsure, prepare nothing.
+2. Make the fix in slot s1 (`<checkoutRoot>.slots/s1/<folder>`), run the migration on s1's database and the whole
+   suite there; it must be green.
+3. Save it: `git -C <s1 worktree> diff --binary > <matchRoot>/.mtm-tmp/baseline/baseline.patch` (include new files:
+   `git add -N` them first), and write `<matchRoot>/.mtm-tmp/baseline/README.md`: failing test, cause with the
+   document line that proves it, fix, suite result (one short paragraph).
+4. Restore s1: `git -C <s1 worktree> checkout -- .` and `git clean -fd` (ignored files stay). Never commit.
+
+## E. RUN AND EVIDENCE TOOLS
+Write two small Node scripts into `<matchRoot>/.mtm-tmp/tools/` (git-ignored; start_work copies them into every
+slot) and verify both once on the main checkout. Workers otherwise rebuild them per item (BCYRV9M9: up to 14
+reruns of a home-made screenshot script and 60 one-second polls in one item).
+- `serve.mjs --mode dev|prod --port <p>`: run from the app folder; if the port already answers, return at once;
+  otherwise start the documented dev server (or `start` after a build for prod) detached, poll the URL until HTTP
+  200/302 (max ~120 s) and print `READY <url>` or the last 30 log lines. `--stop` frees the port.
+- `shot.mjs --url <path> --width <w> [--height <h>] --out <file> [--wait <selector or text>]`: with the project's
+  browser automation (Playwright when present), sign in once with the seeded test user from the README or seed
+  (cache the session in `.mtm-tmp/tools/auth.json`), open the page, wait for network idle and for loading
+  skeletons/spinners to disappear (and for `--wait` if given), save the screenshot, print the main element boxes
+  as one JSON line. Prefer role/text selectors over product-specific CSS.
+Use run commands with a large `yield_time_ms` here too. If the project has no browser automation, write only
+`serve.mjs` and say so in the reply.

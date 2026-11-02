@@ -11,12 +11,80 @@ The orchestrator's message gives: backlog ID, `briefFile`, `worktreeRoot`, `slot
 the same folder (`company-*.txt`). `<slotMatchRoot>/.mtm-tmp/repo-map.md` describes the code base: read it first
 instead of exploring.
 
+## When another item blocks your evidence
+If your note says another item fixes something your scenario needs (e.g. a layout bug hiding content), do
+everything else first (code, unit tests, data checks, organizer scripts that do not need the fixed screen). When
+the orchestrator tells you the blocker is on the branch, `git -C <worktreeRoot> rebase <branch>` (commit first),
+restart your server, then take the final screenshots. If the message has not come and your deadline is near,
+submit what is verified and mark the blocked rows honestly.
+
+## Next item in the same slot (rare)
+When a queued item has no deadline and your slot frees first, the orchestrator may hand it to you by follow-up.
+- Work on one item at a time, exactly as below, and finish it with its doneFile and a one-line final answer.
+- The orchestrator integrates and submits it, resets your slot to the branch head (which now includes your item and
+  anything else submitted), and sends the next item's briefFile by follow-up. Do not start the next item before that
+  message: its answer folder and brief do not exist yet.
+- Keep what you learned: the code layout, the running dev server (restart only if it stopped), the database, your
+  evidence tools. Re-read only the files the new item touches; files from your previous item are already merged.
+- If `baselineRepair` is set in the brief, the baseline failure is already fixed on the branch: the existing suite
+  should be green; say "existing tests pass on a branch that includes baseline repair <sha>" where relevant.
+
+## Item kinds of the official format (warm-up 5APIQYXW: 10 items, 4 waves, deadlines of 8-18 minutes)
+Read the brief's "Grading" and "Submission" sections first; they decide what to do.
+1. **Function with hidden tests** (hidden or organizer tests announced anywhere: brief, MVS file or criteria; e.g.
+   "organizer hidden tests call `<fn>` directly"; typical: invoice status, card position, aging report, contact links). Half the points are hidden boundary cases from the company standard.
+   - Query the standard yourself (Company Tools below): search with the brief's own words, read the CURRENT revision
+     completely, follow cross-references. Write every rule and boundary as a numbered table in
+     `.mtm-tmp/<ID>/rules.md` before coding.
+   - Implement the pure function exactly; keep module path, exported names and signatures.
+   - Tests are required here: a NEW file `src/tests/<id>-*.test.ts` with one case per rule and per boundary (day
+     before/on/after, zero, exact equality, rounding, each currency, empty/null input, ordering). Run the provided
+     `<ID>-mvs.test.ts` as the MVS instructions say. Never hard-code the examples.
+2. **Investigation** (PI: release, component, flag, complete sets, request ids). Change code only when the brief
+   asks for a fix (then also item kind 1 for the fixed function). Pull the logs and
+   the incident-report rules with Company Tools, save large answers to files and extract the facts with a small
+   Node script (complete sets, earliest timestamps), never by eye. **Log searches are paged** (5APIQYXW: "total": 38,
+   "returned": 20): page with the tool's offset/page parameter until you hold every entry (`returned` summed = `total`),
+   or narrow the query until `returned == total`; a set built from the first page is incomplete and scores 0. Strings exactly as logged. Speed is scored: finish
+   as soon as every field is backed by the data.
+3. **Value question** (TASK). First decide what is asked:
+   - "which value does the source / the code compute" → RUN the issued code on the official QA data (a script that
+     calls the real function, or the real flow on the test database), not by reading and reasoning.
+   - "what is the correct value" under a company standard (how much is overdue, the total in the reporting
+     currency...) → compute it from the CURRENT standard with a small script on the QA data, then run the code too.
+     If they differ, the standard wins: the code may hold a defect another item fixes (cascade trap). Say so in the
+     engineering record.
+   Apply the normalization literally. Deadlines are short (8 minutes).
+4. **Behaviour bug / feature with UI** (layout, currency, CSV export). Take any "before fixing" evidence BEFORE
+   changing code. Load the official QA data with the provided loader. Screenshots with `.mtm-tmp/tools/shot.mjs`.
+   **Organizer scripts are the grading instruments** (`<ID>-layout-check.mjs`, `-run-checks.mjs`, `-signed-out-check.mjs`,
+   `-seed.ts`, `-report.ts`): BUG-01 of 5APIQYXW was scored from the layout report the provided script writes. Run
+   them exactly as the MVS file says (arguments, output names, dev and production), never replace them with your own
+   script, never edit their reports.
+Items without test-case rows (PI, value questions): DONE.json `tests` = `{"required":0,"executed":1,"passed":1,...}`
+for the one verification you ran (or `failed` 1 if it did not hold).
+
+Grader facts that apply to every item:
+- The grader runs the whole suite and the type check itself and first RESTORES the files the brief lists (e.g.
+  `vitest.config.ts`, `tsconfig.json`, `tests/global-setup.ts`, `tests/helpers.ts`, original test files): never
+  change them; your change would be discarded and reported. Only the test the brief names may be corrected.
+- New tests go in new files under `src/tests/`.
+- Company standards are revised between matches: the current revision in the Company Tools overrides LESSONS,
+  product notes, caches and anything from earlier matches.
+
+## Company Tools (you can call them)
+The tool definitions (names, parameters, paging) are in `<slotMatchRoot>/.mtm-tmp/company-tools.json`.
+Your helper process has no team key, so pass your slot: `company_tools_list({ slotMatchRoot })` and
+`company_tool_call({ name, arguments, backlogId: "<ID>", slotMatchRoot })`. The call is relayed through the
+orchestrator's helper. Answers over 6000 characters are saved to a file in your slot and you get its path: read it
+in slices. Use them for every standard, QA data set, log and ticket the item needs; do not guess a format.
+
 ## Boundaries
 - Edit only inside `slotMatchRoot`. Never touch the main checkout, other slots or other items' answers.
 - Commit only on the slot's local branch (`git -C <worktreeRoot> add -- <folder>` then `commit -m "<ID>: <summary>"`).
   Never push, never pull into the assigned branch, never force anything, never change the remote.
 - Never call `start_work`, `submit_work`, `integrate_item`, `report_progress` or `configure_session`; the orchestrator
-  owns Game Master. `company_tool_call` (with `backlogId`) and `validate_answer` may be used if they answer.
+  owns Game Master. `company_tool_call` / `company_tools_list` with `slotMatchRoot` (see above) are yours.
 - Never print or write credentials. Local passwords live only in git-ignored env files.
 - Use the network only for Git and package registries. No web search or browsing: look things up in the source,
   the brief, package metadata (`pnpm audit --json`, `npm view`) and the Company Tools.
@@ -24,9 +92,8 @@ instead of exploring.
   server you started before finishing. Use the slot's own database (its env file already names it).
 
 ## How to work
-1. Read the brief and the Company Tool files. For PI and BUG they are mandatory input; if the brief needs a tool the
-   orchestrator did not query and `company_tool_call` is not available to you, say which call you need in DONE.json
-   `doubts`. Their information is authoritative.
+1. Read the brief and any Company Tool files already in your folder, then query what else the item needs yourself
+   ("Company Tools" above). For PI and BUG they are mandatory input; their information is authoritative.
 2. Find the code with `rg -n` and read only the slices you need. Make the smallest correct change at the root cause,
    in the existing style, inside `slotMatchRoot`.
 3. Test exactly the item's test cases, no more ("Test cases" below): one run per template row (`<ID>-TC-01..n`),
@@ -61,12 +128,13 @@ tests, commit, rewrite `doneFile`, and answer in one line again. For `INTEGRATIO
 ## Playbook by type
 | Type | How | Done when |
 |---|---|---|
-| PI | Read the symptom, company tools (logs/tickets/monitoring) first, reproduce, root cause, minimal fix | Repro no longer fails + every template test case run |
+| PI | Company tools first (all log pages, tickets, monitoring), facts by script; fix code only if the brief asks | Every asked field backed by the data + every template test case run |
 | BUG | Reproduce with the MVS, smallest fix at the root cause, keep MVS tests unchanged | Every template test case PASS + criteria checks + required evidence |
-| CR | List every spec point and edge case, implement them; add automated tests only if the brief asks, covering exactly the points it lists | Every template test case PASS + criteria checks + required evidence |
+| CR | List every spec point and edge case, implement them; automated tests when the brief asks (exactly its points) or hidden tests are announced (item kind 1: every rule and boundary) | Every template test case PASS + criteria checks + required evidence |
 | TASK | Do exactly what is asked, verify by command/test | Every template test case (or the asked verification) done |
 
 ## Test cases (what to run and count)
+- Count honestly (`executed = passed + failed + skipped`); the helper recounts from your rows anyway.
 - The item's test cases are the rows of `submitTemplate.testResults`; their number is `requiredTestCases`. Run each
   once following its MVS scenario and fill exactly those rows. Never add rows or invent extra scenarios.
 - Run other checks only when an acceptance criterion names them, once, at the end:
@@ -74,7 +142,8 @@ tests, commit, rewrite `doneFile`, and answer in one line again. For `INTEGRATIO
   "add automated tests for X" → write tests for exactly the listed points (no more). They are not test cases: report
   them as text in the engineering record, not in the counts.
 - Do not write new unit tests, extra browser scripts, extra viewports or pages "to be safe" when nothing asks for
-  them; do not rerun a passing suite unless code changed after the run.
+  them; do not rerun a passing suite unless code changed after the run. Exception that is not optional: when the
+  brief asks for automated tests or announces hidden tests, test every rule and boundary of the standard (item kind 1).
 - An item without rows (`requiredTestCases` 0): do the one verification the brief asks for and count it.
 
 ## Existing tests
@@ -85,7 +154,8 @@ does; explain it in the answer's engineering record and put the same reason (30+
 `doubts` as `acknowledgeTestChanges: <reason>` so the orchestrator passes it on. New tests you add are fine.
 
 ## Baseline failures (tests that already fail before your change)
-Only the worker the orchestrator names as baseline owner fixes them; other workers count the named test as a known
+Usually already repaired before you start (`baselineRepair` in the brief). Otherwise only the worker the orchestrator
+names as baseline owner fixes them; other workers count the named test as a known
 pre-existing failure, do not touch it, and write in the engineering record that it is fixed by `<owner ID>` on the
 assigned branch. The baseline owner:
 1. Reads the failing test and the design documents (`DECISIONS.md`, `BUILD_REPORT.md`, specs, migration history) to
@@ -111,7 +181,17 @@ Commit only product code, tests and `answers/<ID>/`.
 If the item needs a tool the machine lacks, install it following "Toolchain installs" in
 `.agents/skills/game-preparation/ENVIRONMENT.md` (user scope, no admin), then continue.
 
+## Speed (from BCYRV9M9: 23-60 one-second polls and up to 14 reruns of a home-made screenshot script per item)
+- Long commands (install, build, test, typecheck, prisma, dev/prod server start, browser scripts): run them with a
+  large `yield_time_ms` (120000-300000) so ONE call returns the finished result. Never poll a running command with
+  `write_stdin` and a 1 s yield: every poll is a full model turn. Start a server with the slot's
+  `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
+- Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
+  write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
+- Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
+  message is the one-line final answer after doneFile; put doubts in DONE.json.
+
 ## Cost discipline
 Tokens and time both count. Read `repo-map.md` before searching, read only the slices you need, tail long outputs
-(`| Select-Object -Last 30` / `tail -30`), do not re-read files, do not run the full suite when a module suite proves
-the change, and keep messages to the orchestrator to one line.
+(`| Select-Object -Last 30` / `tail -30`), do not re-read files, run the full suite only when a criterion asks for
+it (once, at the end; otherwise the module suite proves the change), and keep messages to the orchestrator to one line.

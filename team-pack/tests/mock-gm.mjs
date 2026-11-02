@@ -11,7 +11,7 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
       workStatus: 'NOT_STARTED', description: 'Customer search must ignore case.' }]
   };
   const projection = origin => ({
-    match: { id: matchUuid, publicId: matchId, status: state.status, currentSequence: state.sequence },
+    match: { id: matchUuid, publicId: matchId, status: state.status, currentSequence: state.sequence, ...(state.clock ?? {}) },
     team: { code: teamCode, name: 'Megalodon' },
     backlog: state.backlog,
     api: { startEndpoint: `${origin}/api/v1/matches/${matchUuid}/backlogs/start`,

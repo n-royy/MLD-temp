@@ -63,6 +63,13 @@ for (const n of existsSync(join(root, 'agents')) ? readdirSync(join(root, 'agent
   const name = read(join(root, 'agents', n)).match(/^name\s*=\s*"([^"]+)"/m)?.[1];
   check(name === n.replace(/\.toml$/, '').replace(/-/g, '_'), `PROFILE_NAME:${n}`);
 }
+// Codex >= 0.164 ignores the whole config when an [mcp_servers.x] table has no command/url ("invalid transport").
+{
+  const cfgText = existsSync(join(root, 'config', 'codex.toml')) ? read(join(root, 'config', 'codex.toml')) : '';
+  for (const block of cfgText.split(/^(?=\[)/m).filter(b => /^\[mcp_servers\.[^\]]+\]/.test(b))) {
+    check(/^\s*(command|url)\s*=/m.test(block), `MCP_SERVER_WITHOUT_TRANSPORT:${block.match(/^\[([^\]]+)\]/)[1]}`);
+  }
+}
 const schema = json(join(root, 'contracts', 'progress-event.schema.json'));
 check(Array.isArray(schema?.oneOf), 'PROGRESS_SCHEMA');
 
@@ -103,7 +110,7 @@ const handshake = () => new Promise(resolveHs => {
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }) + '\n');
 });
 const tools = await handshake();
-check(Array.isArray(tools) && ['configure_session', 'refresh_match', 'start_work', 'submit_work', 'report_progress', 'wait_for_update', 'prepare_slots', 'integrate_item']
+check(Array.isArray(tools) && ['configure_session', 'refresh_match', 'start_work', 'submit_work', 'report_progress', 'wait_for_update', 'prepare_slots', 'integrate_item', 'apply_baseline']
   .every(t => tools.includes(t)), 'MCP_HANDSHAKE');
 
 const result = problems.length ? { status: 'FAILED', problems } :

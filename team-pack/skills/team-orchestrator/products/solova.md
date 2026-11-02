@@ -19,7 +19,8 @@ Read only when the match README or brief names Solova. Knowledge about the produ
 - Tests empty the test database before each case: every working copy needs its own `TEST_DATABASE_URL` name.
 - The accounting ledger is append-only (triggers); tests clear it with `SET session_replication_role = replica`.
 
-## Domain rules seen so far
+## Domain rules seen so far (practice seeds; every match can differ - the brief, the design documents and the
+current revision of the company standards decide, not these notes)
 - Money is stored as integer minor units. The number of minor units depends on the currency (USD 2 decimals,
   VND and JPY 0). Each client has its own currency, which can differ from the workspace currency.
 - Accounting standards for files and money formats are in the Company Tool `kb_search`; official QA data per item
@@ -28,9 +29,10 @@ Read only when the match README or brief names Solova. Knowledge about the produ
   loudly instead of destroying history") and `BUILD_REPORT.md` ("invoice RESTRICT" test green) document the intended
   behaviour. A later migration, `prisma/schema/migrations/20260702093140_company_delete_cascades_financials`, switched
   invoices, payments and expenses to `ON DELETE CASCADE`, so `tests/cascade.test.ts` ("deleting a company with
-  invoices is RESTRICTED") fails at baseline. The test matches the design; the code drifted. Resolve it per the
-  "Baseline failures" procedure (a new migration restoring the documented rule for those foreign keys, never by
-  editing the old migration or the test), then re-run the suite. Check the migration folder, not only the test
+  invoices is RESTRICTED") failed at baseline in the practice seeds, where the test matched the design and the code
+  had drifted (fixed with a new migration). The official warm-up said "`tests/cascade.test.ts` is the only original
+  test you may correct": a seed may plant the opposite case. Decide each time from `DECISIONS.md`/specs per the
+  "Baseline failures" procedure, then re-run the suite. Check the migration folder, not only the test
   result: if `..._company_delete_cascades_financials` is present and no later migration restores RESTRICT, the
   defect is in this seed even when a stale local database makes the test pass.
 - Kanban card positions are sparse numbers stored as strings and computed by position helpers; read the helpers and

@@ -24,18 +24,20 @@ const TOOLS = [
     description: 'Full JSON of one visible backlog item (brief, acceptance criteria, deadline, points, statuses).',
     inputSchema: obj({ key, refresh: { type: 'boolean' } }, ['key']) },
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
-    description: 'Block up to timeoutMs (default and max 240000) until the match changes (new item, status/score change, ' +
-      'pause/end) or a worker finished a slot (reason SLOT_DONE with slotDone[]); returns within about 5 s of a change. ' +
-      'Returns {changed, reason, board}. While idle call it again right away without writing any message; ' +
-      'an empty backlog is never the end of the match. A shorter timeoutMs is only honoured while a worker is busy. ' +
+    description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason SLOT_DONE (slotDone[]: a slot ' +
+      'wrote its DONE.json), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
+      'end; reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
+      'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft). ' +
+      'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
+      'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
       'In an exec cell put // @exec: {"yield_time_ms": 270000} on the first line.',
     inputSchema: obj({ timeoutMs: { type: 'integer', minimum: 5000, maximum: 240000 } }) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
-    description: 'Create (or keep, on resume) up to 3 worker slots: Git worktrees of the assigned repository at ' +
+    description: 'Create (or keep, on resume) up to 4 slots (s1-s3 for workers, s4 for the orchestrator itself): Git worktrees of the assigned repository at ' +
       '<checkoutRoot>.slots/sN on local-only branches mtm-slot/sN (never pushed). copyFiles copies git-ignored local files ' +
       '(e.g. src/.env) from matchRoot into each slot; replace {"find":"with {slot}"} makes per-slot values such as database ' +
       'names or ports. Does not change tracked files of the checkout.',
-    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 3 },
+    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 4 },
       copyFiles: { type: 'array', maxItems: 10, items: { anyOf: [{ type: 'string' },
         obj({ path: { type: 'string' }, replace: { type: 'object', additionalProperties: { type: 'string' } } }, ['path'])] } } }) },
   { name: 'start_work', handler: a => session.startWork(a),
@@ -43,8 +45,8 @@ const TOOLS = [
       'startInstruction, submitTemplate, MVS and requiredTestCases; creates <matchRoot>/answers/<ID>/submit.json from the ' +
       'template and the evidence/ folder; logs IN_PROGRESS and BACKLOG_TESTS NOT_RUN. No get_backlog_item call is needed ' +
       'afterwards. Calling again for a started item is a harmless replay.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3'],
-      description: 'Worker slot. The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4'],
+      description: 'Slot (s1-s3 for workers, s4 when you do the item yourself). The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
         'summary with briefFile/doneFile for the worker instead of the whole brief.' } }, ['backlogItemKey']) },
   { name: 'integrate_item', handler: a => session.integrateItem(a),
@@ -56,11 +58,17 @@ const TOOLS = [
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },
         skipped: { type: 'integer' }, summary: { type: 'string' } }, ['required', 'executed', 'passed', 'failed']),
       acknowledgeTestChanges: { type: 'string' },
-      allowUncommitted: { type: 'boolean', description: 'Safety net only: integrate the last commit and ignore uncommitted edits.' } },
+      allowUncommitted: { type: 'boolean', description: 'Safety net only: integrate the last commit and ignore uncommitted edits.' },
+      next: { type: 'string', description: "After a successful submit, start this item in the same slot (next item of the worker's group); the result carries next = its slot summary." } },
     ['backlogItemKey']) },
+  { name: 'apply_baseline', handler: a => session.applyBaseline(a),
+    description: 'Commit and push the baseline repair prepared and tested by the scout (<matchRoot>/.mtm-tmp/baseline/baseline.patch) ' +
+      'as part of a started item, before workers branch. Checks: item started, checkout clean, patch only inside the assigned folder, ' +
+      'no credential; pull --rebase, apply, commit "<ID>: baseline repair", push (never force). Idempotent.',
+    inputSchema: obj({ backlogItemKey: key, summary: { type: 'string', description: 'One line: failing test, cause, fix.' } }, ['backlogItemKey']) },
   { name: 'release_slot', handler: a => session.releaseSlot(a),
     description: 'Free a slot without submitting (item dropped). Its worktree is reset at the next start_work.',
-    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3'] } }, ['slot']) },
+    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4'] } }, ['slot']) },
   { name: 'validate_answer', handler: a => session.validateAnswer(a),
     description: 'Check the working-tree answers/<ID>/submit.json against the submit schema delivered at Start Work, ' +
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',
@@ -83,13 +91,15 @@ const TOOLS = [
       'ENVIRONMENT_READY, GAME_START_STATUS, BACKLOG_STATUS, BACKLOG_TESTS, BLOCKER_OPENED, BLOCKER_RESOLVED, ' +
       'ORCHESTRATOR_RESTARTED, ORCHESTRATOR_ENDED, MODEL_USAGE. Invalid events are rejected with the reason.',
     inputSchema: obj({ event: { type: 'object' } }, ['event']) },
-  { name: 'company_tools_list', handler: () => session.companyTools(),
+  { name: 'company_tools_list', handler: a => session.companyTools(a),
     description: "List the match's Company Tools (the customer's internal systems for this match: logs, tickets, docs, ...). " +
-      'Their information is authoritative. Needs the START_GAME descriptor.',
-    inputSchema: obj({}) },
+      'Their information is authoritative. Orchestrator: needs the START_GAME descriptor. Worker subagent: pass your ' +
+      'slotMatchRoot; the call is relayed through the orchestrator helper (no key needed).',
+    inputSchema: obj({ slotMatchRoot: { type: 'string' } }) },
   { name: 'company_tool_call', handler: a => session.companyCall(a),
     description: 'Call one Company Tool by name with its arguments. Pass backlogId when the call is for a backlog item.',
     inputSchema: obj({ name: { type: 'string' }, arguments: { type: 'object' }, backlogId: { type: 'string' },
+      slotMatchRoot: { type: 'string', description: 'Worker subagents only: your slotMatchRoot; relays the call through the orchestrator helper. Answers over 6000 characters are saved to a file in your slot.' },
       saveToSlot: { type: 'boolean', description: "Write the full answer into the item's slot (.mtm-tmp/<ID>/company-*.txt) and return only a short head." } }, ['name']) }
 ];
 

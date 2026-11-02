@@ -17,6 +17,13 @@ Short rules learned from real matches. Each line names where it came from. They 
   on the issued source scored full points twice. (QNW5V6OU, HW828P0Y TASK-01)
 
 ## Engineering
+- Workers could not use the Company Tools (their own helper process is unconfigured: NOT_CONFIGURED in 7GAZA14X)
+  and fell back to assumptions about the export standard. Since 1.5.0 they relay through the orchestrator helper
+  (`slotMatchRoot`): standards must come from the tools, never from guesses.
+- Standards are revised between matches ("the current revision is authoritative and overrides assumptions or files
+  built for earlier matches", warm-up 5APIQYXW CR-01): never reuse a format, value or answer from an earlier match.
+- Hidden tests call pure functions with boundary cases from the company standard (5APIQYXW BUG-03/BUG-04/CR-02/
+  CR-03, half of their points): a rule table and one test per rule and boundary are part of the work.
 - Test only the item's template test cases (TC-01..n) plus the checks its criteria name. DO6SQWGV workers ran and
   counted 17/27/41 "tests" for 3/4/5 test cases (suite, build, typecheck, own scripts), wrote unit tests no brief asked
   for (BUG-02) and produced 14 evidence files for 3 rows (BUG-01): time and tokens with no score. Exception: CR-01
@@ -39,6 +46,7 @@ Short rules learned from real matches. Each line names where it came from. They 
 - No web search: dependency advisories come from `pnpm audit --json` / package metadata. (QNW5V6OU TASK-02)
 
 ## Pace and cost
-- Items took 1.5–7 minutes each; waves arrived at minutes 0, 14 and 29 of a 40-minute match. Finish a wave, then wait.
+- Official format (warm-up 5APIQYXW): 10 items in 4 waves at minutes 0, 8, 12 and 20, deadlines of 8-18 minutes:
+  waves overlap, so keep every slot busy; never wait for a wave to finish before starting the next one.
 - Idle waiting cost half of all tokens: while idle, call `wait_for_update` back to back and write nothing.
 - Do not re-audit submitted items; validate before submitting instead.
