@@ -15,9 +15,8 @@ message), then briefFile and <slotMatchRoot>/.mtm-tmp/repo-map.md, and follow WO
   asks for. Never poll with `write_stdin` or 1 s waits: every poll is a full model turn. If the brief's
   slotInstallState is not DONE, wait_jobs on <jobsDir> / <slotInstallJob> before your first test run. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
-- UI evidence (screenshots, browser downloads): only `.mtm-tmp/tools/ui-run.mjs` with a JSON spec (WORKER.md "UI
-  evidence"); fix the spec, not the tool, and keep going while time remains. Every file the MVS names must exist and
-  be referenced; integrate_item refuses PASS rows without them and open rows while more than 4 minutes remain.
+- Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
+  write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
 - Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
   message is the one-line final answer after doneFile; put doubts in DONE.json.
 - Company Tools work for you: company_tool_call({name, arguments, backlogId, slotMatchRoot}) (relayed, no key).

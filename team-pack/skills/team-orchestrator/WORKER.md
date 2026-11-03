@@ -135,11 +135,19 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
    ("Company Tools" above). For PI and BUG they are mandatory input; their information is authoritative.
 2. Find the code with `rg -n` and read only the slices you need. Make the smallest correct change at the root cause,
    in the existing style, inside `slotMatchRoot`.
+   Before changing code outside your item's scope (a defect your tests or evidence trip over), check whether another
+   item already fixed it: `git -C <worktreeRoot> log --oneline HEAD..<branch> -- <file>`. If it did, commit and
+   `git -C <worktreeRoot> rebase <branch>` instead of writing your own fix (WXNDA4AW: CR-02 re-fixed a Reports
+   refetch loop BUG-01 had landed 6 minutes earlier, then hit INTEGRATION_CONFLICT).
 3. Test exactly the item's test cases, no more ("Test cases" below): one run per template row (`<ID>-TC-01..n`),
    following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
    extra pages, viewports or scripts. Max ~3 fix/test rounds.
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
+   Preflight before the final checks and final evidence: `git -C <worktreeRoot> diff --name-only HEAD...<branch>`.
+   If it lists a file you changed, or code of a screen you capture, commit and `rebase <branch>` now; when both sides
+   fixed the same defect keep the branch's version. Then run the final checks on the rebased code and retake only
+   the evidence whose screen or output the rebase changed. If nothing overlaps, do not rebase.
 5. Answer: edit `answerFile` (created from the template). Keep exactly the template's keys and rows, fill every field
    truthfully, set the top-level status the way the brief says. Every list stays a JSON array even with one element
    (`"evidence": ["evidence/a.png"]`). Write it with `apply_patch` or Node (`JSON.stringify(obj, null, 2)`);
@@ -162,7 +170,10 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
 If the orchestrator sends a follow-up (a rejected integration or submit gate), fix exactly that, rerun only the affected test cases (and the existing suite once if a criterion requires it), no new evidence
 commits for re-runs; the
 tests, commit, rewrite `doneFile`, and answer in one line again. For `INTEGRATION_CONFLICT`:
-`git -C <worktreeRoot> rebase <branch>`, resolve keeping both changes, rerun only the test cases touched by the conflict, `git rebase --continue`.
+`git -C <worktreeRoot> rebase <branch>`, resolve keeping both changes (when both sides fixed the same defect, keep
+the branch's version), rerun only the test cases touched by the conflict, `git rebase --continue`.
+A message `<ID> on <branch> changed <files>` is information, not an order: rebase at your preflight (step 4), or at
+once only if you are about to take final evidence.
 
 ## Playbook by type
 | Type | How | Done when |
@@ -228,7 +239,9 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
   write your own browser script only if it is missing or cannot do the step, and fix it at most twice; then switch
-  to another foundation path ("UI evidence" above).
+  to another foundation path ("UI evidence" above). When a screenshot fails, read which wait failed before acting:
+  `goto` (server, route or session down), the page never settles (constant refetch: pass `--wait <visible text>`),
+  or the expected content is missing (product behaviour). Only the last is a reason to change product code.
 - Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only
   message is the one-line final answer after doneFile; put doubts in DONE.json.
 

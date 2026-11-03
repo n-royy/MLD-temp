@@ -31,7 +31,8 @@ only the orchestrator writes progress events.
 - **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
   folder). If `<teamWorkspace>/.mtm-cache/<key>/` exists (same seed as an earlier match), copy its `repo-map.md`,
   `tools/` and `baseline/` into `<matchRoot>/.mtm-tmp/` and only VERIFY them (patch `git apply --check`, one shot,
-  one serve) instead of writing them again. At the end of preparation copy those three into the cache. The cache
+  one serve) instead of writing them again; a cached `shot.mjs` that still waits for `networkidle` is rewritten
+  ("E" below). At the end of preparation copy those three into the cache. The cache
   holds no secrets (no env files, no auth.json).
 
 ## A. ENVIRONMENT (main checkout)
@@ -141,11 +142,13 @@ reruns of a home-made screenshot script and 60 one-second polls in one item).
 - `serve.mjs --mode dev|prod --port <p>`: run from the app folder; if the port already answers, return at once;
   otherwise start the documented dev server (or `start` after a build for prod) detached, poll the URL until HTTP
   200/302 (max ~120 s) and print `READY <url>` or the last 30 log lines. `--stop` frees the port.
-- Screenshots and downloads are NOT written per match any more: the pack ships a tested runner,
-  `ui-run.mjs` (copied into every slot's `.mtm-tmp/tools/` by start_work; source
-  `<teamSdlcPackWorkspace>/runtime/src/ui-run.mjs`). Write the app's sign-in for it once into
-  `<matchRoot>/.mtm-tmp/tools/ui-login.json`: `{"login": {"user": "<seeded user>", "password": "<seeded dev password>"}}`
-  or `{"login": {"userEnv": "<VAR>", "passwordEnv": "<VAR>"}}` when the seed reads them from the app `.env` (seeded
-  local test accounts only; never the portal account). Workers copy it into their specs.
-Verify serve.mjs with one short command (a job if it takes longer than ~20 s). If the project has no browser
-automation, say so in the reply.
+- `shot.mjs --url <path> --width <w> [--height <h>] --out <file> [--wait <selector or text>]`: with the project's
+  browser automation (Playwright when present), sign in once with the seeded test user from the README or seed
+  (cache the session in `.mtm-tmp/tools/auth.json`), open the page with `waitUntil: 'domcontentloaded'`, then wait
+  (bounded, about 15 s each) for `--wait` if given (else the main content), and for loading skeletons/spinners to
+  disappear; save the screenshot, print the main element boxes as one JSON line. Never wait for `networkidle`: a
+  page that polls or refetches never goes idle (WXNDA4AW: 30 s goto timeouts on Accounting). On a timeout exit
+  nonzero, save nothing and print which wait failed (`goto`, `wait`, `loading`) with the page URL. Prefer role/text
+  selectors over product-specific CSS.
+Verify each tool with one short command (a job if it takes longer than ~20 s). If the project has no browser automation, write only
+`serve.mjs` and say so in the reply.
