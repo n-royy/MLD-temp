@@ -11,6 +11,7 @@ import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
 import { jobState } from './jobs.mjs';
+import { collectIncident } from './incident.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA = /^[a-f0-9]{40,64}$/;
@@ -29,6 +30,9 @@ const OWN_SLOT = 's4';
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
 // DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
 const SOON_MINUTES = 3;
+// Incident fast path: a revealed PI is started in a free slot and its logs and rules are collected by code at once.
+const INCIDENT_AUTO = process.env.MTM_INCIDENT_FASTPATH !== '0';
+const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
 export class ToolError extends Error {
@@ -65,6 +69,7 @@ export class MatchSession {
     this.seenAt = new Map();
     this.warned = new Set();
     this.company = null;
+    this.incidents = new Map();
   }
 
   // ---------- configuration ----------
@@ -116,7 +121,7 @@ export class MatchSession {
       environmentRevision: merged.environmentRevision ?? null,
       gitPolicy: merged.gitPolicy ?? null
     });
-    if (!sameMatch) { this.jar = new Map(); this.projection = null; this.signature = null; this.known = new Set(); this.company = null; }
+    if (!sameMatch) { this.jar = new Map(); this.projection = null; this.signature = null; this.known = new Set(); this.company = null; this.incidents = new Map(); }
     this.log = new ProgressLog(progressLogFile, merged.playerSessionId);
     for (const [k] of this.log.backlog) this.known.add(k);
     this.lastFresh = [];
@@ -289,6 +294,7 @@ export class MatchSession {
       endpoints: { start: p.api?.startEndpoint ?? null, submit: p.api?.submissionEndpoint ?? null },
       items: this.#items().map(i => this.#compactItem(i)),
       newItems, trackedStatus: Object.fromEntries([...this.log.backlog].map(([k, v]) => [k, v.status])),
+      ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
       ...(this.#hasSlots() ? { slots: this.#slotSummary() } : {})
     };
   }
@@ -306,9 +312,108 @@ export class MatchSession {
             summary: clip(`${item.backlogType ?? 'ITEM'} revealed${item.deadlineMinutes ? `, deadline ${item.deadlineMinutes} min` : ''}.`),
             revision: null, receiptId: null });
         } catch { /* keep going */ }
+        if (INCIDENT_AUTO && isIncident(item)) this.#kickIncident(item.key);
       }
     }
     return fresh;
+  }
+
+  // ---------- incident fast path ----------
+  /** Starts (once per item) the background preparation of a PI: Start Work in a free slot (s4 first), then every log
+   *  page and the incident rules collected into <slotMatchRoot>/.mtm-tmp/<ID>/incident/. Never throws. */
+  #kickIncident(key, slotWanted = null) {
+    const known = this.incidents.get(key);
+    if (known) return known;
+    const entry = { key, startedAt: Date.now(), done: false, reported: false, result: null };
+    this.incidents.set(key, entry);
+    entry.promise = (async () => {
+      // Let the #discover pass that found the PI finish first (start_work runs its own discovery).
+      await new Promise(r => setImmediate(r));
+      const c = this.cfg;
+      let slot = null, start = null, startError = null;
+      try {
+        const all = this.#slots();
+        const free = n => all[n] && !all[n].item && existsSync(join(all[n].path ?? '', '.git'));
+        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null);
+        if (slot && c.apiKey) {
+          try { start = await this.startWork({ backlogItemKey: key, slot }); }
+          catch (error) { startError = `${error.code ?? 'START_WORK_FAILED'}: ${clip(String(error.message), 160)}`; slot = null; }
+        }
+        const root = start?.slotMatchRoot ?? c.matchRoot;
+        let defs = this.companyToolDefs;
+        if (!defs) { try { defs = await this.companyTools(); } catch (error) { defs = []; startError ??= `company tools list failed: ${error.code ?? 'ERROR'}`; } }
+        const item = this.#items().find(i => i.key === key) ?? {};
+        const summary = await collectIncident({ defs, dir: join(root, SCRATCH, key, 'incident'),
+          brief: { key, title: item.title ?? '', description: typeof item.description === 'string' ? item.description : '' },
+          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }) });
+        let brief = null;
+        try { brief = start?.briefFile ? JSON.parse(readFileSync(start.briefFile, 'utf8')) : null; } catch { /* optional */ }
+        entry.result = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
+          worktreeRoot: start?.worktreeRoot ?? null, slotMatchRoot: start?.slotMatchRoot ?? null, briefFile: start?.briefFile ?? null,
+          answerFile: brief?.answerFile ?? join(root, 'answers', key, 'submit.json'), validateCommand: brief?.validateCommand ?? null,
+          doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item), ...summary };
+      } catch (error) {
+        entry.result = { backlogItemKey: key, slot, started: Boolean(start), error: `${error.code ?? 'ERROR'}: ${clip(String(error.message), 200)}` };
+      }
+      entry.done = true;
+      entry.readyAt = Date.now();
+      return entry.result;
+    })();
+    return entry;
+  }
+
+  /** Feed check (skipped within 1 s of a read): on a change, a full read discovers new items (and starts a PI's preparation). */
+  async #peekFeed() {
+    const c = this.cfg;
+    if (!INCIDENT_AUTO || c?.phase !== 'GAME' || Date.now() - (this.projectionAt ?? 0) < 1000) return 'skipped';
+    const feed = this.projection?.api?.feedEndpoint;
+    if (!feed) return 'skipped';
+    try {
+      const url = new URL(feed, c.gmOrigin);
+      url.searchParams.set('afterSequence', String(this.projection?.match?.currentSequence ?? 0));
+      const res = await request(url.href, { allowedOrigins: c.origins, allowLoopback,
+        headers: { accept: 'application/json', cookie: cookieHeader(this.jar) } });
+      if (res.status === 409 || (res.status === 200 && (res.json?.items?.length ?? 0) > 0)) {
+        await this.#getProjection({ log: false });
+        this.peekFresh = [...(this.peekFresh ?? []), ...this.lastFresh];
+        return 'changed';
+      }
+      return res.status === 200 ? 'same' : 'error';
+    } catch { return 'error'; } // the regular loop below retries
+  }
+
+  /** NEW_PI result for the first prepared, unreported incident; waits up to waitMs for one still being prepared. */
+  async #incidentUpdate(waitMs, fresh = []) {
+    const open = [...this.incidents.values()].filter(e => !e.reported);
+    if (!open.length) return null;
+    let ready = open.find(e => e.done);
+    if (!ready && waitMs > 0) {
+      await Promise.race([Promise.race(open.map(e => e.promise)), sleep(waitMs)]);
+      ready = open.find(e => e.done);
+    }
+    if (!ready) return null;
+    ready.reported = true;
+    return { changed: true, reason: 'NEW_PI', incident: { ...ready.result, preparedInSec: Math.round((ready.readyAt - ready.startedAt) / 1000) }, board: this.#board(fresh) };
+  }
+
+  /** Manual trigger (helper restarted after the PI was discovered, or a re-collection with refresh). */
+  async prepareIncident({ backlogItemKey, slot = null, refresh = false }) {
+    const c = this.#need();
+    if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
+    if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s4');
+    if (!this.projection) await this.#getProjection();
+    const prev = this.incidents.get(backlogItemKey);
+    // Collect again on request, or when the PI could not be started earlier (no free slot then).
+    if (prev && prev.done && (refresh || !prev.result?.started)) {
+      this.incidents.delete(backlogItemKey);
+      const s = this.#slotOf(backlogItemKey);
+      slot = s?.name ?? slot;
+    }
+    const entry = this.#kickIncident(backlogItemKey, slot);
+    await entry.promise;
+    entry.reported = true;
+    return { ...entry.result, preparedInSec: Math.round((entry.readyAt - entry.startedAt) / 1000) };
   }
 
   async refresh() {
@@ -353,6 +458,11 @@ export class MatchSession {
     const before = this.signature ?? this.#signature();
     let lastFull = Date.now();
     while (Date.now() < deadline) {
+      // A PI outranks everything else (race for 100/90/75/60 %): its data is ready before the orchestrator wakes.
+      // Before reporting anything, a cheap feed check discovers an item revealed since the last read.
+      const peek = await this.#peekFeed();
+      const pi = await this.#incidentUpdate(90000, this.peekFresh ?? []);
+      if (pi) { this.peekFresh = []; return pi; }
       const done = this.#newSlotResults();
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
       const finished = this.#jobsFinished();
@@ -366,8 +476,9 @@ export class MatchSession {
       let wait = 5000;
       try {
         const feed = this.projection?.api?.feedEndpoint;
-        let full = Date.now() - lastFull > 30000 || !feed;
-        if (!full) {
+        // A change the peek above already read is compared below; a quiet peek replaces this iteration's feed request.
+        let full = peek === 'changed' || Date.now() - lastFull > 30000 || !feed;
+        if (!full && peek !== 'same') {
           const url = new URL(feed, c.gmOrigin);
           url.searchParams.set('afterSequence', String(this.projection?.match?.currentSequence ?? 0));
           const res = await request(url.href, { allowedOrigins: c.origins, allowLoopback,
@@ -379,7 +490,8 @@ export class MatchSession {
         if (full) {
           await this.#getProjection({ log: false });
           lastFull = Date.now();
-          const fresh = [...this.lastFresh];
+          const fresh = [...(this.peekFresh ?? []), ...this.lastFresh];
+          this.peekFresh = [];
           const sig = this.#signature();
           if (sig !== before) {
             this.signature = sig;
@@ -387,6 +499,7 @@ export class MatchSession {
             fresh.push(...this.lastFresh);
             const now = this.projection?.match?.status;
             const reason = now && now !== status && !['IN_PROGRESS', 'PREPARING', 'PREPARED', 'READY'].includes(now) ? `MATCH_${now}` : 'MATCH_UPDATED';
+            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(90000, fresh); if (pi) return pi; }
             return { changed: true, reason, board: this.#board(fresh) };
           }
         }

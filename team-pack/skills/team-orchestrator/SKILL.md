@@ -65,8 +65,9 @@ In that warm-up two items were never submitted (CR-02 not started, TASK-04 still
 So capacity and order matter as much as quality:
 - Start a deadline item as soon as it appears: it takes the next free slot before any queued non-deadline item,
   and it is never queued behind another item.
-- PI or a deadline TASK while all 3 worker slots are busy: do it yourself at once in your slot s4 ("Doing an item
-  yourself"); you have the Company Tools directly and no spawn delay.
+- A PI is always yours, never a worker's: the helper prepares it by code and wakes you with `NEW_PI` ("Incident
+  fast path"). A deadline TASK while all 3 worker slots are busy: do it yourself in your slot s4 ("Doing an item
+  yourself").
 - No item may sit unstarted while a slot is free. From minute 25, start every remaining item that can still be
   finished; skip only what cannot.
 - Keep all 3 worker slots busy from the first wave; dependencies never justify an idle slot ("Wave planning").
@@ -82,12 +83,13 @@ syncing the dependent slot when the blocker lands, not by queueing.
 When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
-2. **Order:** **PI first, immediately** (race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
+2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
    minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
    expected effort (CR/BUG usually before TASK).
 3. **Assign in that order, one item per free worker slot (s1-s3), until they are full.** Never leave a slot idle while an
-   item is open. A deadline item or PI is never queued behind another item: if no worker slot is free, do it yourself
-   in s4 ("Doing an item yourself") when it is a PI or a short TASK; otherwise it takes the next slot that frees.
+   item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
+   a short deadline TASK with no free worker slot you do in s4 ("Doing an item yourself"); otherwise it takes the next
+   slot that frees.
 4. **Dependencies are not a reason to wait:**
    - Verification dependency (e.g. a layout bug hides content another item must screenshot): start both. Tell the
      dependent worker in its spawn note `<blocker ID> fixes <what>; you will be told when it is on the branch`.
@@ -184,7 +186,33 @@ DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it cl
    item scores 0 anyway. If the answer is not valid yet, the gate says so; then `release_slot` and move on.
 For your own item in s4, the same steps apply to yourself: commit, answer, doneFile, `integrate_item`.
 
-## Doing an item yourself (PI or short TASK while s1-s3 are busy)
+## Incident fast path (every PI: you, at once, never a worker)
+P2XQMD8T: our PI-01 was fully correct but second (-16 points): it waited behind an integration, then a worker was
+spawned and spent ~15 turns on start_work, instructions, tool listing and paging logs one call at a time. Now the
+helper does the mechanical part the moment the PI appears: Start Work in a free slot (s4 first) and every log page
+plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
+with `incident` before any other reason. From then on the PI comes first: SLOT_DONE integrations and spawns wait
+until it is submitted (only a DEADLINE_SOON safety net may go before it).
+1. No worker, no WORKER.md. Read `incident.files.digest` (coverage, services, releases, flags, entities, KB list),
+   `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,
+   `item.description`). `incident.complete` false or `problems` not empty: `prepare_incident` with `refresh: true`
+   once, then page what is still missing yourself (`company_tool_call`, saved to a file).
+2. One Node script `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` over `incident/logs.json` / `entities.json` computes every
+   asked field by the KB rules and prints them with the rows that prove them: complete sets by joining each id's
+   events in time order (e.g. a reminder sent after the payment that made the balance 0), the earliest by timestamp,
+   the root-cause release = the first release whose change introduced the fault (not a later one that only ran while
+   it was visible), its component, the flag that release turned on, strings exactly as logged. Never pick by eye.
+3. Fill `incident.answerFile` from the template with Node (never PowerShell `ConvertTo-Json`): the fields exactly as
+   printed, `status` DONE, a short `incidentRecord`, evidence `evidence/investigation.json` (the script output).
+   Run `incident.validateCommand` until valid.
+4. `git -C <worktreeRoot> add -- <folder>`, commit `<ID>: <one line>`, write `doneFile` with `tests`
+   `{"required":0,"executed":1,"passed":1,"failed":0,"skipped":0}`, `integrate_item` at once. Then handle what waited.
+`incident.slot` null (every slot was busy, the PI is not started yet): integrate the first SLOT_DONE, then
+`prepare_incident` (no slot) starts the PI in the freed slot and collects again within seconds. A helper restarted
+after the PI appeared does not prepare it by itself: call `prepare_incident` for any open PI on the board that is
+not in `board.incidents`.
+
+## Doing an item yourself (short TASK while s1-s3 are busy)
 Work in **your own slot s4**, never in the main checkout (`integrate_item` needs it clean for the workers):
 `start_work` with `slot: "s4"` → read its `briefFile` and `.agents/skills/team-orchestrator/WORKER.md` (item kinds 2
 and 3; keep big Company Tool answers in files and extract facts with a script, so they stay out of your context) →

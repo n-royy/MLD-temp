@@ -27,13 +27,22 @@ const TOOLS = [
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
     description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
-      'end; reported once each), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
+      'end; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - s4 ' +
+      'first - and collected every log page and the incident rules into incident.dir: digest.md, logs.json, entities.json, kb.md; ' +
+      'it outranks every other reason and arrives once per PI), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
       'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft). ' +
       'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
       'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
       'In an exec cell put // @exec: {"yield_time_ms": 270000} on the first line.',
     inputSchema: obj({ timeoutMs: { type: 'integer', minimum: 5000, maximum: 240000 } }) },
+  { name: 'prepare_incident', handler: a => session.prepareIncident(a),
+    description: 'Incident fast path by hand (normally automatic: wait_for_update reason NEW_PI). Starts the PI in a free slot ' +
+      '(s4 first, or `slot`) if not started, pages every Company Tools log query to its total and fetches the incident rules ' +
+      '(plus every KB article they reference) into <slotMatchRoot>/.mtm-tmp/<ID>/incident/: digest.md (coverage, services, ' +
+      'releases, flags, entities), logs.json (all entries, by time), entities.json (timeline per invoice/ticket id), kb.md. ' +
+      'Returns slot, briefFile, answerFile, validateCommand, doneFile and the coverage. refresh re-collects.',
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
     description: 'Create (or keep, on resume) up to 4 slots (s1-s3 for workers, s4 for the orchestrator itself): Git worktrees of the assigned repository at ' +
       '<checkoutRoot>.slots/sN on local-only branches mtm-slot/sN (never pushed). copyFiles copies git-ignored local files ' +

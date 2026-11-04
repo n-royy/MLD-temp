@@ -1,0 +1,771 @@
+{
+ "note": "PI-01 logs and KB articles recorded by MLD in practice matches (team dataset), used offline only",
+ "logs": [
+  {
+   "ts": "2026-10-26T07:40:00Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261026-0740",
+   "message": "Reminder batch started",
+   "context": {
+    "batchId": "rb-20261026-0740",
+    "statusSource": "db"
+   }
+  },
+  {
+   "ts": "2026-10-26T07:40:03Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-2c07",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1105",
+    "status": "OVERDUE",
+    "statusSource": "db",
+    "daysPastDue": 10,
+    "batchId": "rb-20261026-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-26T07:40:09Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261026-0740",
+   "message": "Reminder batch finished",
+   "context": {
+    "batchId": "rb-20261026-0740",
+    "sent": 1
+   }
+  },
+  {
+   "ts": "2026-10-26T09:12:40Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-09c1",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1105",
+    "amountMinor": 1250000,
+    "currency": "VND",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  },
+  {
+   "ts": "2026-10-26T15:00:04Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4410",
+   "message": "Release rel-20261026-1 completed",
+   "context": {
+    "release": "rel-20261026-1",
+    "components": [
+     "web"
+    ],
+    "changes": [
+     "Dashboard: faster heatmap query"
+    ],
+    "flags": {}
+   }
+  },
+  {
+   "ts": "2026-10-26T23:58:00Z",
+   "service": "status-cache",
+   "level": "INFO",
+   "requestId": "sc-2358",
+   "message": "Snapshot refreshed",
+   "context": {
+    "snapshotId": "snap-20261026-2358",
+    "invoices": 1311,
+    "refreshHours": 6,
+    "nextRefreshAt": "2026-10-27T05:58:00Z"
+   }
+  },
+  {
+   "ts": "2026-10-27T02:00:12Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4411",
+   "message": "Release rel-20261027-1 completed",
+   "context": {
+    "release": "rel-20261027-1",
+    "components": [
+     "email-gateway"
+    ],
+    "changes": [
+     "Reminder e-mail: Vietnamese salutation and footer"
+    ],
+    "flags": {}
+   }
+  },
+  {
+   "ts": "2026-10-27T05:58:02Z",
+   "service": "status-cache",
+   "level": "INFO",
+   "requestId": "sc-0558",
+   "message": "Snapshot refreshed",
+   "context": {
+    "snapshotId": "snap-20261027-0558",
+    "invoices": 1318,
+    "refreshHours": 6,
+    "nextRefreshAt": "2026-10-27T11:58:00Z"
+   }
+  },
+  {
+   "ts": "2026-10-27T06:05:02Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4412",
+   "message": "Release rel-20261027-2 started",
+   "context": {
+    "release": "rel-20261027-2",
+    "approvedBy": "release-bot"
+   }
+  },
+  {
+   "ts": "2026-10-27T06:05:40Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4412",
+   "message": "Release rel-20261027-2 completed",
+   "context": {
+    "release": "rel-20261027-2",
+    "components": [
+     "reminder-worker"
+    ],
+    "changes": [
+     "reminder-worker: read invoice status from status-cache instead of the ledger database (reduces database load)"
+    ],
+    "flags": {
+     "reminders.statusFromCache": true
+    }
+   }
+  },
+  {
+   "ts": "2026-10-27T06:06:15Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rw-boot",
+   "message": "Worker restarted",
+   "context": {
+    "release": "rel-20261027-2",
+    "config": {
+     "reminders.statusFromCache": true,
+     "reminders.batchEveryMinutes": 120
+    }
+   }
+  },
+  {
+   "ts": "2026-10-27T06:20:03Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4413",
+   "message": "Release rel-20261027-3 completed",
+   "context": {
+    "release": "rel-20261027-3",
+    "components": [
+     "payment-api"
+    ],
+    "changes": [
+     "payment-api: retry the bank webhook after a timeout"
+    ],
+    "flags": {
+     "payments.webhookRetry": true
+    }
+   }
+  },
+  {
+   "ts": "2026-10-27T06:42:10Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0a41",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1101",
+    "amountMinor": 32000,
+    "currency": "USD",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  },
+  {
+   "ts": "2026-10-27T06:50:33Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0a58",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1102",
+    "amountMinor": 2000000,
+    "currency": "VND",
+    "invoiceStatusAfter": "PARTIAL",
+    "balanceDueMinor": 4500000
+   }
+  },
+  {
+   "ts": "2026-10-27T07:10:05Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0b02",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1106",
+    "amountMinor": 18900,
+    "currency": "USD",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  },
+  {
+   "ts": "2026-10-27T07:21:09Z",
+   "service": "api",
+   "level": "ERROR",
+   "requestId": "api-MLD-err1",
+   "message": "TRPCError CONFLICT: Only draft invoices can be issued.",
+   "context": {
+    "procedure": "accounting.postInvoice"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:00Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261027-0740",
+   "message": "Reminder batch started",
+   "context": {
+    "batchId": "rb-20261027-0740",
+    "statusSource": "cache",
+    "snapshotId": "snap-20261027-0558"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:01Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-91d2",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1106",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 3,
+    "batchId": "rb-20261027-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:02Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-91e8",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1102",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 10,
+    "batchId": "rb-20261027-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:02Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-91d2",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1106",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:03Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-7f3a",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1101",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 3,
+    "batchId": "rb-20261027-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:03Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-91e8",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1102",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:04Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-80b6",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1104",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 30,
+    "batchId": "rb-20261027-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:04Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-7f3a",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1101",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:05Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-80c1",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1103",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 10,
+    "batchId": "rb-20261027-0740",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:05Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-80b6",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1104",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:06Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-80c1",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1103",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T07:40:09Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261027-0740",
+   "message": "Reminder batch finished",
+   "context": {
+    "batchId": "rb-20261027-0740",
+    "sent": 5
+   }
+  },
+  {
+   "ts": "2026-10-27T07:55:41Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0b77",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1104",
+    "amountMinor": 7400,
+    "currency": "EUR",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  },
+  {
+   "ts": "2026-10-27T08:05:17Z",
+   "service": "support-desk",
+   "level": "INFO",
+   "requestId": "tck-MLD-3301",
+   "message": "Ticket opened: client received a payment reminder for an invoice paid this morning",
+   "context": {
+    "ticket": "TCK-MLD-3301",
+    "invoice": "INV-MLD-1101",
+    "priority": "normal"
+   }
+  },
+  {
+   "ts": "2026-10-27T08:10:20Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0c13",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1109",
+    "amountMinor": 5000,
+    "currency": "USD",
+    "invoiceStatusAfter": "PARTIAL",
+    "balanceDueMinor": 9500
+   }
+  },
+  {
+   "ts": "2026-10-27T08:30:12Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0c40",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1107",
+    "amountMinor": 64000,
+    "currency": "USD",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  },
+  {
+   "ts": "2026-10-27T08:45:00Z",
+   "service": "deploy",
+   "level": "INFO",
+   "requestId": "dep-4414",
+   "message": "Release rel-20261027-4 completed",
+   "context": {
+    "release": "rel-20261027-4",
+    "components": [
+     "status-cache"
+    ],
+    "changes": [
+     "status-cache: expose snapshot age metric"
+    ],
+    "flags": {}
+   }
+  },
+  {
+   "ts": "2026-10-27T08:45:31Z",
+   "service": "status-cache",
+   "level": "INFO",
+   "requestId": "sc-metric",
+   "message": "Metric snapshot_age_seconds exposed",
+   "context": {
+    "release": "rel-20261027-4"
+   }
+  },
+  {
+   "ts": "2026-10-27T08:58:44Z",
+   "service": "web",
+   "level": "ERROR",
+   "requestId": "web-MLD-err2",
+   "message": "ChunkLoadError: Loading chunk 812 failed",
+   "context": {
+    "page": "/boards"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:04:58Z",
+   "service": "payment-api",
+   "level": "WARN",
+   "requestId": "pay-MLD-0d05",
+   "message": "Bank webhook timed out, retry scheduled",
+   "context": {
+    "invoice": "INV-MLD-1108",
+    "attempt": 1,
+    "retryInSeconds": 5
+   }
+  },
+  {
+   "ts": "2026-10-27T09:05:03Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0d05",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1108",
+    "amountMinor": 410000,
+    "currency": "KRW",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0,
+    "attempt": 2
+   }
+  },
+  {
+   "ts": "2026-10-27T09:12:44Z",
+   "service": "support-desk",
+   "level": "INFO",
+   "requestId": "tck-MLD-3302",
+   "message": "Ticket opened: client says the reminder came although the invoice is paid",
+   "context": {
+    "ticket": "TCK-MLD-3302",
+    "invoice": "INV-MLD-1105",
+    "priority": "normal",
+    "note": "client refers to the e-mail of 2026-10-26"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:00Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261027-0940",
+   "message": "Reminder batch started",
+   "context": {
+    "batchId": "rb-20261027-0940",
+    "statusSource": "cache",
+    "snapshotId": "snap-20261027-0558"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:00Z",
+   "service": "status-cache",
+   "level": "WARN",
+   "requestId": "sc-age-0940",
+   "message": "Snapshot read by reminder-worker is older than the freshness hint",
+   "context": {
+    "snapshotId": "snap-20261027-0558",
+    "ageSeconds": 13078,
+    "freshnessHintSeconds": 3600,
+    "consumer": "reminder-worker"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:01Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a104",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1104",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 30,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:02Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a10f",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1107",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 3,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:02Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a104",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1104",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:03Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a113",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1103",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 10,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:03Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a10f",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1107",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:04Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a12a",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1108",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 10,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:04Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a113",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1103",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:05Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a131",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1109",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 3,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:05Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a12a",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1108",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:06Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a13c",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1102",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 10,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:06Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a131",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1109",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:07Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rem-MLD-a142",
+   "message": "Reminder sent",
+   "context": {
+    "invoice": "INV-MLD-1106",
+    "status": "OVERDUE",
+    "statusSource": "cache",
+    "daysPastDue": 3,
+    "batchId": "rb-20261027-0940",
+    "channel": "email"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:07Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a13c",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1102",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:08Z",
+   "service": "email-gateway",
+   "level": "INFO",
+   "requestId": "rem-MLD-a142",
+   "message": "Reminder e-mail delivered",
+   "context": {
+    "invoice": "INV-MLD-1106",
+    "template": "payment-reminder"
+   }
+  },
+  {
+   "ts": "2026-10-27T09:40:12Z",
+   "service": "reminder-worker",
+   "level": "INFO",
+   "requestId": "rb-20261027-0940",
+   "message": "Reminder batch finished",
+   "context": {
+    "batchId": "rb-20261027-0940",
+    "sent": 7
+   }
+  },
+  {
+   "ts": "2026-10-27T09:55:03Z",
+   "service": "support-desk",
+   "level": "INFO",
+   "requestId": "tck-MLD-3303",
+   "message": "Ticket opened: duplicate payment reminders",
+   "context": {
+    "ticket": "TCK-MLD-3303",
+    "invoice": "INV-MLD-1107",
+    "priority": "high"
+   }
+  },
+  {
+   "ts": "2026-10-27T10:02:00Z",
+   "service": "payment-api",
+   "level": "INFO",
+   "requestId": "pay-MLD-0e20",
+   "message": "Payment recorded",
+   "context": {
+    "invoice": "INV-MLD-1103",
+    "amountMinor": 27500,
+    "currency": "USD",
+    "invoiceStatusAfter": "PAID",
+    "balanceDueMinor": 0
+   }
+  }
+ ],
+ "kb": [
+  {
+   "id": "KB-OPS-01",
+   "title": "Incident reports: required facts and naming",
+   "body": "Every production incident report names facts exactly as they appear in our systems, so on-call engineers can act on them without guessing.\n\n- Release: the release id as written by the deploy service (rel-YYYYMMDD-N). The root-cause release is the first release whose change introduced the fault, not a later release that happened to run while it was visible.\n- Component: the root-cause component is the component whose change in that release introduced the fault. Use the service name exactly as it appears in logs: web, api, auth, payment-api, reminder-worker, status-cache, email-gateway, support-desk, deploy.\n- Containment: the feature flag key exactly as logged (for example billing.newTaxEngine). Containment means switching that flag off; we never roll back database changes during an incident.\n- Affected records: every record that was wrongly processed, as stored ids (invoice numbers), not the complaints we happened to receive. Customers do not report every case.\n- Request ids: as logged (requestId field).\n\nThe logs are the source of truth. The application source code does not contain the reminder or deploy systems."
+  },
+  {
+   "id": "KB-AR-05",
+   "title": "When an invoice is paid, partially paid or overdue",
+   "body": "Status of an issued (not DRAFT, not VOID) invoice, decided in this order:\n1. PAID when paid >= total (paid in full, including overpayment).\n2. PARTIAL when 0 < paid < total. A partially paid invoice stays PARTIAL also after its due date.\n3. OVERDUE when nothing is paid and the due date has passed. The due date is a calendar date: the invoice is still payable during the whole due date and becomes overdue on the following day. Compare calendar dates (YYYY-MM-DD, UTC), never a timestamp against midnight.\n4. SENT otherwise. Invoices without a due date are never overdue.\nThe stored status is refreshed whenever a payment is recorded. Payment reminders are e-mailed by the reminder service for every issued invoice that still has a balance due at the moment the reminder is sent (SENT, PARTIAL or OVERDUE). A reminder for an invoice that was already paid in full when the reminder was sent is wrong."
+  }
+ ]
+}
