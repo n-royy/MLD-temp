@@ -22,7 +22,9 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-4]$/;
+const SLOT_NAME = /^s[1-5]$/;
+// s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
+const HEAVY_SLOT = 's5';
 // s1..s3 are worker slots; s4 is the orchestrator's own slot (PI or short TASK when every worker is busy), so its
 // work never dirties the main checkout that integrate_item needs clean.
 const OWN_SLOT = 's4';
@@ -30,8 +32,12 @@ const OWN_SLOT = 's4';
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
 // DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
 const SOON_MINUTES = 3;
+// A heavy item works on until this close to its deadline / the match end; then its last commit is integrated at once.
+const HEAVY_FINAL_MINUTES = 1.5;
 // Incident fast path: a revealed PI is started in a free slot and its logs and rules are collected by code at once.
 const INCIDENT_AUTO = process.env.MTM_INCIDENT_FASTPATH !== '0';
+// Items the organizer marks as heavy (title prefix, e.g. "[Heavy Task] ..."): expensive, scheduled last.
+const isHeavy = item => /^\s*\[\s*heavy\b[^\]]*\]/i.test(String(item?.title ?? item?.backlogTitle ?? item?.name ?? ''));
 const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
@@ -221,6 +227,7 @@ export class MatchSession {
     }
     const left = this.#minutesLeft(item);
     if (left !== null) out.minutesLeft = left;
+    if (isHeavy(item)) out.heavy = true;
     return out;
   }
 
@@ -266,13 +273,16 @@ export class MatchSession {
     for (const s of Object.values(this.#slots())) {
       if (!s.item) continue;
       const item = this.#items().find(i => i.key === s.item);
+      const heavy = isHeavy(item);
+      const soon = heavy ? HEAVY_FINAL_MINUTES : SOON_MINUTES;
+      const extra = heavy ? { heavy: true, action: 'INTEGRATE_LAST_COMMIT_NOW' } : {};
       const left = this.#minutesLeft(item);
-      if (left !== null && left <= SOON_MINUTES && left > -1 && !this.warned.has(`${s.item}:deadline`)) {
+      if (left !== null && left <= soon && left > -1 && !this.warned.has(`${s.item}:deadline`)) {
         this.warned.add(`${s.item}:deadline`);
-        out.push({ backlogItemKey: s.item, slot: s.name, kind: 'DEADLINE', minutesLeft: left });
-      } else if (end !== null && end <= SOON_MINUTES && !this.warned.has(`${s.item}:end`)) {
+        out.push({ backlogItemKey: s.item, slot: s.name, kind: 'DEADLINE', minutesLeft: left, ...extra });
+      } else if (end !== null && end <= soon && !this.warned.has(`${s.item}:end`)) {
         this.warned.add(`${s.item}:end`);
-        out.push({ backlogItemKey: s.item, slot: s.name, kind: 'MATCH_END', minutesLeft: end });
+        out.push({ backlogItemKey: s.item, slot: s.name, kind: 'MATCH_END', minutesLeft: end, ...extra });
       }
     }
     return out;
@@ -401,7 +411,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s4');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s5');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -443,7 +453,7 @@ export class MatchSession {
     return item;
   }
 
-  async waitForUpdate({ timeoutMs = 240000 } = {}) {
+  async waitForUpdate({ timeoutMs = 240000, noWait = false } = {}) {
     const c = this.#need();
     // The loop returns within ~5 s of any change (new item, status, SLOT_DONE), so a shorter wait only adds idle model
     // turns that re-send the whole context (7GAZA14X: a 60 s wait plus a status line every minute while workers ran).
@@ -453,11 +463,14 @@ export class MatchSession {
     // ~60 s for the worker's DONE.json and still integrate before the deadline.
     const t = Number(timeoutMs);
     const ms = Date.now() < (this.soonUntil ?? 0) && Number.isFinite(t) ? Math.min(Math.max(t, 5000), 240000) : 240000;
-    const deadline = Date.now() + ms;
+    // noWait: one pass without sleeping (the orchestrator checks for events between steps of its own item in s4).
+    const deadline = noWait ? Date.now() : Date.now() + ms;
     if (!this.projection) await this.#getProjection();
     const before = this.signature ?? this.#signature();
     let lastFull = Date.now();
-    while (Date.now() < deadline) {
+    let once = noWait;
+    while (once || Date.now() < deadline) {
+      once = false;
       // A PI outranks everything else (race for 100/90/75/60 %): its data is ready before the orchestrator wakes.
       // Before reporting anything, a cheap feed check discovers an item revealed since the last read.
       const peek = await this.#peekFeed();
@@ -829,14 +842,14 @@ export class MatchSession {
   #hasSlots() { return Object.keys(this.#slots()).length > 0; }
   #hasBusySlot() { return Object.values(this.#slots()).some(s => s.item); }
   #slotSummary() {
-    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : 'worker', item: s.item ?? null, state: s.item ? s.state : 'FREE' }));
+    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : s.name === HEAVY_SLOT ? 'heavy-worker' : 'worker', item: s.item ?? null, state: s.item ? s.state : 'FREE' }));
   }
   #slotOf(key) { return Object.values(this.#slots()).find(s => s.item === key) ?? null; }
 
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 4) fail('INVALID_SLOT_COUNT', 'count must be 1..4 (s1-s3 for the 3 workers, s4 for the orchestrator itself)');
+    if (!Number.isInteger(n) || n < 1 || n > 5) fail('INVALID_SLOT_COUNT', 'count must be 1..5 (s1-s3 for the 3 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
@@ -880,7 +893,7 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3 (workers) or s4 (orchestrator)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3 (workers), s4 (orchestrator) or s5 (heavy worker)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
@@ -946,6 +959,8 @@ export class MatchSession {
       validateCommand: `node "${join(dir, 'validate.mjs')}"`, doneFile: join(dir, 'DONE.json'),
       baselineRepair: this.#baselineInfo(),
       // Background jobs started during preparation (slot install, baseline run) may still be running at game start.
+      // Wall-clock limits for a worker that budgets its own time (heavy items, partial submission).
+      heavy: isHeavy(item), ...this.#timeLimits(item),
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
     writeFileSync(join(dir, 'brief.json'), JSON.stringify(brief, null, 2));
     try { await this.#publishProxy(s.matchRoot); } catch { /* workers fall back to the orchestrator's saved files */ }
@@ -956,8 +971,17 @@ export class MatchSession {
     if (existsSync(tools)) cpSync(tools, join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
     return { backlogId: key, backlogType: brief.backlogType, title: item?.title ?? null, replay: r.replay ?? null,
       slot: s.name, slotIndex: s.index, worktreeRoot: s.path, slotMatchRoot: s.matchRoot, briefFile: join(dir, 'brief.json'),
-      doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null,
+      doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null, heavy: brief.heavy,
       slotInstallState: brief.slotInstallState };
+  }
+
+  /** ISO times when the item's deadline and the match end are reached (null when unknown). */
+  #timeLimits(item) {
+    const at = min => (min === null || min === undefined ? null : new Date(Date.now() + min * 60000).toISOString());
+    const end = this.#matchMinutesLeft();
+    const dl = this.#minutesLeft(item);
+    const stop = [dl, end].filter(v => v !== null && v !== undefined);
+    return { deadlineAt: at(dl), matchEndsAt: at(end), stopBy: stop.length ? at(Math.min(...stop)) : null };
   }
 
   /** <matchRoot>/.mtm-tmp/jobs when preparation started background jobs there, else null. */

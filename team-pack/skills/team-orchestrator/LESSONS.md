@@ -28,11 +28,14 @@ Short rules learned from real matches. Each line names where it came from. They 
   counted 17/27/41 "tests" for 3/4/5 test cases (suite, build, typecheck, own scripts), wrote unit tests no brief asked
   for (BUG-02) and produced 14 evidence files for 3 rows (BUG-01): time and tokens with no score. Exception: CR-01
   criterion 5 asked for automated export tests, so those were required.
+- A clear configuration/migration drift is repaired at baseline even when other baseline failures (product logic of
+  backlog items) stay red; otherwise the nearest-deadline item that needs "existing tests pass" owns the repair. An
+  owner without a deadline landed the fix after a deadline item had to be submitted, which lost that item's case.
 - Never weaken an existing test to get green; decide intended behaviour from the brief, business rules and the
   repository's design documents, not from current code. (QNW5V6OU BUG-02)
 - A test that already fails at baseline is a planted problem: 4 of 5 items required "existing tests pass", so leaving
-  it unresolved cost that criterion on every item and forced PARTIAL everywhere. Investigate it in the first such
-  item (design docs vs code), fix the code when the code drifted, and say so in the engineering record.
+  it unresolved cost that criterion on every item and forced PARTIAL everywhere. The baseline owner (SKILL.md
+  "Baseline failures") investigates it (design docs vs code), fixes the code when the code drifted, and says so in the engineering record.
   (QNW5V6OU fixed the test instead; VREGZAVG left it and lost the criterion 4 times)
 - A baseline test can pass for the wrong reason: a shared local database kept the previous match's fix, so the
   planted CASCADE defect looked fixed and no migration was committed; the grader's fresh database will fail it.

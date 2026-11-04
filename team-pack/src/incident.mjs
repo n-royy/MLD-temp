@@ -12,11 +12,15 @@ const OFFSET_KEYS = ['offset', 'skip', 'start', 'cursor', 'pageToken', 'after', 
 const LIMIT_KEYS = ['limit', 'pageSize', 'size', 'maxResults', 'count'];
 const ENTRY_KEYS = ['entries', 'logs', 'items', 'results', 'records', 'events', 'data'];
 const TOTAL_KEYS = ['total', 'totalCount', 'count', 'totalEntries'];
-// Service names seen in incident rules so far (KB-OPS-01); used only when a log search needs a filter.
-const DEFAULT_SERVICES = ['web', 'api', 'auth', 'payment-api', 'reminder-worker', 'status-cache', 'email-gateway', 'support-desk', 'deploy'];
-const ENTITY = /^[A-Z][A-Z0-9]{1,9}(?:-[A-Z0-9]{1,12}){1,4}$/;      // INV-MLD-1101, TCK-MLD-3303
-const RELEASE = /\brel-[0-9]{6,8}-[0-9]+\b/g;
+// Only used when a log search needs a filter: service names come from the logs, the brief and the KB text;
+// these generic names are a last resort.
+const GENERIC_SERVICES = ['web', 'api', 'app', 'auth', 'worker', 'db', 'gateway', 'deploy'];
+const ENTITY = /^[A-Z][A-Z0-9]{1,9}(?:-[A-Z0-9]{1,12}){1,4}$/;      // record ids such as ABC-XYZ-1234
+// Context keys that mark a change event (deploy, release, version, feature flags).
+const CHANGE_KEYS = ['release', 'version', 'build', 'deployment', 'deploy', 'components', 'changes', 'flags'];
 
+// Document ids such as ABC-DEF-01 named in a brief.
+const DOC_ID = /\b[A-Z]{2,6}-[A-Z]{2,6}-[0-9]{1,4}\b/g;
 const props = def => def?.inputSchema?.properties ?? {};
 const required = def => def?.inputSchema?.required ?? [];
 
@@ -111,11 +115,11 @@ export function digestOf(entries, articles, coverage, brief = {}) {
     const s = services.get(e.service) ?? { count: 0, first: e.ts, last: e.ts, messages: new Map(), levels: new Map() };
     s.count++; s.last = e.ts; s.messages.set(e.message, (s.messages.get(e.message) ?? 0) + 1); s.levels.set(e.level, (s.levels.get(e.level) ?? 0) + 1);
     services.set(e.service, s);
-    const text = `${e.message ?? ''} ${JSON.stringify(e.context)}`;
-    for (const rel of new Set(text.match(RELEASE) ?? [])) {
-      const r = releases.get(rel) ?? { release: rel, events: [] };
+    if (CHANGE_KEYS.some(k => k in e.context)) {
+      const id = String(e.context.release ?? e.context.version ?? e.context.build ?? e.context.deployment ?? e.requestId ?? e.ts);
+      const r = releases.get(id) ?? { release: id, events: [] };
       r.events.push({ ts: e.ts, service: e.service, message: e.message, components: e.context.components, changes: e.context.changes, flags: e.context.flags });
-      releases.set(rel, r);
+      releases.set(id, r);
     }
     const fl = e.context.flags && typeof e.context.flags === 'object' ? e.context.flags : null;
     for (const [k, v] of Object.entries(fl ?? {})) { const f = flags.get(k) ?? []; f.push({ ts: e.ts, value: v, service: e.service, requestId: e.requestId }); flags.set(k, f); }
@@ -135,7 +139,7 @@ export function digestOf(entries, articles, coverage, brief = {}) {
   lines.push('', `Unique log entries: ${logs.length} (file logs.json, sorted by ts). Entity timelines: entities.json. KB articles in full: kb.md.`, '');
   lines.push('## Services', '| service | entries | first | last | messages (count) |', '|---|---|---|---|---|');
   for (const [name, s] of services) lines.push(`| ${name} | ${s.count} | ${s.first} | ${s.last} | ${[...s.messages].slice(0, 8).map(([m, n]) => `${m} (${n})`).join('; ')} |`);
-  lines.push('', '## Releases (as logged)');
+  lines.push('', '## Change events (deploys, releases, versions, flags; grouped by the id as logged)');
   for (const r of [...releases.values()].sort((a, b) => a.events[0].ts.localeCompare(b.events[0].ts))) {
     lines.push(`- **${r.release}**`);
     for (const ev of r.events.slice(0, 6)) lines.push(`  - ${ev.ts} ${ev.service}: ${ev.message}${ev.components ? ` components=${JSON.stringify(ev.components)}` : ''}${ev.changes ? ` changes=${JSON.stringify(ev.changes)}` : ''}${ev.flags && Object.keys(ev.flags).length ? ` flags=${JSON.stringify(ev.flags)}` : ''}`);
@@ -167,6 +171,33 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
   const problems = [];
   const seen = new Map();
   const coverage = [];
+  // Knowledge base: incident rules, the brief's own words, then every KB id the articles reference.
+  const articles = new Map();
+  if (!t.kbTool) problems.push('no knowledge-base tool in the Company Tools list');
+  else {
+    const queries = ['incident report', 'incident report naming release component containment flag scope',
+      brief.title ?? '', ...(String(brief.description ?? '').match(DOC_ID) ?? [])].filter(Boolean);
+    const asked = new Set();
+    for (let i = 0; i < queries.length && i < 12; i++) {
+      const q = queries[i];
+      if (asked.has(q) || budget.calls <= 0 || Date.now() > budget.until) continue;
+      asked.add(q); budget.calls--;
+      const args = { [t.kbQueryKey ?? 'query']: q };
+      if (t.kbLimitKey) args[t.kbLimitKey] = t.kbLimitMax ?? 10;
+      try {
+        const r = await call(t.kbTool.name, args);
+        if (r?.isError) { problems.push(`kb "${q}": ${String(r.text ?? '').slice(0, 120)}`); continue; }
+        for (const a of articlesOf(parse(r?.text))) {
+          const id = a.id ?? a.key ?? a.title;
+          if (!articles.has(id)) articles.set(id, a);
+          // Follow references to other articles (ids shaped like the ids of the articles already found).
+          const prefix = String(id).match(/^([A-Za-z]+)-/)?.[1];
+          const refRe = prefix ? new RegExp(`\\b${prefix}-[A-Z0-9]+(?:-[A-Z0-9]+)*\\b`, 'g') : DOC_ID;
+          for (const ref of String(a.body ?? a.content ?? '').match(refRe) ?? []) if (!asked.has(ref) && !articles.has(ref)) queries.push(ref);
+        }
+      } catch (e) { problems.push(`kb "${q}": ${e.code ?? 'ERROR'}`); }
+    }
+  }
   if (!t.logTool) problems.push('no log search tool in the Company Tools list');
   else {
     // 1. Everything at once (no filter). 2. If the tool needs a filter: an empty query. 3. One query per service.
@@ -181,9 +212,11 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
     }
     // Per-service queries as well when the unfiltered dump is incomplete, failed, or capped by a default window.
     if (!all || !all.complete) {
-      const named = new Set(DEFAULT_SERVICES);
+      const named = new Set();
       for (const e of seen.values()) if (e?.service) named.add(e.service);
-      for (const m of String(`${brief.description ?? ''}`).matchAll(/\b[a-z]+(?:-[a-z]+)+\b/g)) if (m[0].length < 24) named.add(m[0]);
+      const text = `${brief.description ?? ''} ${[...articles.values()].map(a => a.body ?? a.content ?? '').join(' ')}`;
+      for (const m of text.matchAll(/\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b/g)) if (m[0].length < 32) named.add(m[0]);
+      for (const g of GENERIC_SERVICES) named.add(g);
       for (const svc of named) {
         const a = t.serviceKey ? { [t.serviceKey]: svc } : t.queryKey ? { [t.queryKey]: svc } : null;
         if (!a) break;
@@ -191,30 +224,6 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
       }
     }
     for (const c of coverage) if (!c.complete && !c.error) c.error = 'not paged to its total';
-  }
-  // Knowledge base: incident rules, the brief's own words, then every KB id the articles reference.
-  const articles = new Map();
-  if (!t.kbTool) problems.push('no knowledge-base tool in the Company Tools list');
-  else {
-    const queries = ['incident report', 'incident report naming release component containment flag scope',
-      brief.title ?? '', ...(String(brief.description ?? '').match(/\bKB-[A-Z]+-[0-9]+\b/g) ?? [])].filter(Boolean);
-    const asked = new Set();
-    for (let i = 0; i < queries.length && i < 12; i++) {
-      const q = queries[i];
-      if (asked.has(q) || budget.calls <= 0 || Date.now() > budget.until) continue;
-      asked.add(q); budget.calls--;
-      const args = { [t.kbQueryKey ?? 'query']: q };
-      if (t.kbLimitKey) args[t.kbLimitKey] = t.kbLimitMax ?? 10;
-      try {
-        const r = await call(t.kbTool.name, args);
-        if (r?.isError) { problems.push(`kb "${q}": ${String(r.text ?? '').slice(0, 120)}`); continue; }
-        for (const a of articlesOf(parse(r?.text))) {
-          const id = a.id ?? a.key ?? a.title;
-          if (!articles.has(id)) articles.set(id, a);
-          for (const ref of String(a.body ?? a.content ?? '').match(/\bKB-[A-Z]+-[0-9]+\b/g) ?? []) if (!asked.has(ref) && ![...articles.keys()].includes(ref)) queries.push(ref);
-        }
-      } catch (e) { problems.push(`kb "${q}": ${e.code ?? 'ERROR'}`); }
-    }
   }
   const kb = [...articles.values()];
   const d = digestOf([...seen.values()], kb, coverage, brief);

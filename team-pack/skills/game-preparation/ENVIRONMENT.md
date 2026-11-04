@@ -20,7 +20,7 @@ only the orchestrator writes progress events.
   the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
   `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
   `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
-  `install-s1`..`install-s4` for slots, `baseline` for the baseline test run. Run independent jobs together.
+  `install-s1`..`install-s5` for slots, `baseline` for the baseline test run. Run independent jobs together.
 - **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
@@ -94,7 +94,7 @@ Rules for installs:
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
 ## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
-With one `start_jobs` call: `install-s1`..`install-s4` (in each slot app folder, the same locked install plus
+With one `start_jobs` call: `install-s1`..`install-s5` (in each slot app folder, the same locked install plus
 `--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
 and E while they run. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
@@ -118,18 +118,19 @@ design documents worth reading (`DECISIONS.md`, `BUILD_REPORT.md`, specs). Facts
 
 ## F. BASELINE PATCH (only when the `baseline` job already finished with failures before you reply)
 The game commits this patch at minute 0, before any worker starts (`apply_baseline`), so it must be right.
-Scope: only a database schema / migration / configuration drift that contradicts the design documents (the
-classic case: a later migration undoes a documented RESTRICT). **Never patch product logic** (functions in
-`src/lib`, services, UI): a failing test there is usually the planted defect of a backlog item that is not revealed
-yet (UV8P4HUS: the patch "fixed" `deriveInvoiceStatus`, the code of BUG-03, and took 5 minutes). Report such a
-failure as "probably a backlog item" instead. Time-box: 3 minutes; if not done, prepare nothing. If the baseline is
+Scope: only a database schema / migration / configuration drift that contradicts the design documents (for
+example a later migration that undoes a documented rule). **Never patch product logic** (functions, services, UI):
+a failing test there is usually the planted defect of a backlog item that is not revealed yet, and patching it
+takes that item's work and time. Report such a failure as "probably a backlog item" instead. Time-box: 3 minutes; if not done, prepare nothing. If the baseline is
 still running, skip F: the orchestrator handles the result in the game.
 1. Decide the wrong side from the design documents (`DECISIONS.md`, specs, original migrations, `BUILD_REPORT.md`),
    exactly as WORKER.md "Baseline failures" says. Prepare a patch only when the code drifted from the documented
    design and the fix is clear (e.g. a later migration contradicts a documented rule: add a NEW migration that
    restores it; never edit old migrations). Never change a test in this patch. If unsure, prepare nothing.
-2. Make the fix in slot s1 (`<checkoutRoot>.slots/s1/<folder>`), run the migration on s1's database and the whole
-   suite there; it must be green.
+2. Make the fix in slot s1 (`<checkoutRoot>.slots/s1/<folder>`; a patch file is not a tracked edit of the checkout),
+   run the migration on s1's database and the whole suite there. Required: the test you repair passes and no test
+   that passed before fails. Baseline failures in product logic may stay red (they belong to backlog items), so a
+   suite that is not fully green is never a reason to skip a clear configuration fix.
 3. Save it: `git -C <s1 worktree> diff --binary > <matchRoot>/.mtm-tmp/baseline/baseline.patch` (include new files:
    `git add -N` them first), and write `<matchRoot>/.mtm-tmp/baseline/README.md`: failing test, cause with the
    document line that proves it, fix, suite result (one short paragraph).

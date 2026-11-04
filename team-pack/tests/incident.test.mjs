@@ -210,3 +210,91 @@ test('with every slot busy the PI is not started but its data is still collected
     assert.equal(w2.reason, 'MATCH_UPDATED'); assert.deepEqual(w2.board.newItems, ['CR-05']);
   } finally { h.close(); }
 });
+
+test('heavy items: flagged on the board from the title prefix; the brief carries heavy and stopBy', async () => {
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    gm.state.clock = { elapsedSec: 1500, remainingSec: 900 };
+    gm.reveal({ key: 'CR-09', backlogType: 'CR', title: '[Heavy Task] Rebuild the reporting module', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    gm.reveal({ key: 'CR-10', backlogType: 'CR', title: 'Heavy rain icon on the dashboard', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    const board = await h.call('refresh_match');
+    assert.equal(board.items.find(i => i.key === 'CR-09').heavy, true);
+    assert.equal(board.items.find(i => i.key === 'CR-10').heavy, undefined, 'only the bracket prefix counts');
+    await h.call('release_slot', { slot: 's2' });
+    const s = await h.call('start_work', { backlogItemKey: 'CR-09', slot: 's2' });
+    assert.equal(s.heavy, true);
+    const brief = JSON.parse(readFileSync(s.briefFile, 'utf8'));
+    assert.equal(brief.heavy, true); assert.equal(brief.deadlineAt, null);
+    const left = (Date.parse(brief.stopBy) - Date.now()) / 60000;
+    assert.ok(left > 14 && left < 15.5, `stopBy in ${left} min`); assert.equal(brief.stopBy, brief.matchEndsAt);
+  } finally { h.close(); }
+});
+
+test('heavy items get their final call about 1.5 minutes before the end, not at 3 minutes', async () => {
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    const pending = async () => {
+      for (let i = 0; i < 4; i++) {
+        gm.state.sequence++;
+        await new Promise(r => setTimeout(r, 1100));
+        const w = await h.call('wait_for_update', {});
+        if (w.reason === 'DEADLINE_SOON') return w.deadlineSoon;
+      }
+      return [];
+    };
+    gm.state.clock = { elapsedSec: 2250, remainingSec: 150 };
+    const at25 = await pending();
+    assert.ok(at25.length > 0 && !at25.some(d => d.backlogItemKey === 'CR-09'), JSON.stringify(at25));
+    gm.state.clock = { elapsedSec: 2320, remainingSec: 80 };
+    const at13 = await pending();
+    const heavy = at13.find(d => d.backlogItemKey === 'CR-09');
+    assert.ok(heavy, JSON.stringify(at13));
+    assert.deepEqual([heavy.kind, heavy.heavy, heavy.action], ['MATCH_END', true, 'INTEGRATE_LAST_COMMIT_NOW']);
+  } finally { h.close(); }
+});
+
+test('wait_for_update noWait returns at once with TIMEOUT, or with the pending event', async () => {
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
+    await h.call('refresh_match');
+    const t0 = Date.now();
+    const quiet = await h.call('wait_for_update', { noWait: true });
+    assert.equal(quiet.reason, 'TIMEOUT'); assert.ok(Date.now() - t0 < 3000, `${Date.now() - t0} ms`);
+    gm.reveal({ key: 'TASK-09', backlogType: 'TASK', title: 'Count', deadlineMinutes: 8, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    await new Promise(r => setTimeout(r, 1100));
+    const t1 = Date.now();
+    const ev = await h.call('wait_for_update', { noWait: true });
+    assert.equal(ev.reason, 'MATCH_UPDATED'); assert.deepEqual(ev.board.newItems, ['TASK-09']);
+    assert.ok(Date.now() - t1 < 3000);
+  } finally { h.close(); }
+});
+
+test('slot s5 is the heavy worker slot; a PI is never placed there', async () => {
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    const r = await h.call('prepare_slots', { count: 5 });
+    assert.equal(r.slots.length, 5);
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
+    gm.reveal({ key: 'CR-11', backlogType: 'CR', title: '[Heavy Task] Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    await h.call('refresh_match');
+    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5' });
+    assert.equal(s.slot, 's5'); assert.equal(s.heavy, true);
+    // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
+    const board = await h.call('refresh_match');
+    assert.ok(board.slots.some(x => x.slot === 's5' && x.role === 'heavy-worker' && x.item === 'CR-11'));
+    await h.call('release_slot', { slot: 's5' });
+    for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
+    gm.reveal({ ...PI, key: 'PI-05' });
+    await new Promise(r => setTimeout(r, 1100));
+    const w = await h.call('wait_for_update', {});
+    assert.equal(w.reason, 'NEW_PI');
+    assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
+  } finally { h.close(); }
+});
