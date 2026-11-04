@@ -51,7 +51,39 @@ blocking defect may stay visible in the screenshot as long as the row's required
 orchestrator tells you the blocker is on the branch, `git -C <worktreeRoot> rebase <branch>` (commit first), restart
 your server and retake only the rows that still lack evidence.
 
+## Heavy items (brief `heavy: true`)
+The organizer marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
+aim for every row, with full quality (tokens are not the limit here; time is). Points come per test-case row, so
+secure rows one by one. The brief gives `stopBy` (ISO time: the earlier of the item deadline and the match end);
+check the clock with `Get-Date` (or `new Date()`) before each step.
+1. **Plan first** (`.mtm-tmp/<ID>/plan.md`, before any code change): read the whole brief, the MVS file, the
+   organizer files and the current company standards the brief points to. Write: every row (id, what it proves, how
+   it is verified, estimated cost: low = logic or organizer test only, medium = one screen or one data set, high =
+   several screens, large data or a long build), the acceptance criteria, the files you expect to change, the code
+   several rows share, the risks, and the order of work (shared code first, then rows from cheapest to most
+   expensive).
+2. **Progress notes** (`.mtm-tmp/<ID>/progress.md`): after every step, one or two lines (row, state, commit, what is
+   next, open doubts). A long session gets compacted: when you lose track, re-read plan.md and progress.md instead of
+   exploring again.
+3. **Row by row.** Verify each row properly (its MVS scenario, the organizer scripts, the checks its criteria name).
+   You may add tests of your own in new files when they help you get the row right. After each row that PASSes: put
+   that row and its evidence into the answer, keep the other rows `NOT_RUN` with a note, `status` PARTIAL, run
+   `validateCommand`, commit. The committed answer is then always submittable.
+4. **Self-review** before the final checks: compare every acceptance criterion and every row with the code, the
+   evidence files and the answer (exact file names, values, formats, the current standard); fix what does not match.
+5. **Sync with the branch** before the final checks: other items land while you work (fixes of shared code,
+   baseline repairs). `git -C <worktreeRoot> log --oneline HEAD..<branch>`; if anything landed, commit, `rebase
+   <branch>` (when both sides changed the same code, keep the branch's fix and re-apply yours on top), then run the
+   whole suite, the typecheck and every row's verification again on the rebased code, and retake only the evidence
+   the rebase changed.
+6. **Time.** Keep working the next row until `stopBy` is about 2 minutes away: about 1.5 minutes before it the
+   orchestrator submits your last commit without asking, so whatever is committed with a valid answer by then counts
+   and uncommitted work is lost. When `stopBy` is 2 minutes away: make sure the last commit has a valid answer with
+   the rows that PASS, write doneFile (`status` PARTIAL, the real counts), and finish.
+7. All rows PASS, self-review and sync done: `status` DONE, doneFile, finish.
+
 ## Do not give up a row while time remains
+(For a heavy item, its rule 6 sets the stop time.)
 A UI row stays `NOT_RUN` only when every lawful foundation path failed, or your deadline (or the match end) is less
 than 3 minutes away. Until then keep trying the next path; commit after each passing row so the orchestrator's
 safety net can integrate what is verified. A home-made browser script that failed twice is replaced by `shot.mjs` or
@@ -144,6 +176,10 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
    extra pages, viewports or scripts. Max ~3 fix/test rounds.
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
+   Before you report an "existing tests pass" case FAIL because of a known baseline failure, check whether its fix
+   (or another item's fix of the same test) already landed: `git -C <worktreeRoot> log --oneline HEAD..<branch>`;
+   if anything landed, commit, `rebase <branch>` and run the suite again: fixes of other items land while you work.
+   If you are the baseline owner and the item has a deadline, the baseline fix comes first.
    Preflight before the final checks and final evidence: `git -C <worktreeRoot> diff --name-only HEAD...<branch>`.
    If it lists a file you changed, or code of a screen you capture, commit and `rebase <branch>` now; when both sides
    fixed the same defect keep the branch's version. Then run the final checks on the rebased code and retake only

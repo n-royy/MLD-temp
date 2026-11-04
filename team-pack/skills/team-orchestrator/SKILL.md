@@ -41,7 +41,8 @@ small: never paste briefs, diffs or logs into it.
 - Call `spawn_agent`, `followup_task`, `send_message`, `wait_agent`, `interrupt_agent`, `list_agents` as direct tool
   calls (they are not in the `exec` `tools.*` namespace). Read their tool definitions once for the field names.
 - Spawn with the role/agent type `team_feature_worker` and `fork_turns: "none"` (a fresh, small context: never fork
-  your history). Do not set model or reasoning effort. Up to 4 agents run at once including you: at most 3 workers.
+  your history). Do not set model or reasoning effort. Up to 5 agents run at once including you: at most 3 workers for
+  s1-s3 and one heavy worker for s5 (heavy items only, agent type `team_heavy_worker`).
 - **One worker per item, all worker slots (s1-s3) busy** (see "Wave planning"). A worker may get a second item in
   the same slot (`integrate_item` with `next`, then `followup_task`) only for a queued no-deadline item when that
   slot is the first to free; it keeps its running server and knowledge of the code. Otherwise spawn a fresh worker.
@@ -85,11 +86,28 @@ When a wave appears (game start, or `newItems` on the board):
    briefs or code.
 2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
    minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
-   expected effort (CR/BUG usually before TASK).
+   expected effort (CR/BUG usually before TASK). **Heavy items** (board `heavy: true`) are outside this order: they go
+   at once to slot s5 (see "Heavy items" below).
 3. **Assign in that order, one item per free worker slot (s1-s3), until they are full.** Never leave a slot idle while an
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
    a short deadline TASK with no free worker slot you do in s4 ("Doing an item yourself"); otherwise it takes the next
    slot that frees.
+   **Heavy items** (`heavy: true`: the organizer marks them as expensive in tokens and time) belong to the
+   dedicated **heavy worker in slot s5**, a 5th agent that only does heavy items, so they never take a slot from the
+   other items and never wait for the end of the backlog. As soon as a heavy item appears (and after the PI, if one
+   appeared in the same wave): `start_work` with `slot: "s5"` and spawn one agent of type **`team_heavy_worker`**
+   (higher reasoning effort, quality-first instructions; if that type is refused, spawn `team_feature_worker`). Spawn
+   note: `Heavy item in the dedicated slot s5: WORKER.md "Heavy items" (plan.md and progress.md, rows one by one with a
+   valid answer committed after each PASS, self-review, sync with the branch before the final checks; work until
+   done or until stopBy)`. It works the item through to the end; integrate it on
+   `SLOT_DONE` like any item. Its final call is `DEADLINE_SOON` with `heavy: true` about 1.5 minutes before its
+   deadline or the match end ("Safety net"): integrate its last commit then.
+   - One heavy item at a time in s5. A second heavy item while s5 is busy waits for s5 (`integrate_item` with `next`
+     when the first one is submitted); if a worker slot s1-s3 is free and no other open item waits for one, it may
+     take that slot instead (same spawn note).
+   - No s5 (preparation created only 4 slots) or `spawn_agent` refuses a 5th agent: the heavy item takes a worker
+     slot after every other open item is started, or your s4 when s1-s3 are busy (work it in short steps and call
+     `wait_for_update` with `noWait: true` after each row, handling events first).
 4. **Dependencies are not a reason to wait:**
    - Verification dependency (e.g. a layout bug hides content another item must screenshot): start both. Tell the
      dependent worker in its spawn note `<blocker ID> fixes <what>; you will be told when it is on the branch`.
@@ -170,26 +188,31 @@ Every call costs a model turn over your whole context: use the fewest calls that
 
 ## Baseline failures (only when no baseline patch was prepared)
 The preparation summary names tests that fail before any change. A failing baseline test is a planted problem, and
-most briefs make "existing tests pass" an acceptance criterion. Name one baseline owner: the first item whose
-criteria require existing tests to pass. Its spawn message says `Baseline owner: fix <test> (WORKER.md "Baseline
+most briefs make "existing tests pass" an acceptance criterion. Name one baseline owner: among the items whose
+criteria require existing tests to pass, the one with the **nearest deadline** (a no-deadline item only when no
+deadline item needs it), because the owner's fix must land before every item that depends on it is submitted. When
+the scout's `<matchRoot>/.mtm-tmp/baseline/README.md` names a cause, put its path in the owner's note. Its spawn message says `Baseline owner: fix <test> (WORKER.md "Baseline
 failures")`; every other worker started before the owner is integrated gets `Known baseline failure <test> is fixed
 by <owner ID>; do not touch it`. Integrate the owner first when several workers finish together. Items started after
 the owner is integrated already contain the fix.
 
 ## Safety net (on `DEADLINE_SOON`)
 `wait_for_update` returns `reason: "DEADLINE_SOON"` with `deadlineSoon[]` (`backlogItemKey`, `slot`, `kind`
-DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it closes. For each entry:
+DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it closes (heavy items: about 1.5 minutes, with `heavy: true`). For each entry:
 1. `send_message` that worker: "<ID>: <minutesLeft> min left. Commit what you have now, fill the answer honestly
    (PARTIAL if a criterion is not met), validate, write doneFile."
 2. `wait_for_update` with `timeoutMs: 60000` (honoured only right after DEADLINE_SOON). On `SLOT_DONE`, integrate.
 3. Still no DONE.json: `integrate_item` with `allowUncommitted: true` and the honest test counts - an unsubmitted
    item scores 0 anyway. If the answer is not valid yet, the gate says so; then `release_slot` and move on.
 For your own item in s4, the same steps apply to yourself: commit, answer, doneFile, `integrate_item`.
+An entry with `heavy: true` (`action: INTEGRATE_LAST_COMMIT_NOW`, about 1.5 minutes left) skips steps 1-2: call
+`integrate_item` with `allowUncommitted: true` at once. The heavy worker commits a valid PARTIAL answer after every
+passing row, so its last commit submits those rows. A rejected gate means no valid answer was committed:
+`release_slot` and move on.
 
 ## Incident fast path (every PI: you, at once, never a worker)
-P2XQMD8T: our PI-01 was fully correct but second (-16 points): it waited behind an integration, then a worker was
-spawned and spent ~15 turns on start_work, instructions, tool listing and paging logs one call at a time. Now the
-helper does the mechanical part the moment the PI appears: Start Work in a free slot (s4 first) and every log page
+A PI is a race: points depend on submission order. Waiting behind other work, spawning a worker and paging logs one
+call at a time cost minutes, so the helper does the mechanical part the moment the PI appears: Start Work in a free slot (s4 first) and every log page
 plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
 with `incident` before any other reason. From then on the PI comes first: SLOT_DONE integrations and spawns wait
 until it is submitted (only a DEADLINE_SOON safety net may go before it).
@@ -198,10 +221,10 @@ until it is submitted (only a DEADLINE_SOON safety net may go before it).
    `item.description`). `incident.complete` false or `problems` not empty: `prepare_incident` with `refresh: true`
    once, then page what is still missing yourself (`company_tool_call`, saved to a file).
 2. One Node script `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` over `incident/logs.json` / `entities.json` computes every
-   asked field by the KB rules and prints them with the rows that prove them: complete sets by joining each id's
-   events in time order (e.g. a reminder sent after the payment that made the balance 0), the earliest by timestamp,
-   the root-cause release = the first release whose change introduced the fault (not a later one that only ran while
-   it was visible), its component, the flag that release turned on, strings exactly as logged. Never pick by eye.
+   field the brief asks for, using the definitions in the KB articles and the brief, and prints each value with the
+   log rows that prove it: sets complete (every record that matches the definition, found by joining each record's
+   events in time order, not only the reported ones), "first/earliest" by timestamp, causes as the KB defines them,
+   strings exactly as logged. Never pick values by eye.
 3. Fill `incident.answerFile` from the template with Node (never PowerShell `ConvertTo-Json`): the fields exactly as
    printed, `status` DONE, a short `incidentRecord`, evidence `evidence/investigation.json` (the script output).
    Run `incident.validateCommand` until valid.
