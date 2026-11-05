@@ -86,6 +86,14 @@ const TOOLS = [
     description: 'Check the working-tree answers/<ID>/submit.json against the submit schema delivered at Start Work, ' +
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',
     inputSchema: obj({ backlogItemKey: key }, ['backlogItemKey']) },
+  { name: 'answer_item', handler: a => session.answerItem(a),
+    description: 'Value answers in ONE call (PI, TASK questions; items without source changes). Fills the started item\'s ' +
+      'answers/<ID>/submit.json template with `values` (template keys only, exactly as found), merges `record` into the ' +
+      'template\'s *Record object, writes `evidence` files ({"name.json": content | {from: absolutePath}}) and lists them, ' +
+      'sets status, validates (returns INVALID with problems, nothing committed), commits answers/<ID> in the slot and writes ' +
+      'DONE.json. integrate: true (orchestrator only) then integrates and submits it like integrate_item.',
+    inputSchema: obj({ backlogItemKey: key, values: { type: 'object' }, record: { type: 'object' }, evidence: { type: 'object' },
+      status: { type: 'string', enum: ['DONE', 'PARTIAL', 'BLOCKED'] }, integrate: { type: 'boolean' } }, ['backlogItemKey']) },
   { name: 'submit_work', handler: a => session.submitWork(a),
     description: 'Submit one started item ONCE. Commit source + answers/<ID>/submit.json + evidence first and push to the ' +
       'assigned branch. Test counts come from the answer\'s testResults rows (one per template test case: required = rows, ' +

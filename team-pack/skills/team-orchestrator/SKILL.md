@@ -166,6 +166,11 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    only when DONE.json gives that reason and the brief allows the test change). It checks the slot is committed and
    stays inside the assigned folder, runs `git pull --rebase`, cherry-picks the slot commits, pushes (never force),
    then runs `submit_work` with every gate, logs `SUBMITTED` with the receipt and returns the refreshed `board`.
+   - A DONE.json (or answer note) that leaves rows FAIL / NOT_RUN because of a defect outside the change ("blocked
+     by", "separate defect", "fix that separately") while more than ~4 minutes remain: if no other item owns that
+     defect, `followup_task` the worker once: "No item owns <defect>: it is part of your item. Make the smallest fix
+     that lets your verification run (own commit, existing tests again, engineering record), then rerun the rows."
+     If another item owns it, the usual blocker note applies ("Wave planning" step 4).
    - Before integrating a TASK whose answer is a value, check only that value field in `answerFile` (one small read):
      if it is empty, `0` or described as a placeholder, `followup_task` the worker: "compute the best answer on the issued checkout, keep PARTIAL, never a
      placeholder", and wait for the next `SLOT_DONE`.
@@ -225,11 +230,12 @@ until it is submitted (only a DEADLINE_SOON safety net may go before it).
    log rows that prove it: sets complete (every record that matches the definition, found by joining each record's
    events in time order, not only the reported ones), "first/earliest" by timestamp, causes as the KB defines them,
    strings exactly as logged. Never pick values by eye.
-3. Fill `incident.answerFile` from the template with Node (never PowerShell `ConvertTo-Json`): the fields exactly as
-   printed, `status` DONE, a short `incidentRecord`, evidence `evidence/investigation.json` (the script output).
-   Run `incident.validateCommand` until valid.
-4. `git -C <worktreeRoot> add -- <folder>`, commit `<ID>: <one line>`, write `doneFile` with `tests`
-   `{"required":0,"executed":1,"passed":1,"failed":0,"skipped":0}`, `integrate_item` at once. Then handle what waited.
+   Start from `incident/solve-starter.mjs` (data loaded and indexed; copy it to `../solve.mjs`).
+3. One call submits it: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
+   short incident record: impact, timeline, root cause, containment, recovery, prevention), `evidence`
+   (`{"investigation.json": {"from": "<the script output file>"}}`) and `integrate: true`. It fills the template,
+   validates (INVALID returns the problems; fix and call again), commits, writes DONE.json, integrates and submits.
+   Then handle what waited.
 `incident.slot` null (every slot was busy, the PI is not started yet): integrate the first SLOT_DONE, then
 `prepare_incident` (no slot) starts the PI in the freed slot and collects again within seconds. A helper restarted
 after the PI appeared does not prepare it by itself: call `prepare_incident` for any open PI on the board that is
@@ -239,7 +245,8 @@ not in `board.incidents`.
 Work in **your own slot s4**, never in the main checkout (`integrate_item` needs it clean for the workers):
 `start_work` with `slot: "s4"` → read its `briefFile` and `.agents/skills/team-orchestrator/WORKER.md` (item kinds 2
 and 3; keep big Company Tool answers in files and extract facts with a script, so they stay out of your context) →
-work in `<s4 slotMatchRoot>` → answer (`apply_patch` or Node, never PowerShell `ConvertTo-Json`) → run its
+work in `<s4 slotMatchRoot>` → answer (a value answer: `answer_item` with `integrate: true` does the rest in one
+call; otherwise `apply_patch` or Node, never PowerShell `ConvertTo-Json`) → run its
 `validateCommand` until valid → `git -C <s4 worktreeRoot> add -- <folder>` and commit → write `doneFile` →
 `integrate_item` (it pushes and submits with every gate). Workers that finish meanwhile are integrated right after.
 Only when no slots exist at all (preparation could not create them): same steps in the main checkout with

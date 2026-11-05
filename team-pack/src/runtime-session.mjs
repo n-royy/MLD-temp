@@ -961,6 +961,8 @@ export class MatchSession {
       // Background jobs started during preparation (slot install, baseline run) may still be running at game start.
       // Wall-clock limits for a worker that budgets its own time (heavy items, partial submission).
       heavy: isHeavy(item), ...this.#timeLimits(item),
+      // The other revealed items, so a worker can tell a defect another item owns from one nobody owns.
+      otherItems: this.#items().filter(i => i.key !== key).map(i => ({ key: i.key, title: i.title ?? null })),
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
     writeFileSync(join(dir, 'brief.json'), JSON.stringify(brief, null, 2));
     try { await this.#publishProxy(s.matchRoot); } catch { /* workers fall back to the orchestrator's saved files */ }
@@ -1031,6 +1033,65 @@ export class MatchSession {
       out.push({ slot: s.name, item: s.item, ...result });
     }
     if (out.length) this.#saveSlots(all);
+    return out;
+  }
+
+  /**
+   * Value answers in one call (PI, TASK questions: no source change). Fills the item's template with `values` (only
+   * keys the template has), the record object, evidence files; validates; commits answers/<ID> in the item's slot;
+   * writes DONE.json; with integrate: true also integrates and submits (orchestrator only).
+   */
+  async answerItem({ backlogItemKey, values = {}, record = null, evidence = {}, status = 'DONE', integrate = false }) {
+    const c = this.#need();
+    if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'answer_item is only allowed after START_GAME');
+    const key = backlogItemKey;
+    if (!KEY.test(key ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
+    const s = this.#slotOf(key);
+    if (!s) fail('NOT_IN_SLOT', `${key} is not started in a slot: start_work first`);
+    const answerDir = join(s.matchRoot, 'answers', key);
+    const submitPath = join(answerDir, 'submit.json');
+    let tpl;
+    try { tpl = JSON.parse(readFileSync(submitPath, 'utf8').replace(/^\uFEFF/, '')); }
+    catch (error) { fail('NO_TEMPLATE', `answers/${key}/submit.json is missing or not JSON: ${clip(String(error.message), 120)}`); }
+    const unknown = Object.keys(values ?? {}).filter(k => !(k in tpl));
+    if (unknown.length) fail('UNKNOWN_FIELD', `not in the template: ${unknown.join(', ')}; template fields: ${Object.keys(tpl).join(', ')}`);
+    const answer = { ...tpl, ...values };
+    if (record && typeof record === 'object') {
+      const rk = Object.keys(tpl).find(k => /record$/i.test(k) && tpl[k] && typeof tpl[k] === 'object' && !Array.isArray(tpl[k]));
+      if (!rk) fail('NO_RECORD_FIELD', 'the template has no *Record object');
+      answer[rk] = { ...tpl[rk], ...record };
+    }
+    mkdirSync(join(answerDir, 'evidence'), { recursive: true });
+    const refs = [];
+    for (const [name, content] of Object.entries(evidence ?? {})) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/.test(name)) fail('INVALID_EVIDENCE_NAME', `evidence file name ${name}`);
+      const target = join(answerDir, 'evidence', name);
+      if (content && typeof content === 'object' && typeof content.from === 'string') {
+        const from = normalize(resolve(content.from));
+        if (!within(s.matchRoot, from) || !existsSync(from)) fail('INVALID_EVIDENCE_SOURCE', `${name}: from must be an existing file inside the slot`);
+        copyFileSync(from, target);
+      }
+      else writeFileSync(target, typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+      refs.push(`evidence/${name}`);
+    }
+    if (Array.isArray(answer.evidenceFiles)) answer.evidenceFiles = [...new Set([...answer.evidenceFiles, ...refs])];
+    if ('status' in tpl) answer.status = status;
+    writeFileSync(submitPath, JSON.stringify(answer, null, 2) + '\n');
+    const check = answerProblems(this.#submitSchema(key), answer, ref => existsSync(join(answerDir, ref)));
+    if (check.problems.length) return { status: 'INVALID', answerFile: submitPath, problems: check.problems.slice(0, 20) };
+    await gitOk(s.path, ['add', '--', answerDir]);
+    const staged = (await gitOk(s.path, ['diff', '--cached', '--name-only'])).trim();
+    if (staged) await gitOk(s.path, ['commit', '-q', '-m', `${key}: answer`]);
+    const rows = Array.isArray(answer.testResults) ? answer.testResults : [];
+    const tests = rows.length
+      ? { required: rows.length, executed: rows.filter(r => r.result !== 'NOT_RUN').length, passed: rows.filter(r => r.result === 'PASS').length,
+          failed: rows.filter(r => r.result === 'FAIL').length, skipped: rows.filter(r => r.result === 'NOT_RUN').length }
+      : { required: 0, executed: 1, passed: 1, failed: 0, skipped: 0 };
+    const doneFile = join(s.matchRoot, SCRATCH, key, 'DONE.json');
+    mkdirSync(dirname(doneFile), { recursive: true });
+    writeFileSync(doneFile, JSON.stringify({ status: status === 'DONE' ? 'DONE' : 'PARTIAL', summary: 'answer written by answer_item', tests }, null, 2));
+    const out = { status: 'ANSWERED', answerFile: submitPath, committed: Boolean(staged), doneFile, tests };
+    if (integrate) out.integration = await this.integrateItem({ backlogItemKey: key, tests });
     return out;
   }
 

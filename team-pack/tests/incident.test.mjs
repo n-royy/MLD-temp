@@ -298,3 +298,31 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
   } finally { h.close(); }
 });
+
+test('answer_item: a value answer filled, validated, committed and submitted in one call', async () => {
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    await h.call('release_slot', { slot: 's1' });
+    gm.reveal({ ...PI, key: 'PI-07' });
+    const inc = await h.call('prepare_incident', { backlogItemKey: 'PI-07' });
+    assert.equal(inc.started, true, JSON.stringify(inc).slice(0, 300));
+    assert.ok(existsSync(join(inc.dir, 'solve-starter.mjs')));
+    const bad = await h.call('answer_item', { backlogItemKey: 'PI-07', values: { rootCause: 'x' } });
+    assert.match(bad.error?.code ?? '', /UNKNOWN_FIELD/);
+    const invalid = await h.call('answer_item', { backlogItemKey: 'PI-07', values: { rootCauseRelease: '' } });
+    assert.equal(invalid.status, 'INVALID');
+    const out = join(inc.slotMatchRoot, '.mtm-tmp', 'PI-07', 'investigation.json');
+    writeFileSync(out, JSON.stringify({ result: { rootCauseRelease: 'rel-1' } }));
+    const r = await h.call('answer_item', { backlogItemKey: 'PI-07', values: { rootCauseRelease: 'rel-1', affectedInvoices: ['A-1', 'A-2'] },
+      record: { impact: 'two invoices' }, evidence: { 'investigation.json': { from: out } }, integrate: true });
+    assert.equal(r.status, 'ANSWERED', JSON.stringify(r).slice(0, 400));
+    assert.equal(r.integration.status, 'SUBMITTED', JSON.stringify(r.integration).slice(0, 400));
+    const answer = JSON.parse(readFileSync(r.answerFile, 'utf8'));
+    assert.deepEqual([answer.status, answer.rootCauseRelease, answer.evidenceFiles, answer.incidentRecord.impact, answer.incidentRecord.rootCause],
+      ['DONE', 'rel-1', ['evidence/investigation.json'], 'two invoices', '']);
+    const outside = await h.call('answer_item', { backlogItemKey: 'PI-07', evidence: { 'x.json': { from: '/etc/hostname' } } });
+    assert.ok(outside.error, 'evidence must come from inside the slot');
+  } finally { h.close(); }
+});
