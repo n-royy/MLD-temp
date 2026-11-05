@@ -53,3 +53,10 @@ Short rules learned from real matches. Each line names where it came from. They 
   waves overlap, so keep every slot busy; never wait for a wave to finish before starting the next one.
 - Idle waiting cost half of all tokens: while idle, call `wait_for_update` back to back and write nothing.
 - Do not re-audit submitted items; validate before submitting instead.
+- Whatever enters a context is paid again on every later turn. Short waits (1-60 s yields, `sleep`) and big tool
+  results (images, whole logs and files, full boards) made 5FLQMNAA cost ~33M tokens for 10 items; one long wait per
+  cell, compact results and script extracts keep the same work much cheaper. (5FLQMNAA)
+- The orchestrator integrates; it does not code. A BUG done in its own slot held a finished item ~4 minutes and
+  doubled its context. (5FLQMNAA BUG-04)
+- When the dev server does not show a change after one restart, verify on a production build and look at the source,
+  not at compiled bundles. (5FLQMNAA BUG-01: ~10 minutes)

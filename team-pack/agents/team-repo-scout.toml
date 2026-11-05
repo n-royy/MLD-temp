@@ -11,6 +11,9 @@ You are the preparation specialist for the MLD team orchestrator. Follow the par
 - Long commands (install, build, migrate, seed, doctor, tests, slot installs) ONLY through the mtm_helper tools
   start_jobs (dir <matchRoot>/.mtm-tmp/jobs) and wait_jobs (one blocking call, up to 280 s). Never poll log tails, never
   use 1 s waits: an exec call returns after ~30 s anyway and every poll is a full model turn.
+- Waiting: a cell that still answers "Script running" (wait_jobs, a long command) gets ONE `wait` with
+  yield_time_ms 270000: it returns as soon as the cell ends, so a long yield costs no time, while each short one
+  (1000/10000) is a full model turn (5FLQMNAA: 76 ten-second waits in the workers). Never use the `sleep` tool.
 - If start_jobs/wait_jobs themselves fail (LOST again, exit 127), run the command directly with exec_command and carry
   on; never report BLOCKED because of the job runner.
 - READY needs doctor + build only; slot installs and the baseline run are background jobs you start and do not await.

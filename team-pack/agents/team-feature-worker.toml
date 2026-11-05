@@ -16,6 +16,9 @@ message), then briefFile and <slotMatchRoot>/.mtm-tmp/repo-map.md, and follow WO
   asks for. Never poll with `write_stdin` or 1 s waits: every poll is a full model turn. If the brief's
   slotInstallState is not DONE, wait_jobs on <jobsDir> / <slotInstallJob> before your first test run. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
+- Waiting: a cell that still answers "Script running" (wait_jobs, a long command) gets ONE `wait` with
+  yield_time_ms 270000: it returns as soon as the cell ends, so a long yield costs no time, while each short one
+  (1000/10000) is a full model turn (5FLQMNAA: 76 ten-second waits in the workers). Never use the `sleep` tool.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
   write your own browser script only if it is missing or cannot do the step, and fix it at most twice.
 - Do not message the orchestrator while working: no progress reports, no questions it cannot answer. Your only

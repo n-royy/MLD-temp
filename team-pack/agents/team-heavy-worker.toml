@@ -23,6 +23,9 @@ and follow WORKER.md exactly. You only have this item: quality comes first, toke
   and one blocking wait_jobs; an exec call returns after ~30 s whatever yield it asks for. Never poll with
   write_stdin or 1 s waits. If the brief's slotInstallState is not DONE, wait_jobs on <jobsDir> / <slotInstallJob>
   before your first test run. Start the server early with the slot's `.mtm-tmp/tools/serve.mjs`.
+- Waiting: a cell that still answers "Script running" (wait_jobs, a long command) gets ONE `wait` with
+  yield_time_ms 270000: it returns as soon as the cell ends, so a long yield costs no time, while each short one
+  (1000/10000) is a full model turn (5FLQMNAA: 76 ten-second waits in the workers). Never use the `sleep` tool.
 - Evidence screenshots: `.mtm-tmp/tools/shot.mjs`; your own browser script only if it cannot do the step.
 - Large data (logs, QA data, reports): save to files and extract with scripts; never read large outputs into your
   context.

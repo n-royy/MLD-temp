@@ -117,10 +117,11 @@ const TOOLS = [
       'Their information is authoritative. Orchestrator: needs the START_GAME descriptor. Worker subagent: pass your ' +
       'slotMatchRoot; the call is relayed through the orchestrator helper (no key needed).',
     inputSchema: obj({ slotMatchRoot: { type: 'string' } }) },
-  { name: 'company_tool_call', handler: a => session.companyCall(a),
-    description: 'Call one Company Tool by name with its arguments. Pass backlogId when the call is for a backlog item.',
+  { name: 'company_tool_call', handler: a => session.companyCallForModel(a),
+    description: 'Call one Company Tool by name with its arguments. Pass backlogId when the call is for a backlog item. ' +
+      'Answers over 6000 characters are saved to a file (the item\'s slot, else <matchRoot>/.mtm-tmp) and only a 300-character head returns.',
     inputSchema: obj({ name: { type: 'string' }, arguments: { type: 'object' }, backlogId: { type: 'string' },
-      slotMatchRoot: { type: 'string', description: 'Worker subagents only: your slotMatchRoot; relays the call through the orchestrator helper. Answers over 6000 characters are saved to a file in your slot.' },
+      slotMatchRoot: { type: 'string', description: 'Worker subagents only: your slotMatchRoot; relays the call through the orchestrator helper.' },
       saveToSlot: { type: 'boolean', description: "Write the full answer into the item's slot (.mtm-tmp/<ID>/company-*.txt) and return only a short head." } }, ['name']) },
   { name: 'start_jobs', handler: a => startJobs(a),
     description: 'Start long commands (install, build, migrate, test runs, slot installs) as detached background jobs that ' +

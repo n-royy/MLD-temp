@@ -30,7 +30,9 @@ function alive(pid) {
 function tail(file, lines = 12) {
   if (!existsSync(file)) return '';
   const text = readFileSync(file, 'utf8');
-  return text.slice(-6000).split(/\r?\n/).filter(l => l.trim()).slice(-lines).join('\n');
+  // At most ~1500 characters per job: the full log stays in the file (5FLQMNAA: up to 23k characters per wait_jobs).
+  const out = text.slice(-6000).split(/\r?\n/).filter(l => l.trim()).slice(-lines).map(l => l.length > 300 ? `${l.slice(0, 300)}…` : l).join('\n');
+  return out.length > 1500 ? `…${out.slice(-1500)}` : out;
 }
 
 export function jobState(dir, name) {

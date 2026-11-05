@@ -56,6 +56,11 @@ test('start_jobs and wait_jobs', { skip: process.platform === 'win32' && 'POSIX 
     await h.call('start_jobs', { dir, jobs: [{ name: 'slow', cwd, command: 'sleep 5' }] });
     const tw = await h.call('wait_jobs', { dir, names: ['slow'], timeoutMs: 1500 });
     assert.equal(tw.done, false); assert.equal(tw.jobs[0].state, 'RUNNING');
+    // 1.5.9: a noisy failing job returns at most ~1500 characters of tail (long lines cut); the log keeps everything.
+    await h.call('start_jobs', { dir, jobs: [{ name: 'noisy', cwd, command: 'for i in $(seq 1 60); do printf "line $i %0400d\\n" 0; done; exit 1' }] });
+    const nw = await h.call('wait_jobs', { dir, names: ['noisy'], timeoutMs: 10000, tailLines: 40 });
+    assert.equal(nw.jobs[0].state, 'FAILED');
+    assert.ok(nw.jobs[0].tail.length <= 1501, `tail ${nw.jobs[0].tail.length}`); assert.match(nw.jobs[0].tail, /line 60/);
   } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });
 

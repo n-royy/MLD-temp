@@ -289,6 +289,17 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
   `<slotMatchRoot>/.mtm-tmp/jobs`) and ONE blocking `wait_jobs`. Never poll a running command with `write_stdin` or
   1 s waits: every poll is a full model turn. Start a server with the slot's
   `.mtm-tmp/tools/serve.mjs` (it returns when the port answers) instead of starting and polling `pnpm dev`.
+- Waiting on a cell that still answers "Script running" (a `wait_jobs`, a long command): ONE `wait` with
+  `yield_time_ms: 270000`. It returns as soon as the cell ends, so the long yield costs no time; every short wait
+  (1000, 10000) is a full model turn (5FLQMNAA: 76 ten-second waits across the workers). Never use the `sleep` tool.
+- A change that does not show in the running dev server (a style, a class, a config value): restart the server once
+  (`serve.mjs --stop`, then start it again). Still not visible: the dev server is not the question. Verify on a
+  production build (`build`, then `start` through `serve.mjs`) and take the evidence there, and look for the cause in
+  the source (the file, import or rule you changed), never in the bundler's output or cache files (5FLQMNAA: ~10
+  minutes of one item went into reading compiled CSS chunks and restarting the dev server).
+- Screenshots in your context: `view_image` only to confirm a final evidence shot whose content a text check
+  (layout report, page text, a DOM query) cannot confirm, once per shot. Every image stays in your context for the
+  rest of the item.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
   write your own browser script only if it is missing or cannot do the step, and fix it at most twice; then switch
   to another foundation path ("UI evidence" above). When a screenshot fails, read which wait failed before acting:
