@@ -96,7 +96,13 @@ Rules for installs:
 ## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
 With one `start_jobs` call: `install-s1`..`install-s5` (in each slot app folder, the same locked install plus
 `--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
-and E while they run. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
+and E while they run.
+**Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs) and s5 (heavy
+items) are needed later or not at all. Five installs at once share the disk and all finish late (5FLQMNAA: about 12
+minutes, so a worker waited ~4 minutes into the game). So `install-s4` and `install-s5` first wait, at most 10
+minutes, until `install-s1`..`install-s3` have an exit file, then install. PowerShell prefix for those two commands
+(`<jobsDir>` = the jobs `dir`):
+`$t=0; while ((@('install-s1','install-s2','install-s3') | Where-Object { -not (Test-Path "<jobsDir>\$_.exit") }) -and $t -lt 600) { Start-Sleep 5; $t+=5 }; ` The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
 guess from the design documents.
 Do not change tracked files.

@@ -170,6 +170,8 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
     assert.equal(inc.deadlineMinutes, 15);
     assert.ok(w.board.incidents.some(i => i.key === 'PI-01' && i.state === 'REPORTED'));
     assert.deepEqual(w.board.newItems.sort(), ['CR-04', 'PI-01'], 'items revealed with the PI are still listed as new');
+    // 1.5.9: a DONE.json the orchestrator has not seen yet already shows on the board, so it integrates next.
+    assert.equal(w.board.slots.find(x => x.slot === 's1').state, 'DONE');
     // Then the worker's result, and the PI is never reported twice.
     const w2 = await h.call('wait_for_update', {});
     assert.equal(w2.reason, 'SLOT_DONE');
@@ -179,6 +181,17 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
     assert.equal(again.slot, 's4'); assert.equal(gm.state.companyCalls, before);
     const fresh = await h.call('prepare_incident', { backlogItemKey: 'PI-01', refresh: true });
     assert.equal(fresh.slot, 's4'); assert.ok(gm.state.companyCalls > before, 'refresh collects again');
+    // 1.5.9: a large Company Tools answer goes to a file in the item's slot; a small one comes back inline.
+    const big = await h.call('company_tool_call', { name: 'export_logs', arguments: {}, backlogId: 'PI-01' });
+    assert.ok(big.savedTo && big.savedTo.startsWith(inc.slotMatchRoot), JSON.stringify(big).slice(0, 300));
+    assert.ok(big.chars > 6000 && big.head.length <= 301 && JSON.stringify(big).length < 1200);
+    assert.ok(readFileSync(big.savedTo, 'utf8').includes('INV-MLD-1106'));
+    const small = await h.call('company_tool_call', { name: 'kb_search', arguments: { query: 'KB-AR-05' }, backlogId: 'PI-01' });
+    assert.ok(typeof small.text === 'string' && !small.savedTo);
+    // 1.5.9: a timestamped timeline for the post-match review.
+    const tl = readFileSync(join(dirname(matchRoot), '.git', 'mtm', 'timeline.ndjson'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+    for (const ev of ['DISCOVERED', 'START_WORK', 'INCIDENT_READY', 'SLOT_DONE_SEEN']) assert.ok(tl.some(e => e.event === ev && e.at), ev);
+    assert.ok(tl.find(e => e.event === 'SLOT_DONE_SEEN' && e.key === 'BUG-07').doneAt);
   } finally { h.close(); }
 });
 

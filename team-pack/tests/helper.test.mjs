@@ -173,6 +173,10 @@ test('full match flow', async () => {
   assert.equal(sub.testStatus, 'PASSED');
   assert.deepEqual([sub.tests.required, sub.tests.executed, sub.tests.passed], [1, 1, 1]);
   assert.ok(Array.isArray(sub.board?.items), 'board returned after submit');
+  // 1.5.9: compact result (it stays in the orchestrator's context): counts, not file lists or the full projection.
+  assert.equal(sub.evidence, undefined); assert.equal(typeof sub.evidenceFiles, 'number');
+  assert.equal(sub.board.endpoints, undefined);
+  assert.ok(JSON.stringify(sub).length < 2000, `submit result ${JSON.stringify(sub).length} chars`);
   assert.ok(logEvents().some(e => e.type === 'BACKLOG_TESTS' && e.backlogId === 'TASK-01' && e.status === 'PASSED' && e.executed === 1));
   const sent = gm.state.submissions.get('TASK-01');
   assert.equal(sent.body.gitRevision, g(checkoutRoot, 'rev-parse', 'HEAD'));

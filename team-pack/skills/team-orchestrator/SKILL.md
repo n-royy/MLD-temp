@@ -67,8 +67,9 @@ So capacity and order matter as much as quality:
 - Start a deadline item as soon as it appears: it takes the next free slot before any queued non-deadline item,
   and it is never queued behind another item.
 - A PI is always yours, never a worker's: the helper prepares it by code and wakes you with `NEW_PI` ("Incident
-  fast path"). A deadline TASK while all 3 worker slots are busy: do it yourself in your slot s4 ("Doing an item
-  yourself").
+  fast path"). A value TASK (the answer is a value, no source change) while all 3 worker slots are busy: do it
+  yourself in your slot s4 ("Doing an item yourself"). A BUG or CR never goes to s4 (the helper refuses it with
+  `OWN_SLOT_RESERVED`): it takes the first worker slot that frees.
 - No item may sit unstarted while a slot is free. From minute 25, start every remaining item that can still be
   finished; skip only what cannot.
 - Keep all 3 worker slots busy from the first wave; dependencies never justify an idle slot ("Wave planning").
@@ -90,8 +91,8 @@ When a wave appears (game start, or `newItems` on the board):
    at once to slot s5 (see "Heavy items" below).
 3. **Assign in that order, one item per free worker slot (s1-s3), until they are full.** Never leave a slot idle while an
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
-   a short deadline TASK with no free worker slot you do in s4 ("Doing an item yourself"); otherwise it takes the next
-   slot that frees.
+   a value TASK with no free worker slot you do in s4 ("Doing an item yourself"); a BUG/CR takes the next worker
+   slot that frees (`integrate_item` with `next` on the slot whose item finishes first), never s4.
    **Heavy items** (`heavy: true`: the organizer marks them as expensive in tokens and time) belong to the
    dedicated **heavy worker in slot s5**, a 5th agent that only does heavy items, so they never take a slot from the
    other items and never wait for the end of the backlog. As soon as a heavy item appears (and after the PI, if one
@@ -160,7 +161,10 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    // @exec: {"yield_time_ms": 270000}
    text(await tools.mcp__mtm_helper__wait_for_update({}));
    ```
-   If a cell still answers "Script running", call `wait` on it with `yield_time_ms: 270000`, never a shorter value.
+   If a cell still answers "Script running", call `wait` on it with `yield_time_ms: 270000`, never a shorter value:
+   `wait` returns as soon as the cell ends, so a long yield costs no time, while every short one (1000, 10000,
+   60000) is a full model turn over your whole context (5FLQMNAA: 168 orchestrator turns, ~41 % of all tokens,
+   mostly re-checks). Never use the `sleep` tool and never `wait_agent` to wait for workers.
 6. On `SLOT_DONE`: `integrate_item` with `backlogItemKey`, and `next` = the item queued for that slot, if any
    (test counts come from the answer's template rows; pass `acknowledgeTestChanges`
    only when DONE.json gives that reason and the brief allows the test change). It checks the slot is committed and
@@ -186,6 +190,8 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    When the result has `next`, call `company_tool_call` (`saveToSlot`) for that item if needed, then `followup_task`
    the same worker with the follow-up message; on `nextError` start that item in any free slot instead.
    Submitted answers are final: do not re-audit them afterwards.
+   A board whose `slots` show a worker slot `DONE` means a DONE.json waits: integrate it before anything else of
+   yours (5FLQMNAA: a finished BUG-01 waited ~4 minutes behind the orchestrator's own item).
 7. Refill the freed slot from the returned `board` (no `refresh_match` needed). When nothing is workable and no
    worker is busy, keep calling `wait_for_update`. An empty backlog is a waiting state, never the end of the match.
 
@@ -241,7 +247,11 @@ until it is submitted (only a DEADLINE_SOON safety net may go before it).
 after the PI appeared does not prepare it by itself: call `prepare_incident` for any open PI on the board that is
 not in `board.incidents`.
 
-## Doing an item yourself (short TASK while s1-s3 are busy)
+## Doing an item yourself (value TASK while s1-s3 are busy)
+Only items whose answer is a value (TASK questions, investigations) and the PI; never a BUG or CR, which change
+source and need a server, tests and evidence for many minutes while nobody integrates (`start_work` refuses them in
+s4 with `OWN_SLOT_RESERVED`). Keep it short: one script that computes the value, then `answer_item` with
+`integrate: true`. Between steps call `wait_for_update` with `noWait: true` and integrate any `SLOT_DONE` first.
 Work in **your own slot s4**, never in the main checkout (`integrate_item` needs it clean for the workers):
 `start_work` with `slot: "s4"` → read its `briefFile` and `.agents/skills/team-orchestrator/WORKER.md` (item kinds 2
 and 3; keep big Company Tool answers in files and extract facts with a script, so they stay out of your context) →
@@ -275,6 +285,10 @@ counts/receipts, print credentials, put credentials in a worker message, or laun
 app-server or independent CLI process (subagents only through `spawn_agent`).
 
 ## Cost discipline
-Your context is re-sent on every call: keep tool results small (slot summaries, heads, boards), never read briefs or
-code yourself, never echo what a worker did, and wait with `wait_for_update` instead of `wait_agent` polling. Workers
+Your context is re-sent on every call, so anything that enters it is paid again on every later turn (5FLQMNAA:
+single tool results of 200-400k characters). Keep tool results small: the helper's results are compact on purpose
+(boards, slot summaries, heads; large Company Tools answers come back as `savedTo` files). Never print a whole file,
+log, diff or JSON you can query with a short script; never call `view_image` (workers check their own screenshots;
+their DONE.json says what the evidence shows); never read briefs or code yourself, never echo what a worker did,
+and wait with `wait_for_update` in one long cell instead of `wait_agent` polling or `sleep`. Workers
 start with `fork_turns: "none"` so they never pay for your history. Fewer tokens is a tie-breaker.

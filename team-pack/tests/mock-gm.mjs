@@ -131,6 +131,8 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
           } else if (body.params.name === 'kb_search') {
             const q = String(a.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
             out = { mode: 'search', articles: state.company.kb.filter(k => q.some(t => `${k.id} ${k.title} ${k.body}`.toLowerCase().includes(t))) };
+          } else if (body.params.name === 'export_logs') {
+            out = { entries: state.company.logs }; // one large answer (no paging)
           } else return send(res, 200, { jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: 'unknown tool' }] } });
           return send(res, 200, { jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: JSON.stringify(out) }] } });
         }

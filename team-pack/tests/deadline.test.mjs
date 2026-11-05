@@ -101,12 +101,21 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, s4 is the orches
     assert.ok(Math.abs(board.match.minutesLeft - 32.5) < 0.2);
     assert.ok(board.slots.some(s => s.slot === 's4' && s.role === 'orchestrator'));
     assert.ok(JSON.stringify(board).length < 2000, `board ${JSON.stringify(board).length} chars`);
-    const s = await h.call('start_work', { backlogItemKey: 'BUG-09', slot: 's4' });
+    // 1.5.9: s4 is the orchestrator's slot for PI and value TASKs; a BUG or CR goes to a worker slot.
+    const own = await h.call('start_work', { backlogItemKey: 'BUG-09', slot: 's4' });
+    assert.equal(own.error?.code, 'OWN_SLOT_RESERVED'); assert.equal(own.error.details.freeWorkerSlot, 's1');
+    const s = await h.call('start_work', { backlogItemKey: 'BUG-09', slot: 's1' });
     assert.ok(s.briefFile, JSON.stringify(s));
     const t0 = Date.now();
     const w1 = await h.call('wait_for_update', {});
     assert.equal(w1.reason, 'DEADLINE_SOON');
-    assert.deepEqual(w1.deadlineSoon.map(d => [d.backlogItemKey, d.slot, d.kind]), [['BUG-09', 's4', 'DEADLINE']]);
+    assert.deepEqual(w1.deadlineSoon.map(d => [d.backlogItemKey, d.slot, d.kind]), [['BUG-09', 's1', 'DEADLINE']]);
+    // 1.5.9: the board in every wake-up is compact: decision fields only, no ids, endpoints or team.
+    const wb = w1.board;
+    assert.deepEqual(Object.keys(wb.items[0]).filter(k => !['key', 'type', 'title', 'status', 'workStatus', 'points', 'deadlineMinutes', 'minutesLeft', 'submitted', 'heavy', 'slot', 'revisionNo'].includes(k)), []);
+    assert.equal(wb.items.find(i => i.key === 'BUG-09').slot, 's1');
+    assert.equal(wb.endpoints, undefined); assert.equal(wb.team, undefined);
+    assert.ok(JSON.stringify(wb).length < 1200, `compact board ${JSON.stringify(wb).length} chars`);
     assert.ok(Date.now() - t0 < 8000, 'immediate');
     // Safety net: right after DEADLINE_SOON a short wait is honoured (no DONE.json yet -> TIMEOUT after ~5 s).
     const t1 = Date.now();
@@ -134,10 +143,10 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, s4 is the orches
     assert.equal(w4.reason, 'JOBS_DONE');
     assert.deepEqual(w4.jobs.map(j => [j.name, j.state, j.exit]), [['baseline', 'FAILED', 1]]);
     assert.match(w4.jobs[0].tail, /1 failed/);
-    const s2 = await h.call('start_work', { backlogItemKey: 'CR-09', slot: 's1' });
+    const s2 = await h.call('start_work', { backlogItemKey: 'CR-09', slot: 's2' });
     const brief = JSON.parse(readFileSync(s2.briefFile, 'utf8'));
-    assert.equal(brief.jobsDir, jobs); assert.equal(brief.slotInstallJob, 'install-s1'); assert.equal(brief.slotInstallState, 'MISSING');
-    await h.call('release_slot', { slot: 's1' }); // otherwise CR-09 gets its own MATCH_END warning
+    assert.equal(brief.jobsDir, jobs); assert.equal(brief.slotInstallJob, 'install-s2'); assert.equal(brief.slotInstallState, 'MISSING');
+    await h.call('release_slot', { slot: 's2' }); // otherwise CR-09 gets its own MATCH_END warning
     gm.state.sequence++;
     assert.equal((await h.call('wait_for_update', {})).reason, 'MATCH_UPDATED', 'reported once');
   } finally { h.close(); }

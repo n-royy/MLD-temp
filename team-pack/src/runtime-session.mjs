@@ -1,7 +1,7 @@
 // Match session for the MCP Helper: keeps credentials in memory, talks to Game Master,
 // enforces the submission contract and writes the mandatory progress events.
 import { createHash, randomUUID } from 'node:crypto';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
@@ -293,9 +293,38 @@ export class MatchSession {
     return clip(item?.title ?? item?.backlogTitle ?? item?.name ?? key, 160);
   }
 
-  #board(newItems = []) {
+  /** Decision fields of one item for the compact board (5FLQMNAA: the full entries made each board ~6-26k chars). */
+  #boardItem(item) {
+    const out = { key: item.key, type: item.backlogType ?? item.type ?? null, title: clip(item.title ?? item.backlogTitle ?? '', 90),
+      status: item.status ?? null, workStatus: item.workStatus ?? null, points: item.points ?? null };
+    if (item.deadlineMinutes != null) out.deadlineMinutes = item.deadlineMinutes;
+    if (Number(item.revisionNo) > 1) out.revisionNo = item.revisionNo;
+    const left = this.#minutesLeft(item);
+    if (left !== null && !item.submission) out.minutesLeft = left;
+    if (item.submission) out.submitted = true;
+    if (isHeavy(item)) out.heavy = true;
+    const slot = this.#hasSlots() ? this.#slotOf(item.key) : null;
+    if (slot) out.slot = slot.name;
+    return out;
+  }
+
+  /**
+   * The board every tool returns. Compact by default: match status and clock, one short entry per item, slots and
+   * incidents. `full` (refresh_match only) adds every short field of the projection, team and endpoints.
+   */
+  #board(newItems = [], { full = false } = {}) {
     const p = this.projection ?? {};
     const m = p.match ?? {};
+    if (!full) {
+      const left = this.#matchMinutesLeft();
+      return {
+        match: { status: m.status ?? null, ...(left !== null ? { minutesLeft: left } : {}) },
+        items: this.#items().map(i => this.#boardItem(i)),
+        newItems,
+        ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
+        ...(this.#hasSlots() ? { slots: this.#slotSummary() } : {})
+      };
+    }
     const match = {};
     for (const [k, v] of Object.entries(m)) if (v === null || typeof v !== 'object') match[k] = v;
     return {
@@ -317,6 +346,7 @@ export class MatchSession {
       this.seenAt.set(item.key, Date.now());
       fresh.push(item.key);
       if (this.cfg.phase === 'GAME') {
+        this.#timeline('DISCOVERED', item.key, { type: item.backlogType ?? item.type ?? null, deadlineMinutes: item.deadlineMinutes ?? null });
         try {
           this.log.append({ type: 'BACKLOG_STATUS', backlogId: item.key, title: this.#title(item.key), status: 'DISCOVERED',
             summary: clip(`${item.backlogType ?? 'ITEM'} revealed${item.deadlineMinutes ? `, deadline ${item.deadlineMinutes} min` : ''}.`),
@@ -367,6 +397,7 @@ export class MatchSession {
       }
       entry.done = true;
       entry.readyAt = Date.now();
+      this.#timeline('INCIDENT_READY', key, { slot: entry.result?.slot ?? null, inSec: Math.round((entry.readyAt - entry.startedAt) / 1000), error: entry.result?.error ?? null });
       return entry.result;
     })();
     return entry;
@@ -431,11 +462,11 @@ export class MatchSession {
     if (this.cfg.phase === 'PREPARATION') {
       // Preparation tracks nothing: known items are discovered at game start.
       await this.#getProjection();
-      return this.#board([]);
+      return this.#board([], { full: true });
     }
     await this.#getProjection();
     this.signature = this.#signature();
-    return this.#board(this.lastFresh);
+    return this.#board(this.lastFresh, { full: true });
   }
 
   #signature() {
@@ -542,6 +573,18 @@ export class MatchSession {
     return url.href;
   }
 
+  /**
+   * Post-match timeline (<checkoutRoot>/.git/mtm/timeline.ndjson): one line per helper event with a timestamp, so a
+   * review can measure slot waits and integration delays (progress events carry no time and accept no extra field).
+   */
+  #timeline(event, key = null, extra = {}) {
+    try {
+      if (!this.cfg?.checkoutRoot) return;
+      appendFileSync(join(this.#stateDir(), 'timeline.ndjson'),
+        JSON.stringify({ at: new Date().toISOString(), event, ...(key ? { key } : {}), ...extra }) + '\n');
+    } catch { /* telemetry only */ }
+  }
+
   #stateDir() {
     const dir = join(this.cfg.checkoutRoot, '.git', 'mtm');
     if (!existsSync(join(this.cfg.checkoutRoot, '.git'))) fail('CHECKOUT_MISSING', 'checkoutRoot has no .git');
@@ -584,7 +627,7 @@ export class MatchSession {
     try { answer = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, '')); }
     catch (error) { fail('ANSWER_NOT_JSON', `submit.json is not valid JSON: ${error.message}`); }
     const r = this.#answerProblems(backlogItemKey, answer, ref => existsSync(join(dir, ref)));
-    return { valid: r.problems.length === 0, schemaChecked: r.schemaChecked, problems: r.problems.slice(0, 20), evidence: r.evidence };
+    return { valid: r.problems.length === 0, schemaChecked: r.schemaChecked, problems: r.problems.slice(0, 20), evidenceFiles: r.evidence.length };
   }
 
   async #changedExistingTests(full) {
@@ -604,6 +647,7 @@ export class MatchSession {
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
     const target = slot ? this.#claimSlot(slot, backlogItemKey) : null; // checked before Start Work is sent
     if (!this.projection) await this.#getProjection();
+    if (target?.name === OWN_SLOT && target.item !== backlogItemKey) this.#checkOwnSlot(backlogItemKey);
     this.#discover(); // a projection loaded before START_GAME has not been discovered yet
     const url = this.#endpoint('start');
     const body = JSON.stringify({ backlogItemKey });
@@ -631,6 +675,7 @@ export class MatchSession {
       fail(res.json?.error?.code ?? 'START_WORK_FAILED', res.json?.error?.message ?? `HTTP ${res.status}`, { httpStatus: res.status });
     }
     this.#api('START_WORK', backlogItemKey, 'POST', url, 'SUCCEEDED', res.status, rid, `Start Work ${backlogItemKey} accepted.`);
+    this.#timeline('START_WORK', backlogItemKey, { slot: slot ?? null });
     const r = res.json ?? {};
     const dir = this.#stateDir();
     this.#excludeScratch();
@@ -819,7 +864,11 @@ export class MatchSession {
       // Refresh once here so the agent needs no separate refresh_match call.
       let board = null;
       try { await this.#getProjection(); this.signature = this.#signature(); board = this.#board(this.lastFresh); } catch { /* next wait_for_update refreshes */ }
-      return { status: 'SUBMITTED', receipt, gitRevision: full, evidence, schemaChecked, changedTests, testStatus, tests: counted, board };
+      this.#timeline('SUBMITTED', backlogItemKey, { receipt: receipt.status ?? null });
+      // Compact on purpose: this result stays in the orchestrator's context for the rest of the match.
+      return { status: 'SUBMITTED', receipt: { id: receipt.id, status: receipt.status, scoreStatus: receipt.scoreStatus },
+        gitRevision: full, evidenceFiles: evidence.length, schemaChecked, ...(changedTests.length ? { changedTests } : {}),
+        testStatus, tests: counted ? { required: counted.required, executed: counted.executed, passed: counted.passed, failed: counted.failed } : null, board };
     }
     this.#api('SUBMIT', backlogItemKey, 'POST', url, 'FAILED', res.status, rid, `Submit ${backlogItemKey} rejected: ${code ?? res.status}.`);
     state[backlogItemKey].outcome = code ?? `HTTP_${res.status}`;
@@ -842,7 +891,9 @@ export class MatchSession {
   #hasSlots() { return Object.keys(this.#slots()).length > 0; }
   #hasBusySlot() { return Object.values(this.#slots()).some(s => s.item); }
   #slotSummary() {
-    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : s.name === HEAVY_SLOT ? 'heavy-worker' : 'worker', item: s.item ?? null, state: s.item ? s.state : 'FREE' }));
+    // A DONE.json written while the orchestrator was busy shows as DONE at once, so it integrates before anything else.
+    const done = s => s.item && s.state !== 'DONE' && existsSync(join(s.matchRoot, SCRATCH, s.item, 'DONE.json'));
+    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : s.name === HEAVY_SLOT ? 'heavy-worker' : 'worker', item: s.item ?? null, state: s.item ? (done(s) ? 'DONE' : s.state) : 'FREE' }));
   }
   #slotOf(key) { return Object.values(this.#slots()).find(s => s.item === key) ?? null; }
 
@@ -890,6 +941,24 @@ export class MatchSession {
     }
     this.#saveSlots(all);
     return { slots: out, note: 'Install dependencies and prepare the database once per slot (see game-preparation).' };
+  }
+
+  /**
+   * s4 is the orchestrator's own slot: PI and value answers (TASK), plus a heavy item when s5 cannot take it. A code
+   * item (BUG/CR) there blocks every integration while the orchestrator codes (5FLQMNAA: BUG-04 in s4 held a finished
+   * BUG-01 for ~4 minutes and grew the orchestrator's context to 191k tokens); it waits for the first free worker slot.
+   */
+  #checkOwnSlot(key) {
+    const item = this.#items().find(i => i.key === key);
+    const type = String(item?.backlogType ?? item?.type ?? key.split('-')[0]).toUpperCase();
+    if (!['BUG', 'CR'].includes(type) || isHeavy(item)) return;
+    const workers = Object.values(this.#slots()).filter(s => s.name !== OWN_SLOT && s.name !== HEAVY_SLOT);
+    if (!workers.length) return; // single-agent fallback: no worker slot exists
+    const free = workers.find(s => !s.item);
+    fail('OWN_SLOT_RESERVED', free
+      ? `${key} is a ${type}: start it in the free worker slot ${free.name} and spawn a worker`
+      : `${key} is a ${type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
+        '(integrate_item with next) and keep integrating.', { freeWorkerSlot: free?.name ?? null });
   }
 
   #claimSlot(name, key) {
@@ -1004,6 +1073,7 @@ export class MatchSession {
       const st = jobState(d, n);
       if (st.state === 'RUNNING' || this.jobsReported.has(`${n}:${st.state}`)) continue;
       this.jobsReported.add(`${n}:${st.state}`);
+      this.#timeline('JOB_END_SEEN', null, { job: n, state: st.state });
       let tail = '';
       try { tail = readFileSync(join(d, `${n}.log`), 'utf8').slice(-3000).split(/\r?\n/).filter(l => l.trim()).slice(st.state === 'DONE' ? -2 : -8).join('\n'); } catch { /* no log */ }
       out.push({ name: n, state: st.state, exit: st.exit, tail: clip(tail, 600) });
@@ -1025,6 +1095,9 @@ export class MatchSession {
       if (s.reported === sig) continue;
       s.reported = sig;
       s.state = 'DONE';
+      let doneAt = null;
+      try { doneAt = statSync(f).mtime.toISOString(); } catch { /* keep null */ }
+      this.#timeline('SLOT_DONE_SEEN', s.item, { slot: s.name, doneAt });
       let result;
       try {
         const d = JSON.parse(raw.replace(/^﻿/, ''));
@@ -1152,6 +1225,7 @@ export class MatchSession {
     const result = await this.submitWork({ backlogItemKey, gitRevision: 'HEAD', tests, acknowledgeTestChanges });
     if (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY') this.#releaseSlot(s.name, backlogItemKey);
     const out = { ...result, slot: s.name, integratedCommits: commits.length };
+    this.#timeline('INTEGRATED', backlogItemKey, { slot: s.name, status: result.status, commits: commits.length });
     // Group chaining: start the next item of this worker's group in the same slot (reset to the new branch head).
     if (next && (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY')) {
       try { out.next = await this.startWork({ backlogItemKey: next, slot: s.name }); }
@@ -1274,6 +1348,26 @@ export class MatchSession {
     const tools = await this.#companyClient().listTools();
     this.companyToolDefs = tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }));
     return this.companyToolDefs;
+  }
+
+  /**
+   * company_tool_call as the model sees it: an answer over 6000 characters goes to a file (the item's slot, else the
+   * main .mtm-tmp) and only a head comes back, so it does not ride along in the caller's context for every later turn.
+   */
+  async companyCallForModel(a = {}) {
+    const r = await this.companyCall(a);
+    if (!r || typeof r.text !== 'string') return r;
+    const extra = r.structuredContent ? JSON.stringify(r.structuredContent, null, 2) : '';
+    if (r.text.length + extra.length <= 6000) return r;
+    const bid = a.backlogId && KEY.test(a.backlogId) ? a.backlogId : '_shared';
+    const root = a.slotMatchRoot ?? (this.cfg && a.backlogId && this.#hasSlots() ? this.#slotOf(a.backlogId)?.matchRoot : null) ?? this.cfg?.matchRoot;
+    if (!root) return r;
+    const dir = join(root, SCRATCH, bid);
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, `company-${String(a.name).replace(/[^A-Za-z0-9_.-]/g, '_')}-${Date.now()}.txt`);
+    writeFileSync(file, r.text + (extra ? `\n\nstructuredContent:\n${extra}` : ''));
+    return { isError: r.isError, savedTo: file, chars: r.text.length + extra.length, head: clip(r.text.replace(/\s+/g, ' '), 300),
+      note: 'Large answer saved to a file: extract what you need with a script; do not print it whole.' };
   }
 
   async companyCall({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
