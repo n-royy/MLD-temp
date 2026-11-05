@@ -26,6 +26,9 @@ and follow WORKER.md exactly. You only have this item: quality comes first, toke
 - Waiting: a cell that still answers "Script running" (wait_jobs, a long command) gets ONE `wait` with
   yield_time_ms 270000: it returns as soon as the cell ends, so a long yield costs no time, while each short one
   (1000/10000) is a full model turn (5FLQMNAA: 76 ten-second waits in the workers). Never use the `sleep` tool.
+- Brief `qualityGate` (grading beyond the rows: suite scored by broken builds, data requirements, official
+  data): after the rows pass, run WORKER.md "Quality gate" for its kind while stopBy is more than ~8 minutes away;
+  never submit early with time left. DONE.json carries "qualityGate".
 - Evidence screenshots: `.mtm-tmp/tools/shot.mjs`; your own browser script only if it cannot do the step.
 - Large data (logs, QA data, reports): save to files and extract with scripts; never read large outputs into your
   context.

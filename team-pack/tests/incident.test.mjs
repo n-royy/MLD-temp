@@ -395,3 +395,38 @@ test('1.5.10: dependencies from the briefs; a prerequisite of a deadline item is
     assert.equal(w3.reason, 'SLOT_DONE'); assert.deepEqual(w3.slotDone.map(d => d.item), ['TASK-25']);
   } finally { h.close(); }
 });
+
+test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json without it is flagged MISSING', async () => {
+  const item = (key, type, descriptionMd) => ({ key, backlogType: type, title: key, deadlineMinutes: null, revealedElapsedSec: 600,
+    revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
+  gm.state.backlog = [
+    item('TASK-38', 'TASK', '# Suite\n## Requirements\nImplement the cases.\n## Grading\nYour suite is run against builds that each break one part of the specification: it earns a detection share for each broken build it fails on.'),
+    item('TASK-37', 'TASK', '# Statement pack\n## Requirements\nCommit the files and manifest.json.\n## Acceptance criteria\n3. The pack meets every volume, mix and overlap requirement.\n## Grading\nEach acceptance part is checked on its own.'),
+    item('CR-37', 'CR', '# Audit page\n## Grading\nTC-01 is replayed. Hidden tests check the server audit and load the official test data with your submitted source.'),
+    item('BUG-37', 'BUG', '# Layout\n## Grading\nTC-01 and TC-02 are replayed with the MVS test.')
+  ];
+  gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    await h.call('prepare_slots', { count: 4 });
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
+    await h.call('refresh_match');
+    const started = {};
+    for (const [key, slot] of [['TASK-38', 's1'], ['TASK-37', 's2'], ['CR-37', 's3'], ['BUG-37', 's5']]) started[key] = await h.call('start_work', { backlogItemKey: key, slot });
+    const kinds = Object.fromEntries(Object.entries(started).map(([k, r]) => [k, JSON.parse(readFileSync(r.briefFile, 'utf8')).qualityGate?.kind ?? null]));
+    assert.deepEqual(kinds, { 'TASK-38': 'SUITE_DETECTION', 'TASK-37': 'DATA_REQUIREMENTS', 'CR-37': 'OFFICIAL_DATA', 'BUG-37': null });
+    const brief = JSON.parse(readFileSync(started['TASK-38'].briefFile, 'utf8'));
+    assert.ok(brief.qualityGate.reportFile.endsWith('quality-gate.md') && 'issuedRevision' in brief);
+    writeFileSync(started['TASK-38'].doneFile, JSON.stringify({ status: 'DONE', summary: 'suite passes' }));
+    writeFileSync(started['TASK-37'].doneFile, JSON.stringify({ status: 'DONE', summary: 'pack', qualityGate: { status: 'PASS', summary: '14/14 requirements with margin' } }));
+    writeFileSync(started['BUG-37'].doneFile, JSON.stringify({ status: 'DONE', summary: 'fixed' }));
+    const w = await h.call('wait_for_update', {});
+    assert.equal(w.reason, 'SLOT_DONE');
+    const by = Object.fromEntries(w.slotDone.map(d => [d.item, d]));
+    assert.equal(by['TASK-38'].qualityGate.status, 'MISSING'); assert.ok(by['TASK-38'].qualityGate.minutesLeft > 20);
+    assert.equal(by['TASK-37'].qualityGate.status, 'PASS');
+    assert.equal(by['BUG-37'].qualityGate, undefined);
+  } finally { h.close(); }
+});

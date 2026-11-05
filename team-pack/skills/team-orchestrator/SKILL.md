@@ -196,6 +196,11 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    When the result has `next`, call `company_tool_call` (`saveToSlot`) for that item if needed, then `followup_task`
    the same worker with the follow-up message; on `nextError` start that item in any free slot instead.
    Submitted answers are final: do not re-audit them afterwards.
+   **Quality gate:** a `slotDone` entry with `qualityGate.status: "MISSING"` (the brief named a gate: suite scored
+   by broken builds, data requirements, official data / hidden tests) and `qualityGate.minutesLeft` above 8: do not
+   integrate yet; `followup_task` once: `<ID>: run the quality gate for <kind> (WORKER.md "Quality gate") before
+   submitting; stop at stopBy minus 5 minutes`. With 8 minutes or less, or after that one follow-up, integrate
+   (32PTEO8K: TASK-08 and TASK-07 were submitted early with defects left; 31 points).
    A board whose `slots` show a worker slot `DONE` means a DONE.json waits: integrate it before anything else of
    yours (5FLQMNAA: a finished BUG-01 waited ~4 minutes behind the orchestrator's own item). A slot in state
    `DONE_HELD_FOR_PI` waits for the open PI ("Incident fast path"): leave it until the PI is submitted.

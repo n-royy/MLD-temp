@@ -34,7 +34,8 @@ const TOOLS = [
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
       'dependsOn/prerequisiteOf from the briefs, and effectiveMinutesLeft for a prerequisite of a deadline item). ' +
       'While a PI is open, SLOT_DONE is reported only for deadline items and their prerequisites; other finished slots show ' +
-      'DONE_HELD_FOR_PI (board.heldForPi) until the PI is submitted. ' +
+      'DONE_HELD_FOR_PI (board.heldForPi) until the PI is submitted. A slotDone entry carries qualityGate {kind, status, ' +
+      'minutesLeft} when the brief names a quality gate; status MISSING with time left goes back to the worker once. ' +
       'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
       'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
       'In an exec cell put // @exec: {"yield_time_ms": 270000} on the first line.',

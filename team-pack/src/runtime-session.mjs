@@ -314,6 +314,24 @@ export class MatchSession {
     return open.filter(i => Date.now() - (this.seenAt.get(i.key) ?? Date.now()) < 8 * 60000).map(i => i.key);
   }
 
+  /**
+   * How the brief says the item is graded, when that needs a quality gate beyond its own rows (32PTEO8K: TASK-08, a
+   * test suite scored by the broken builds it detects, was submitted at minute 12 with a planted bug undetected;
+   * TASK-07, a data pack checked against requirements, lost 15 of 50). Null for ordinary rows and value answers.
+   */
+  #gradingKind(item) {
+    const text = [item?.descriptionMd, item?.description].filter(t => typeof t === 'string').join('\n');
+    if (!text) return null;
+    const m = text.match(/#+\s*Grading\b([\s\S]*?)(?=\n#+\s|$)/i);
+    const g = m ? m[1] : text;
+    if (/\b(broken|mutant|mutated)\b|break(s)?\s+one\s+part|detection\s+share|fails?\s+on\s+(applications|builds|versions)/i.test(g)
+      && /\b(suite|test cases?|cases)\b/i.test(text)) return 'SUITE_DETECTION';
+    if (/\b(manifest|dataset|data\s+pack|statement\s+pack|pack)\b/i.test(text)
+      && /\b(volume|mix|overlap|at\s+(most|least)|requirement|threshold)\b/i.test(g + text)) return 'DATA_REQUIREMENTS';
+    if (/official\s+test\s+data|hidden\s+tests?/i.test(g)) return 'OFFICIAL_DATA';
+    return null;
+  }
+
   /** True when the item's finished result waits for the open PI (see #piHold). */
   #heldForPi(key, hold = this.#piHold(), deps = null) {
     if (!hold.length || hold.includes(key)) return false;
@@ -1111,6 +1129,10 @@ export class MatchSession {
         return { dependsOn: d.dependsOn.map(state), prerequisiteOf: d.prerequisiteOf.map(state),
           ...(eff !== null && this.#minutesLeft(item) === null ? { effectiveDeadlineAt: new Date(Date.now() + eff * 60000).toISOString() } : {}) };
       })(this.#dependencies()),
+      // Grading that rewards more than the rows (detection, requirements, official data): the worker runs the
+      // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
+      ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
+      issuedRevision: c.environmentRevision ?? null,
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
     writeFileSync(join(dir, 'brief.json'), JSON.stringify(brief, null, 2));
     try { await this.#publishProxy(s.matchRoot); } catch { /* workers fall back to the orchestrator's saved files */ }
@@ -1186,6 +1208,16 @@ export class MatchSession {
       try {
         const d = JSON.parse(raw.replace(/^﻿/, ''));
         result = { status: d.status ?? null, tests: d.tests ?? null, summary: clip(String(d.summary ?? ''), 300), doubts: d.doubts ? clip(String(d.doubts), 300) : undefined };
+        const item = this.#items().find(i => i.key === s.item);
+        const kind = this.#gradingKind(item);
+        if (kind) {
+          // A gate the worker skipped while there was still time: the orchestrator sends it back once (SKILL.md).
+          const lim = [this.#minutesLeft(item) ?? this.#effectiveMinutesLeft(item), this.#matchMinutesLeft()].filter(v => v !== null);
+          const left = lim.length ? Math.min(...lim) : null;
+          const gate = d.qualityGate && typeof d.qualityGate === 'object' ? String(d.qualityGate.status ?? '').toUpperCase() : '';
+          result.qualityGate = { kind, status: gate || 'MISSING', minutesLeft: left,
+            ...(d.qualityGate?.summary ? { summary: clip(String(d.qualityGate.summary), 200) } : {}) };
+        }
       } catch { result = { error: 'DONE.json is not valid JSON' }; }
       out.push({ slot: s.name, item: s.item, ...result });
     }
