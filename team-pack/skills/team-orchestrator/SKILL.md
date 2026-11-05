@@ -87,7 +87,13 @@ When a wave appears (game start, or `newItems` on the board):
    briefs or code.
 2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
    minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
-   expected effort (CR/BUG usually before TASK). **Heavy items** (board `heavy: true`) are outside this order: they go
+   expected effort (CR/BUG usually before TASK).
+   **Prerequisites count as deadline items.** The helper reads every brief: an item whose brief names another open
+   item shows `dependsOn: [<key>]`, and the named item shows `prerequisiteOf: [<key>]` with `effectiveMinutesLeft`
+   (the nearest deadline among the items that need it). Order by `minutesLeft`, or `effectiveMinutesLeft` when it is
+   smaller: a prerequisite starts no later than the deadline item that needs it, ideally first (32PTEO8K: BUG-11 had
+   no deadline but CR-07's grade needed its fixes; it started 18 minutes late, after CR-07 was submitted, and CR-07
+   lost 27 points). A prerequisite also gets `DEADLINE_SOON` (kind `PREREQUISITE_DEADLINE`) and a `stopBy`. **Heavy items** (board `heavy: true`) are outside this order: they go
    at once to slot s5 (see "Heavy items" below).
 3. **Assign in that order, one item per free worker slot (s1-s3), until they are full.** Never leave a slot idle while an
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
@@ -190,8 +196,14 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    When the result has `next`, call `company_tool_call` (`saveToSlot`) for that item if needed, then `followup_task`
    the same worker with the follow-up message; on `nextError` start that item in any free slot instead.
    Submitted answers are final: do not re-audit them afterwards.
+   **Quality gate:** a `slotDone` entry with `qualityGate.status: "MISSING"` (the brief named a gate: suite scored
+   by broken builds, data requirements, official data / hidden tests) and `qualityGate.minutesLeft` above 8: do not
+   integrate yet; `followup_task` once: `<ID>: run the quality gate for <kind> (WORKER.md "Quality gate") before
+   submitting; stop at stopBy minus 5 minutes`. With 8 minutes or less, or after that one follow-up, integrate
+   (32PTEO8K: TASK-08 and TASK-07 were submitted early with defects left; 31 points).
    A board whose `slots` show a worker slot `DONE` means a DONE.json waits: integrate it before anything else of
-   yours (5FLQMNAA: a finished BUG-01 waited ~4 minutes behind the orchestrator's own item).
+   yours (5FLQMNAA: a finished BUG-01 waited ~4 minutes behind the orchestrator's own item). A slot in state
+   `DONE_HELD_FOR_PI` waits for the open PI ("Incident fast path"): leave it until the PI is submitted.
 7. Refill the freed slot from the returned `board` (no `refresh_match` needed). When nothing is workable and no
    worker is busy, keep calling `wait_for_update`. An empty backlog is a waiting state, never the end of the match.
 
@@ -225,8 +237,12 @@ passing row, so its last commit submits those rows. A rejected gate means no val
 A PI is a race: points depend on submission order. Waiting behind other work, spawning a worker and paging logs one
 call at a time cost minutes, so the helper does the mechanical part the moment the PI appears: Start Work in a free slot (s4 first) and every log page
 plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
-with `incident` before any other reason. From then on the PI comes first: SLOT_DONE integrations and spawns wait
-until it is submitted (only a DEADLINE_SOON safety net may go before it).
+with `incident` before any other reason. From then on the PI comes first: integrations and spawns of items
+**without a deadline** wait until it is submitted. Only these may go before it: a `DEADLINE_SOON` safety net and a
+`SLOT_DONE` of a deadline item or of a prerequisite of one (board `minutesLeft` or `effectiveMinutesLeft`). The helper
+enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for those; any other finished slot shows
+`DONE_HELD_FOR_PI` (listed in `board.heldForPi`) and is reported right after the PI is submitted (at most 8 minutes
+after the PI appeared).
 1. No worker, no WORKER.md. Read `incident.files.digest` (coverage, services, releases, flags, entities, KB list),
    `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,
    `item.description`). `incident.complete` false or `problems` not empty: `prepare_incident` with `refresh: true`

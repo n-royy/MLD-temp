@@ -57,12 +57,64 @@ a defect outside your change stops it (a page that never settles, a crash, a scr
 who owns the defect:
 - **Owned by another item**: an item in the brief's `otherItems` (or the orchestrator's note) describes it. Do not fix
   it; work around it by a foundation path above, or wait for its fix on the branch ("When another item blocks your
-  evidence").
+  evidence"). Exception: your grade is computed on your own source with that fix in it, and it will not land in
+  time ("Your item needs another item's changes" below).
 - **Owned by nobody** (no item describes it): it is part of your item. Make the smallest change that lets your
   verification run as written, in its own commit, run the existing tests again, and name it in the engineering
   record (defect, cause, fix). Never change the organizer scripts or their reports instead.
 A row is never FAIL or NOT_RUN only because such a blocker exists while time remains: fix it or work around it,
 then run the verification.
+
+### Your item needs another item's changes (brief `dependsOn`)
+The brief lists in `dependsOn` the items your brief names, with their state (`NOT_STARTED`, `IN_PROGRESS`,
+`SUBMITTED`). Read what your brief says about them. When your grade is computed on **your own submitted source**
+with those changes in it (e.g. "right only on source that also contains the <ID> fixes", "loads the official data
+with your submission"), the other item's changes must be in your commit:
+- `SUBMITTED`: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) before your final checks.
+- Not submitted and it may not land before your `stopBy` minus ~5 minutes: make the smallest change that item needs
+  for **your** grade yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and
+  name it in the engineering record (the other item's worker may make the same change; identical changes integrate
+  cleanly). Rebase again if it lands before you finish.
+- Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
+  include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
+Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
+your deadline (your `stopBy` already uses it), and commit the part they need first.
+
+## Quality gate (brief `qualityGate`)
+Some items are graded on more than their rows: a test suite by the broken builds it detects, a data pack by every
+requirement, a feature by hidden tests on the official data. Rows that pass are then not the end: an item submitted
+early with a defect left in it loses points that the remaining time could have kept (32PTEO8K: TASK-08 submitted at
+minute 12 of 40 with a planted bug undetected, 84/100; TASK-07 35/50). When the brief has `qualityGate`, after your
+rows pass and are committed, run the gate for its `kind`, write the result to `qualityGate.reportFile` (a table:
+check, result, what you changed), fix what it finds, commit, and put
+`"qualityGate":{"kind":"<kind>","status":"PASS|PARTIAL","summary":"one line"}` in DONE.json.
+Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. Stop it
+at `stopBy` minus ~5 minutes, commit what holds, and report `PARTIAL` with what was not checked. Never leave a
+mutant, a temporary source restore or a debug edit in the tree: `git status --porcelain` must be empty before DONE.
+- **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on):
+  1. Rule matrix: for every rule of the specification, every operation that reaches it (create, update of each
+     field, moving between accounts or owners, delete, batch), every field the rule states, and variants (boundaries
+     on both sides, zero, empty, non-ASCII text, several rows at once). Each cell has a case that asserts it.
+  2. Self-mutation: for each rule, break the code that implements it in your slot (invert the condition, drop the
+     field update, shift the boundary by one), run your suite, record which case failed, restore the file
+     (`git -C <worktreeRoot> checkout -- <file>`). A rule no case catches gets a new case. The application fixes you
+     made stay; the mutants never.
+  3. Never assert what the specification does not state: a case that fails on a correct build never counts.
+- **`DATA_REQUIREMENTS`** (a pack, dataset or manifest checked against requirements):
+  1. Requirement table: every quantity, ratio, mix, overlap, recurrence, special case and size limit of the
+     specification, the value you reached and the margin. Where a requirement is a bound or range, stay clearly
+     inside it (not on the boundary; a few percent margin where the specification allows).
+  2. Replay as the grader does: on the issued source (`issuedRevision`), through the import path and settings the
+     specification describes. To get the issued behaviour in your slot, restore every product source file that
+     differs (`git -C <worktreeRoot> diff --name-only <issuedRevision> HEAD -- <app source dir>`, tests excluded) with
+     `git checkout <issuedRevision> -- <files>`, run the replay, then `git checkout HEAD -- <files>`. Every number in
+     the manifest must match the replay exactly.
+- **`OFFICIAL_DATA`** (hidden tests, the official test data loaded with your submitted source):
+  1. Load the official test data with your own branch (rebased on everything your brief `dependsOn` needs, see
+     "Your item needs another item's changes") and compare every reported figure with values computed independently
+     from the brief and the current standards; they must agree.
+  2. Hidden tests check the rule in more cases than the MVS: one test of your own per rule boundary the brief or
+     standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
 
 ## Heavy items (brief `heavy: true`)
 The organizer marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
@@ -187,7 +239,8 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
    item already fixed it: `git -C <worktreeRoot> log --oneline HEAD..<branch> -- <file>`. If it did, commit and
    `git -C <worktreeRoot> rebase <branch>` instead of writing your own fix (WXNDA4AW: CR-02 re-fixed a Reports
    refetch loop BUG-01 had landed 6 minutes earlier, then hit INTEGRATION_CONFLICT).
-3. Test exactly the item's test cases, no more ("Test cases" below): one run per template row (`<ID>-TC-01..n`),
+3. Test exactly the item's test cases, no more ("Test cases" below), except the quality gate your brief names
+   (`qualityGate`, "Quality gate" below): one run per template row (`<ID>-TC-01..n`),
    following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
    extra pages, viewports or scripts. Max ~3 fix/test rounds.

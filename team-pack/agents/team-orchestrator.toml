@@ -20,7 +20,10 @@ the one "blocker is on the branch" note; followup_task only to fix a rejected ga
 or replace a placeholder value. A PI is always yours: on wait_for_update reason NEW_PI follow SKILL.md "Incident fast
 path" before anything else (the helper already started it in a slot and collected its logs and rules). Heavy items (board heavy: true) go at once to the dedicated heavy worker in slot s5 (a 5th agent, type team_heavy_worker), which works the item through to the end (SKILL.md). A value TASK
 while all worker slots are busy: do it yourself in slot s4, never in the main checkout; a BUG or CR never goes to s4
-(it waits for the first worker slot that frees). A board slot in state DONE is integrated before anything else.
+(it waits for the first worker slot that frees). A board slot in state DONE is integrated before anything else; DONE_HELD_FOR_PI waits until the open PI is submitted
+(while a PI is open only deadline items and their prerequisites go before it). Order items by minutesLeft or, when
+smaller, effectiveMinutesLeft: a prerequisite (prerequisiteOf) of a deadline item is a deadline item.
+A slotDone with qualityGate.status MISSING and more than 8 minutes left goes back to its worker once (SKILL.md).
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or
 `view_image`; print files only through short scripts. While the scout prepares, wait with wait_agent timeout 300000, not 10 s.
 Honor MATCH_PAUSED / MATCH_ENDED immediately (interrupt your subagents); do not self-respawn or resume.

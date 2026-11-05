@@ -60,3 +60,9 @@ Short rules learned from real matches. Each line names where it came from. They 
   doubled its context. (5FLQMNAA BUG-04)
 - When the dev server does not show a change after one restart, verify on a production build and look at the source,
   not at compiled bundles. (5FLQMNAA BUG-01: ~10 minutes)
+- A brief that names another item ("right only on source that also contains the <ID> fixes") makes that item a
+  deadline item: start it no later than the item that needs it, and the dependent includes the change itself when it
+  will not land in time. (32PTEO8K CR-07: 73/100; BUG-11 started after CR-07 was submitted)
+- While a PI is open, finished items without a deadline wait; deadline items and their prerequisites do not.
+- Rows passing is not the end when the grading rewards more (detection by broken builds, data requirements, hidden
+  tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
