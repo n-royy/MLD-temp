@@ -170,11 +170,17 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
     assert.equal(inc.deadlineMinutes, 15);
     assert.ok(w.board.incidents.some(i => i.key === 'PI-01' && i.state === 'REPORTED'));
     assert.deepEqual(w.board.newItems.sort(), ['CR-04', 'PI-01'], 'items revealed with the PI are still listed as new');
-    // 1.5.9: a DONE.json the orchestrator has not seen yet already shows on the board, so it integrates next.
-    assert.equal(w.board.slots.find(x => x.slot === 's1').state, 'DONE');
-    // Then the worker's result, and the PI is never reported twice.
+    // 1.5.10: while the PI is open, a finished item without a deadline waits (the PI scores by submission order).
+    assert.equal(w.board.slots.find(x => x.slot === 's1').state, 'DONE_HELD_FOR_PI');
+    assert.deepEqual(w.board.heldForPi, ['BUG-07']);
+    const held = await h.call('wait_for_update', { noWait: true });
+    assert.notEqual(held.reason, 'SLOT_DONE', JSON.stringify(held).slice(0, 300));
+    // Once the PI is submitted the worker's result comes, and the PI is never reported twice.
+    gm.state.backlog.find(i => i.key === 'PI-01').submission = { attemptNo: 1, receivedAt: new Date().toISOString() };
+    await h.call('refresh_match');
     const w2 = await h.call('wait_for_update', {});
-    assert.equal(w2.reason, 'SLOT_DONE');
+    assert.equal(w2.reason, 'SLOT_DONE', JSON.stringify(w2).slice(0, 300));
+    assert.equal(w2.board.heldForPi, undefined);
     // Manual trigger returns the same prepared data without collecting again.
     const before = gm.state.companyCalls;
     const again = await h.call('prepare_incident', { backlogItemKey: 'PI-01' });
@@ -337,5 +343,55 @@ test('answer_item: a value answer filled, validated, committed and submitted in 
       ['DONE', 'rel-1', ['evidence/investigation.json'], 'two invoices', '']);
     const outside = await h.call('answer_item', { backlogItemKey: 'PI-07', evidence: { 'x.json': { from: '/etc/hostname' } } });
     assert.ok(outside.error, 'evidence must come from inside the slot');
+  } finally { h.close(); }
+});
+
+test('1.5.10: dependencies from the briefs; a prerequisite of a deadline item is urgent; an open PI holds only non-urgent results', async () => {
+  const item = (key, type, deadlineMinutes, descriptionMd) => ({ key, backlogType: type, title: key, deadlineMinutes, revealedElapsedSec: 600,
+    revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
+  gm.state.backlog = [
+    item('CR-17', 'CR', 20, 'The official test data is right only on source that also contains the BUG-21 fixes.'),
+    item('BUG-21', 'BUG', null, 'A customer\'s books do not match.'),
+    item('TASK-25', 'TASK', null, 'Budget month range.')
+  ];
+  gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    await h.call('prepare_slots', { count: 4 });
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
+    const board = (await h.call('wait_for_update', { noWait: true })).board;
+    const by = Object.fromEntries(board.items.map(i => [i.key, i]));
+    assert.deepEqual(by['CR-17'].dependsOn, ['BUG-21']);
+    assert.deepEqual(by['BUG-21'].prerequisiteOf, ['CR-17']);
+    assert.ok(by['BUG-21'].effectiveMinutesLeft > 17 && by['BUG-21'].effectiveMinutesLeft <= by['CR-17'].minutesLeft,
+      'the prerequisite is due when CR-17 is');
+    assert.equal(by['TASK-25'].effectiveMinutesLeft, undefined); assert.equal(by['TASK-25'].dependsOn, undefined);
+    const bug = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
+    const task = await h.call('start_work', { backlogItemKey: 'TASK-25', slot: 's2' });
+    const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
+    const crBrief = JSON.parse(readFileSync(cr.briefFile, 'utf8'));
+    assert.deepEqual(crBrief.dependsOn.map(d => [d.key, d.state]), [['BUG-21', 'IN_PROGRESS']]);
+    const bugBrief = JSON.parse(readFileSync(bug.briefFile, 'utf8'));
+    assert.deepEqual(bugBrief.prerequisiteOf.map(d => [d.key, d.deadlineMinutes]), [['CR-17', 20]]);
+    assert.ok(bugBrief.effectiveDeadlineAt && bugBrief.stopBy, 'the prerequisite gets a stopBy from CR-17');
+    // Both finish while a PI is open: only the prerequisite of the deadline item interrupts the PI.
+    for (const s of [bug, task]) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: 'done' }));
+    const { submission, ...pi } = PI;
+    gm.reveal({ ...pi, key: 'PI-09' });
+    await new Promise(r => setTimeout(r, 1100));
+    const w = await h.call('wait_for_update', {});
+    assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 300));
+    const w2 = await h.call('wait_for_update', {});
+    assert.equal(w2.reason, 'SLOT_DONE');
+    assert.deepEqual(w2.slotDone.map(d => d.item), ['BUG-21']);
+    assert.deepEqual(w2.board.heldForPi, ['TASK-25']);
+    assert.equal(w2.board.slots.find(x => x.slot === 's2').state, 'DONE_HELD_FOR_PI');
+    // After the PI is submitted the held result is reported.
+    gm.state.backlog.find(i => i.key === 'PI-09').submission = { attemptNo: 1 };
+    await h.call('refresh_match');
+    const w3 = await h.call('wait_for_update', {});
+    assert.equal(w3.reason, 'SLOT_DONE'); assert.deepEqual(w3.slotDone.map(d => d.item), ['TASK-25']);
   } finally { h.close(); }
 });

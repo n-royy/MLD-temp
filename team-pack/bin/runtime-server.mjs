@@ -31,7 +31,10 @@ const TOOLS = [
       'first - and collected every log page and the incident rules into incident.dir: digest.md, logs.json, entities.json, kb.md; ' +
       'it outranks every other reason and arrives once per PI), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
       'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
-      'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft). ' +
+      'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
+      'dependsOn/prerequisiteOf from the briefs, and effectiveMinutesLeft for a prerequisite of a deadline item). ' +
+      'While a PI is open, SLOT_DONE is reported only for deadline items and their prerequisites; other finished slots show ' +
+      'DONE_HELD_FOR_PI (board.heldForPi) until the PI is submitted. ' +
       'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
       'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
       'In an exec cell put // @exec: {"yield_time_ms": 270000} on the first line.',

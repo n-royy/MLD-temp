@@ -57,12 +57,28 @@ a defect outside your change stops it (a page that never settles, a crash, a scr
 who owns the defect:
 - **Owned by another item**: an item in the brief's `otherItems` (or the orchestrator's note) describes it. Do not fix
   it; work around it by a foundation path above, or wait for its fix on the branch ("When another item blocks your
-  evidence").
+  evidence"). Exception: your grade is computed on your own source with that fix in it, and it will not land in
+  time ("Your item needs another item's changes" below).
 - **Owned by nobody** (no item describes it): it is part of your item. Make the smallest change that lets your
   verification run as written, in its own commit, run the existing tests again, and name it in the engineering
   record (defect, cause, fix). Never change the organizer scripts or their reports instead.
 A row is never FAIL or NOT_RUN only because such a blocker exists while time remains: fix it or work around it,
 then run the verification.
+
+### Your item needs another item's changes (brief `dependsOn`)
+The brief lists in `dependsOn` the items your brief names, with their state (`NOT_STARTED`, `IN_PROGRESS`,
+`SUBMITTED`). Read what your brief says about them. When your grade is computed on **your own submitted source**
+with those changes in it (e.g. "right only on source that also contains the <ID> fixes", "loads the official data
+with your submission"), the other item's changes must be in your commit:
+- `SUBMITTED`: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) before your final checks.
+- Not submitted and it may not land before your `stopBy` minus ~5 minutes: make the smallest change that item needs
+  for **your** grade yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and
+  name it in the engineering record (the other item's worker may make the same change; identical changes integrate
+  cleanly). Rebase again if it lands before you finish.
+- Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
+  include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
+Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
+your deadline (your `stopBy` already uses it), and commit the part they need first.
 
 ## Heavy items (brief `heavy: true`)
 The organizer marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
