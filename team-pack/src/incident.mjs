@@ -231,6 +231,26 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
   writeFileSync(join(dir, 'entities.json'), JSON.stringify(d.entities, null, 1));
   writeFileSync(join(dir, 'kb.md'), kb.map(a => `## ${a.id ?? ''} ${a.title ?? ''}\n\n${a.body ?? a.content ?? JSON.stringify(a)}\n`).join('\n'));
   writeFileSync(join(dir, 'digest.md'), d.markdown);
+  // Starter for the solving script: data loaded and joined, nothing decided (the KB rules decide).
+  writeFileSync(join(dir, 'solve-starter.mjs'), [
+    "// Copy to ../solve.mjs and complete. Prints facts; every answer field must follow the KB definitions (kb.md).",
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "import { dirname, join } from 'node:path';",
+    "import { fileURLToPath } from 'node:url';",
+    "const here = dirname(fileURLToPath(import.meta.url));",
+    "const logs = JSON.parse(readFileSync(join(here, 'logs.json'), 'utf8'));      // all entries, sorted by ts",
+    "const entities = JSON.parse(readFileSync(join(here, 'entities.json'), 'utf8')); // id -> events in time order",
+    "const kb = readFileSync(join(here, 'kb.md'), 'utf8');",
+    "const by = (pred) => logs.filter(pred);",
+    "const service = (name) => by(e => e.service === name);",
+    "const firstOf = (list) => [...list].sort((a, b) => a.ts.localeCompare(b.ts))[0] ?? null;",
+    "// For each entity: the events before a given event (e.g. what was true when it happened).",
+    "const before = (id, ts) => (entities[id] ?? []).filter(e => e.ts < ts);",
+    "const result = {};   // fill: one key per field the brief asks for, values exactly as logged",
+    "const proof = {};    // fill: the log rows that prove each value",
+    "console.log(JSON.stringify({ result, proof }, null, 2));",
+    "writeFileSync(join(here, '..', 'investigation.json'), JSON.stringify({ result, proof }, null, 2));",
+    "export { logs, entities, kb, by, service, firstOf, before };", ''].join('\n'));
   const complete = coverage.length > 0 && coverage.some(c => c.complete) && !coverage.some(c => c.error && c.returned > 0 && !c.complete);
   const summary = { dir, files: { digest: join(dir, 'digest.md'), logs: join(dir, 'logs.json'), entities: join(dir, 'entities.json'), kb: join(dir, 'kb.md') },
     logEntries: d.logs.length, kbArticles: kb.map(a => a.id ?? a.title), complete, calls: maxCalls - budget.calls,

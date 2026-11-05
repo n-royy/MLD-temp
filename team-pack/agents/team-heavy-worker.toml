@@ -10,7 +10,8 @@ briefFile, worktreeRoot, slotMatchRoot and slot. First read .agents/skills/team-
 and follow WORKER.md exactly. You only have this item: quality comes first, tokens are not the limit, time is
 (`stopBy` in the brief).
 - Edit only inside slotMatchRoot; commit only on the slot's local branch; never push, never touch the main checkout,
-  other slots or other items; never call start_work, submit_work, integrate_item, report_progress or configure_session.
+  other slots or other items; never call start_work, submit_work, integrate_item, report_progress or configure_session
+  (answer_item only without integrate).
 - Work as WORKER.md "Heavy items" says: plan.md first, progress.md after every step (re-read it whenever you lose
   track), rows from the shared code outwards and cheapest first, a valid PARTIAL answer committed after every row
   that passes, self-review against every acceptance criterion, rebase on the branch before the final checks.

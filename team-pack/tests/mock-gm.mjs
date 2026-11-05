@@ -74,6 +74,20 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
               if: { properties: { result: { const: 'PASS' } } }, then: { properties: { evidence: { minItems: 1 } } } }
           }
         };
+        if (item.backlogType === 'PI') {
+          // Value answer without test rows, shaped like the organizer's PI template.
+          const piTemplate = { schemaVersion: 1, backlogId: item.key, status: 'DRAFT', evidenceFiles: [], rootCauseRelease: '',
+            affectedInvoices: [], incidentRecord: { impact: '', rootCause: '' } };
+          const piSchema = { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object', additionalProperties: false,
+            required: ['schemaVersion', 'backlogId', 'status', 'evidenceFiles', 'rootCauseRelease', 'affectedInvoices', 'incidentRecord'],
+            properties: { schemaVersion: { const: 1 }, backlogId: { const: item.key }, status: { enum: ['DONE', 'PARTIAL', 'BLOCKED'] },
+              evidenceFiles: { type: 'array', items: { type: 'string', pattern: '^evidence/[^/]+$' } },
+              rootCauseRelease: { type: 'string', minLength: 1 }, affectedInvoices: { type: 'array', items: { type: 'string' } },
+              incidentRecord: { type: 'object' } } };
+          return send(res, replay ? 200 : 201, { backlogId: item.key, backlogType: 'PI', startInstruction: '', replay,
+            submitTemplate: piTemplate, minimumVerificationScenarios: null,
+            files: { [`challenge/${item.key}-submit.json`]: JSON.stringify(piTemplate), [`challenge/${item.key}-submit.schema.json`]: JSON.stringify(piSchema) } });
+        }
         return send(res, replay ? 200 : 201, { backlogId: item.key, backlogType: item.backlogType, startInstruction: '', replay,
           submitTemplate: template, minimumVerificationScenarios: item.backlogType === 'BUG' ? { scenarios: [{ id: 'MVS-1' }] } : null,
           files: { [`challenge/${item.key}-submit.json`]: JSON.stringify(template),

@@ -33,8 +33,8 @@ T5QSM1E2 lost 3/4 rows of BUG-02 (sidebar of BUG-01 intercepted the Accounting t
 - No shortcut when the item or the row is about that step itself: an item about sign-in, sessions, permissions,
   navigation or layout, or a signed-out row (CR-01 TC-04), does the step exactly as written.
 - Never: `click({ force: true })`, dispatching DOM events, injecting CSS/JS into the page, or patching the running
-  app with a change that is not in your commit. Never commit another item's fix in your item: briefs list
-  "unrelated UI changes" as out of scope.
+  app with a change that is not in your commit. Never commit a fix that another item owns (see "A defect that blocks
+  your verification" below): briefs list "unrelated UI changes" as out of scope.
 - Every shorter path used goes into that row's `note`, e.g. "opened Accounting by URL with the keyboard because the
   desktop sidebar (BUG-01) covers the tab; invoice entered and issued through the form".
 
@@ -50,6 +50,19 @@ the fixed screen), then reach the screen by a foundation path above and take the
 blocking defect may stay visible in the screenshot as long as the row's required content is readable. When the
 orchestrator tells you the blocker is on the branch, `git -C <worktreeRoot> rebase <branch>` (commit first), restart
 your server and retake only the rows that still lack evidence.
+
+## A defect that blocks your verification
+Your rows are scored only when their verification runs (organizer scripts, MVS scenarios, required evidence). When
+a defect outside your change stops it (a page that never settles, a crash, a screen that does not load), decide
+who owns the defect:
+- **Owned by another item**: an item in the brief's `otherItems` (or the orchestrator's note) describes it. Do not fix
+  it; work around it by a foundation path above, or wait for its fix on the branch ("When another item blocks your
+  evidence").
+- **Owned by nobody** (no item describes it): it is part of your item. Make the smallest change that lets your
+  verification run as written, in its own commit, run the existing tests again, and name it in the engineering
+  record (defect, cause, fix). Never change the organizer scripts or their reports instead.
+A row is never FAIL or NOT_RUN only because such a blocker exists while time remains: fix it or work around it,
+then run the verification.
 
 ## Heavy items (brief `heavy: true`)
 The organizer marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
@@ -117,7 +130,9 @@ Read the brief's "Grading" and "Submission" sections first; they decide what to 
    Node script (complete sets, earliest timestamps), never by eye. **Log searches are paged** (5APIQYXW: "total": 38,
    "returned": 20): page with the tool's offset/page parameter until you hold every entry (`returned` summed = `total`),
    or narrow the query until `returned == total`; a set built from the first page is incomplete and scores 0. Strings exactly as logged. Speed is scored: finish
-   as soon as every field is backed by the data.
+   as soon as every field is backed by the data. Write the answer with the helper tool `answer_item`
+   (`values` = the fields, `record`, `evidence` = your script output): it fills the template, validates, commits and
+   writes DONE.json in one call.
 3. **Value question** (TASK). First decide what is asked:
    - "which value does the source / the code compute" → RUN the issued code on the official QA data (a script that
      calls the real function, or the real flow on the test database), not by reading and reasoning.
@@ -125,7 +140,8 @@ Read the brief's "Grading" and "Submission" sections first; they decide what to 
      currency...) → compute it from the CURRENT standard with a small script on the QA data, then run the code too.
      If they differ, the standard wins: the code may hold a defect another item fixes (cascade trap). Say so in the
      engineering record.
-   Apply the normalization literally. Deadlines are short (8 minutes).
+   Apply the normalization literally. Deadlines are short (8 minutes). Write the answer with `answer_item` (values,
+   record, evidence) instead of editing submit.json, validating, committing and writing DONE.json by hand.
 4. **Behaviour bug / feature with UI** (layout, currency, CSV export). Take any "before fixing" evidence BEFORE
    changing code. Load the official QA data with the provided loader. Screenshots with `.mtm-tmp/tools/shot.mjs`.
    **Organizer scripts are the grading instruments** (`<ID>-layout-check.mjs`, `-run-checks.mjs`, `-signed-out-check.mjs`,
