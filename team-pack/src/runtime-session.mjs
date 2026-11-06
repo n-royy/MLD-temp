@@ -36,8 +36,52 @@ const SOON_MINUTES = 3;
 const HEAVY_FINAL_MINUTES = 1.5;
 // Incident fast path: a revealed PI is started in a free slot and its logs and rules are collected by code at once.
 const INCIDENT_AUTO = process.env.MTM_INCIDENT_FASTPATH !== '0';
-// Items the organizer marks as heavy (title prefix, e.g. "[Heavy Task] ..."): expensive, scheduled last.
-const isHeavy = item => /^\s*\[\s*heavy\b[^\]]*\]/i.test(String(item?.title ?? item?.backlogTitle ?? item?.name ?? ''));
+/**
+ * Effort profile of an item, read from its brief alone (the organizer no longer marks heavy items). Generic signals,
+ * weighted on 32PTEO8K (TASK-10: 9, TASK-12: 8, every other item <= 1) and checked on the Solova practice briefs
+ * (every item <= 2): a compressed or large data file to process, a stated volume, data-cleaning traps, an aggregated
+ * multi-field answer, points above the median of the same type, an organizer hint, a long multi-requirement brief.
+ * level: XL (score >= 5, heavy: the s5 worker), L (3-4, heavy candidate: s5 when it is free), M/S otherwise.
+ * `sizes` maps referenced data paths to their size in bytes when the files are present.
+ */
+export function effortOf(item, peers = [], sizes = {}) {
+  const text = String(item?.descriptionMd ?? item?.description ?? '');
+  const reasons = [];
+  let score = 0;
+  const add = (n, why) => { score += n; reasons.push(why); };
+  const archive = /\bdata\/[^\s`'")]+\.(gz|zip|tar|tgz|bz2|xz|7z)\b/i.exec(text) || /\b(gzip|g?zipped|compressed|decompress\w*)\b/i.exec(text);
+  const dataFile = /\bdata\/[^\s`'")]+\.(json|ndjson|jsonl|csv|tsv|xml|log|txt|parquet|sqlite|db)\b/i.exec(text);
+  if (archive) add(3, `compressed data (${archive[0]})`);
+  else if (dataFile) add(1, `data file (${dataFile[0]})`);
+  const big = Object.entries(sizes).find(([, n]) => n >= 300 * 1024);
+  if (big) add(1, `data file of ${Math.round(big[1] / 1024)} KB (${big[0]})`);
+  const volume = /\b(\d{1,3}(?:[,.\s]\d{3})+|\d{5,})\s+(records|rows|entries|events|lines|transactions|items|documents|files)\b/i.exec(text);
+  if (volume) add(2, `volume: ${volume[0]}`);
+  if (/\b(very large|large (dump|archive|export|log|data ?set)|millions?)\b/i.test(text)) add(1, 'large data');
+  const traps = [...new Set((text.match(/\b(dedup\w*|duplicates?|revers(ed|al)|supersed\w*|noise|retried|canary|shadow|healed|void|stale|out of order)\b/gi) ?? [])
+    .map(w => w.toLowerCase()))];
+  if (traps.length >= 3) add(2, `data traps: ${traps.slice(0, 5).join(', ')}`);
+  else if (traps.length) add(1, `data trap: ${traps.join(', ')}`);
+  const req = (text.match(/##\s*(Requirements|Question)[\s\S]*?(?=\n##\s|$)/i) ?? [''])[0];
+  const fields = (req.match(/^\s*[-*]\s+\*\*[\w.]+\*\*/gm) ?? []).length;
+  if (fields >= 4 && /\b(per\s+\w+|for every\s+\w+|one object|as an object|sorted by|grouped by)\b/i.test(req)) add(1, `${fields} aggregated fields`);
+  const numbered = (req.match(/^\s*\d+\.\s/gm) ?? []).length;
+  if (numbered >= 6) add(1, `${numbered} requirements`);
+  // Only a hint about the item itself ("heavy task", "expensive item"), never "a heavy library" (Solova CR-01).
+  if (/\b(heavy|expensive|token[- ]intensive|long[- ]running|time[- ]consuming)\s+(task|item|backlog item|job|audit|analysis|computation|processing)\b/i.test(text)) add(2, 'organizer hint');
+  const type = String(item?.backlogType ?? item?.type ?? '').toUpperCase();
+  const same = peers.filter(i => String(i.backlogType ?? i.type ?? '').toUpperCase() === type);
+  if (same.length >= 3) {
+    const pts = same.map(i => Number(i.points) || 0).sort((a, b) => a - b);
+    const med = pts[Math.floor((pts.length - 1) / 2)];
+    if (Number(item?.points) > med) add(1, `points ${item.points} > median ${med} of ${type}`);
+    const lens = same.map(i => String(i.descriptionMd ?? i.description ?? '').length).sort((a, b) => a - b);
+    const ml = lens[Math.floor((lens.length - 1) / 2)];
+    if (text.length >= 3500 && text.length >= 1.6 * ml) add(1, `long brief (${text.length} chars)`);
+  }
+  const level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
+  return { score, level, heavy: score >= 5, candidate: score >= 3 && score < 5, reasons };
+}
 const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
@@ -227,7 +271,7 @@ export class MatchSession {
     }
     const left = this.#minutesLeft(item);
     if (left !== null) out.minutesLeft = left;
-    if (isHeavy(item)) out.heavy = true;
+    if (this.#isHeavy(item)) out.heavy = true;
     return out;
   }
 
@@ -332,6 +376,24 @@ export class MatchSession {
     return null;
   }
 
+  /** Effort profile of an item (see effortOf); data file sizes are read when the files are in the checkout. */
+  #effort(item) {
+    if (!item) return { score: 0, level: 'S', heavy: false, candidate: false, reasons: [] };
+    const text = String(item.descriptionMd ?? item.description ?? '');
+    const key = `${item.key}:${text.length}:${item.points}`;
+    this.effortCache ??= new Map();
+    if (this.effortCache.has(key)) return this.effortCache.get(key);
+    const sizes = {};
+    for (const m of text.matchAll(/\bdata\/[^\s`'")]+/g)) {
+      try { const f = join(this.cfg?.matchRoot ?? '', m[0]); if (this.cfg?.matchRoot && existsSync(f)) sizes[m[0]] = statSync(f).size; } catch { /* ignore */ }
+    }
+    const e = effortOf(item, this.#items(), sizes);
+    this.effortCache.set(key, e);
+    return e;
+  }
+
+  #isHeavy(item) { return this.#effort(item).heavy; }
+
   /** True when the item's finished result waits for the open PI (see #piHold). */
   #heldForPi(key, hold = this.#piHold(), deps = null) {
     if (!hold.length || hold.includes(key)) return false;
@@ -346,7 +408,7 @@ export class MatchSession {
     for (const s of Object.values(this.#slots())) {
       if (!s.item) continue;
       const item = this.#items().find(i => i.key === s.item);
-      const heavy = isHeavy(item);
+      const heavy = this.#isHeavy(item);
       const soon = heavy ? HEAVY_FINAL_MINUTES : SOON_MINUTES;
       const extra = heavy ? { heavy: true, action: 'INTEGRATE_LAST_COMMIT_NOW' } : {};
       const own = this.#minutesLeft(item);
@@ -379,7 +441,13 @@ export class MatchSession {
     const left = this.#minutesLeft(item);
     if (left !== null && !item.submission) out.minutesLeft = left;
     if (item.submission) out.submitted = true;
-    if (isHeavy(item)) out.heavy = true;
+    const effort = this.#effort(item);
+    if (effort.level !== 'S') out.effort = effort.level;
+    if (effort.heavy) out.heavy = true;
+    if (effort.candidate) out.heavyCandidate = true;
+    if ((effort.heavy || effort.candidate) && !item.submission) out.effortReasons = effort.reasons.slice(0, 4);
+    const kind = this.#gradingKind(item);
+    if (kind) out.gradingKind = kind;
     const slot = this.#hasSlots() ? this.#slotOf(item.key) : null;
     if (slot) out.slot = slot.name;
     const dep = deps.get(item.key);
@@ -1039,7 +1107,7 @@ export class MatchSession {
   #checkOwnSlot(key) {
     const item = this.#items().find(i => i.key === key);
     const type = String(item?.backlogType ?? item?.type ?? key.split('-')[0]).toUpperCase();
-    if (!['BUG', 'CR'].includes(type) || isHeavy(item)) return;
+    if (!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) return;
     const workers = Object.values(this.#slots()).filter(s => s.name !== OWN_SLOT && s.name !== HEAVY_SLOT);
     if (!workers.length) return; // single-agent fallback: no worker slot exists
     const free = workers.find(s => !s.item);
@@ -1117,7 +1185,7 @@ export class MatchSession {
       baselineRepair: this.#baselineInfo(),
       // Background jobs started during preparation (slot install, baseline run) may still be running at game start.
       // Wall-clock limits for a worker that budgets its own time (heavy items, partial submission).
-      heavy: isHeavy(item), ...this.#timeLimits(item),
+      heavy: this.#isHeavy(item), effort: this.#effort(item), ...this.#timeLimits(item),
       // The other revealed items, so a worker can tell a defect another item owns from one nobody owns.
       otherItems: this.#items().filter(i => i.key !== key).map(i => ({ key: i.key, title: i.title ?? null })),
       // Items this brief names (its result may need their changes on the branch) and items that name this one.
@@ -1133,6 +1201,8 @@ export class MatchSession {
       // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
       ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
       issuedRevision: c.environmentRevision ?? null,
+      // How the organizer scores this item, word for word: the worker plans from it, whatever kind of item it is.
+      grading: (m => m ? clip(m[1].trim().replace(/\s+/g, ' '), 1500) : null)(String(item?.descriptionMd ?? item?.description ?? '').match(/#+\s*(?:Grading|Score|Scoring)\b([\s\S]*?)(?=\n#+\s|$)/i)),
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
     writeFileSync(join(dir, 'brief.json'), JSON.stringify(brief, null, 2));
     try { await this.#publishProxy(s.matchRoot); } catch { /* workers fall back to the orchestrator's saved files */ }
