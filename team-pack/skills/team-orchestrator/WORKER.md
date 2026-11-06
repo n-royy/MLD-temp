@@ -80,6 +80,14 @@ with your submission"), the other item's changes must be in your commit:
 Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
 your deadline (your `stopBy` already uses it), and commit the part they need first.
 
+## An item of a kind no section here names
+The brief's `grading` is the organizer's scoring text. Plan from it whatever the item is: list what is scored (each
+field, row, file, requirement or hidden check it names), how each part is checked (exact comparison, replay, import,
+hidden tests on other data), and secure the parts one by one, committing a valid answer after each (status
+`PARTIAL` until the last). Prefer running the real code or the real data over reasoning about them. When `grading`
+rewards more than passing your own checks, apply the closest quality gate below. `effort` in the brief (level and
+reasons) tells you how much of your time the organizer expects the item to take: plan for it.
+
 ## Quality gate (brief `qualityGate`)
 Some items are graded on more than their rows: a test suite by the broken builds it detects, a data pack by every
 requirement, a feature by hidden tests on the official data. Rows that pass are then not the end: an item submitted
@@ -117,7 +125,7 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
 
 ## Heavy items (brief `heavy: true`)
-The organizer marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
+The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
 aim for every row, with full quality (tokens are not the limit here; time is). Points come per test-case row, so
 secure rows one by one. The brief gives `stopBy` (ISO time: the earlier of the item deadline and the match end);
 check the clock with `Get-Date` (or `new Date()`) before each step.

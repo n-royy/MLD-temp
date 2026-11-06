@@ -66,3 +66,5 @@ Short rules learned from real matches. Each line names where it came from. They 
 - While a PI is open, finished items without a deadline wait; deadline items and their prerequisites do not.
 - Rows passing is not the end when the grading rewards more (detection by broken builds, data requirements, hidden
   tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
+- The organizer no longer marks heavy items: read the effort profile (board effort/heavy/heavyCandidate with reasons:
+  large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)

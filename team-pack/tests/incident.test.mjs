@@ -230,21 +230,30 @@ test('with every slot busy the PI is not started but its data is still collected
   } finally { h.close(); }
 });
 
-test('heavy items: flagged on the board from the title prefix; the brief carries heavy and stopBy', async () => {
+// A brief shaped like the heavy items of 32PTEO8K (no title prefix any more: the helper reads the brief).
+const HEAVY_DESC = '# Settlement archive audit\n## Context\nThe archive holds intraday and end-of-day records; some were reversed, ' +
+  'some rule documents are superseded.\n## Requirements\n1. The archive is `data/settlement-archive.json.gz`: 50,000 records.\n' +
+  '2. Decompress it outside src/.\n3. Report:\n   - **activeCodes**: codes.\n   - **validCount**: after deduplication.\n' +
+  '   - **voidCount**: reversed.\n   - **netMinor**: sum.\n   - **byAccount**: one object per account, sorted by accountId.\n## Grading\nEach field is compared exactly.';
+
+test('heavy items: recognised from the brief (no title prefix); the brief carries heavy, effort and stopBy', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1500, remainingSec: 900 };
-    gm.reveal({ key: 'CR-09', backlogType: 'CR', title: '[Heavy Task] Rebuild the reporting module', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
-    gm.reveal({ key: 'CR-10', backlogType: 'CR', title: 'Heavy rain icon on the dashboard', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    gm.reveal({ key: 'CR-09', backlogType: 'CR', title: 'Settlement archive audit', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
+    gm.reveal({ key: 'CR-10', backlogType: 'CR', title: '[Heavy Task] Rain icon on the dashboard', deadlineMinutes: null, revealedElapsedSec: 1500, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'Show a rain icon.' });
     const board = await h.call('refresh_match');
     assert.equal(board.items.find(i => i.key === 'CR-09').heavy, true);
-    assert.equal(board.items.find(i => i.key === 'CR-10').heavy, undefined, 'only the bracket prefix counts');
+    assert.equal(board.items.find(i => i.key === 'CR-10').heavy, undefined, 'a title prefix alone no longer counts');
+    const compact = (await h.call('wait_for_update', { noWait: true })).board.items.find(i => i.key === 'CR-09');
+    assert.equal(compact.effort, 'XL'); assert.ok(compact.effortReasons.some(r => /compressed data/.test(r)), JSON.stringify(compact));
     await h.call('release_slot', { slot: 's2' });
     const s = await h.call('start_work', { backlogItemKey: 'CR-09', slot: 's2' });
     assert.equal(s.heavy, true);
     const brief = JSON.parse(readFileSync(s.briefFile, 'utf8'));
-    assert.equal(brief.heavy, true); assert.equal(brief.deadlineAt, null);
+    assert.equal(brief.heavy, true); assert.equal(brief.deadlineAt, null); assert.equal(brief.effort.level, 'XL');
+    assert.match(brief.grading, /compared exactly/);
     const left = (Date.parse(brief.stopBy) - Date.now()) / 60000;
     assert.ok(left > 14 && left < 15.5, `stopBy in ${left} min`); assert.equal(brief.stopBy, brief.matchEndsAt);
   } finally { h.close(); }
@@ -301,7 +310,7 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     assert.equal(r.slots.length, 5);
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
-    gm.reveal({ key: 'CR-11', backlogType: 'CR', title: '[Heavy Task] Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
     await h.call('refresh_match');
     const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5' });
     assert.equal(s.slot, 's5'); assert.equal(s.heavy, true);

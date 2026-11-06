@@ -82,6 +82,22 @@ idle; BUG-01 alone takes 10-19 minutes, so BUG-02 would close before it started.
 risk (a dependent item verified while the blocker was unfixed). Both are solved by running items in parallel and
 syncing the dependent slot when the blocker lands, not by queueing.
 
+### Item profile (any kind of item, including kinds not seen before)
+The helper reads every brief and puts a profile on each board entry, so you plan without opening briefs:
+`type`, `points`, `minutesLeft` / `effectiveMinutesLeft` (urgency, own deadline or as a prerequisite),
+`dependsOn` / `prerequisiteOf`, `effort` (`S`/`M`/`L`/`XL` from the brief: data to process and its volume,
+data-cleaning traps, aggregated answers, points above the same type, a long multi-requirement brief),
+`heavy` (XL) or `heavyCandidate` (L) with `effortReasons`, and `gradingKind` (what is scored beyond the rows:
+`SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
+scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
+items: the profile is the signal. Decide with it in this order, for every item:
+1. **Urgency**: PI (by you), deadline items and their prerequisites, nearest first.
+2. **Effort**: `heavy` goes to the s5 heavy worker at once; `heavyCandidate` goes to s5 when s5 is free, otherwise
+   it is an ordinary item. Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
+3. **Value**: the rest by points per expected effort (S before M at equal points).
+4. **Grading**: an item with `gradingKind` keeps its slot for its quality gate (the "Quality gate" paragraph of the SLOT_DONE steps; WORKER.md "Quality gate"):
+   never treat early rows passing as the end.
+
 When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
@@ -99,7 +115,8 @@ When a wave appears (game start, or `newItems` on the board):
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
    a value TASK with no free worker slot you do in s4 ("Doing an item yourself"); a BUG/CR takes the next worker
    slot that frees (`integrate_item` with `next` on the slot whose item finishes first), never s4.
-   **Heavy items** (`heavy: true`: the organizer marks them as expensive in tokens and time) belong to the
+   **Heavy items** (`heavy: true`: the helper's effort profile from the brief says XL: large data to process,
+   traps, aggregated answers; `heavyCandidate: true` (L) when s5 is free) belong to the
    dedicated **heavy worker in slot s5**, a 5th agent that only does heavy items, so they never take a slot from the
    other items and never wait for the end of the backlog. As soon as a heavy item appears (and after the PI, if one
    appeared in the same wave): `start_work` with `slot: "s5"` and spawn one agent of type **`team_heavy_worker`**
@@ -109,6 +126,9 @@ When a wave appears (game start, or `newItems` on the board):
    done or until stopBy)`. It works the item through to the end; integrate it on
    `SLOT_DONE` like any item. Its final call is `DEADLINE_SOON` with `heavy: true` about 1.5 minutes before its
    deadline or the match end ("Safety net"): integrate its last commit then.
+   - A `heavyCandidate` takes s5 only when s5 is free and no `heavy` item waits; otherwise it is an ordinary item.
+     Late signal: a worker's DONE.json or a DEADLINE_SOON shows an ordinary item was much larger than its profile
+     (rows still open at stopBy): note it in LESSONS candidates after the match, nothing to do in the match.
    - One heavy item at a time in s5. A second heavy item while s5 is busy waits for s5 (`integrate_item` with `next`
      when the first one is submitted); if a worker slot s1-s3 is free and no other open item waits for one, it may
      take that slot instead (same spawn note).
