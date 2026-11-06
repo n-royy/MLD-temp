@@ -55,7 +55,7 @@ background jobs that continue after READY and are picked up in the game (`JOBS_D
    `wait_agent` until it answers. `ENVIRONMENT` `COMPLETED` when it says OK (BLOCKED: report `BLOCKED` with its
    one-line error); `BUILD` `COMPLETED` when the build passed and `git -C <checkoutRoot> status --porcelain
    --untracked-files=no` is empty (check it yourself).
-5. **Slots** - `prepare_slots` with `count: 5` (s1-s3 for workers, s4 for your own PI/TASK work, s5 for the heavy-item worker) and `copyFiles` = the env file(s) from the reply, each with
+5. **Slots** - `prepare_slots` with `count: 6` (s1-s3 and s6 for the 4 workers, s4 for your own PI/TASK work, s5 for the heavy-item worker) and `copyFiles` = the env file(s) from the reply, each with
    `replace` turning the TEST database name into `<name>_{slot}` (and the app database too only when the env-require
    README demands one per working copy) and the app port `<p>` into `<p + 10·n>` (write the port as text, e.g.
    `"PORT=3000": "PORT=30{n}0"` style). It does not change tracked files.

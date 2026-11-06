@@ -119,10 +119,10 @@ It exists only as an image: \`data/cfo-audit-voucher-2025-10.png\` in the match 
 3. Do not change the application source for this item.`)
 ];
 
-test('32PTEO8K without the title prefix: exactly TASK-10 and TASK-12 are heavy, nothing else is even a candidate', () => {
+test('32PTEO8K without the title prefix: exactly TASK-10 and TASK-12 are heavy', () => {
   const r = Object.fromEntries(BRIEFS.map(b => [b.key, effortOf(b, BRIEFS)]));
   assert.deepEqual(Object.keys(r).filter(k => r[k].heavy).sort(), ['TASK-10', 'TASK-12']);
-  assert.deepEqual(Object.keys(r).filter(k => r[k].candidate), []);
+  assert.ok(Object.keys(r).filter(k => r[k].candidate).every(k => ['CR-07', 'BUG-11'].includes(k)));
   assert.ok(r['TASK-10'].score >= 8 && r['TASK-12'].score >= 7, JSON.stringify([r['TASK-10'], r['TASK-12']]));
   for (const k of Object.keys(r).filter(k => !r[k].heavy)) assert.ok(r[k].score <= 2, `${k}: ${JSON.stringify(r[k])}`);
   assert.ok(r['TASK-10'].reasons.some(x => /compressed data/.test(x)) && r['TASK-10'].reasons.some(x => /50,000 records/.test(x)));
@@ -138,4 +138,51 @@ test('a title prefix or the word "heavy" alone does not make an item heavy; pres
   assert.ok(hinted.reasons.includes('organizer hint'));
   const sized = effortOf(T('TASK-01', 'TASK', 60, 'Read `data/ledger.csv` and report the totals.'), [], { 'data/ledger.csv': 2_000_000 });
   assert.equal(sized.score, 2); assert.equal(sized.level, 'M');
+});
+
+// 1.5.13: code-heavy signals. Real requirement texts of the two largest code items of 32PTEO8K.
+const CR07 = T('CR-07', 'CR', 100, `# Reconciliation audit page
+## Requirements
+1. **Server.** Add \`packages/loot-core/src/server/budget/reconciliation-audit.ts\` exporting \`async function buildReconciliationAudit({ month })\`, and register it on the budget app as handler \`budget/reconciliation-audit\`.
+2. **Screen.** Route \`/reconciliation-audit\`, reached by a sidebar link named **Reconciliation audit**. A month input with \`data-testid="reconciliation-audit-month"\`. One row per category, each with \`data-testid="reconciliation-audit-row"\`. An element with \`data-testid="reconciliation-boundary-net"\`. A button **Export Audit CSV**.
+3. Load the official test data for \`CR-07\` from the test data store into a fresh budget.
+4. Add automated tests for the change in new files.
+## Acceptance criteria
+1. The audit follows the current standard.
+2. The page shows the rows and boundary net and downloads the exact CSV.
+3. The evidence CSV and \`auditSummary\` are the audit of the official test data.
+## Grading
+TC-01 is replayed with \`CR-07-mvs.test.ts\`. Hidden tests check the server audit in many more cases, and load the official test data with your submitted source.`);
+const BUG11 = T('BUG-11', 'BUG', 100, `# Support ticket SUP-9901: a customer's books do not match the bank
+## Requirements
+1. Find the causes with the Company Tools, and fix the application source. The customer's problems may have more than one cause.
+2. Reproduce the customer's case with your fixed application.
+3. Keep public handler names, their arguments, the database schema and migrations.
+4. Add automated tests for the change in new files.
+## Acceptance criteria
+1. Statement amounts follow the import amount standard.
+2. Imported payee names find existing payees as the payee matching standard says.
+3. Split rules allocate as the finance allocation rule says.
+4. Both sides of a transfer stay consistent when either side moves to another account.
+5. The reported figures are those of a correct application for the customer's data.
+## Grading
+Organizer hidden tests then check many more cases, including the whole pipeline on other data.`);
+const SMALL_BUG = T('BUG-09', 'BUG', 80, `# Schedule status on the edge of the upcoming window
+## Requirements
+1. Fix the schedule status rule in the application source.
+2. Rebuild the app and verify it in a browser.
+## Acceptance criteria
+1. With the default window, a schedule due in exactly 7 days is Upcoming.
+2. With the window set to 2 weeks, a schedule due in exactly 14 days is Upcoming.
+## Grading
+The organizer replays the scenarios in a browser, and hidden tests check the status rule.`);
+
+test('code-heavy items (several parts, many touchpoints, several causes, hidden tests) become heavy candidates', () => {
+  const peers = [CR07, BUG11, SMALL_BUG];
+  const cr = effortOf(CR07, peers), bug = effortOf(BUG11, peers), small = effortOf(SMALL_BUG, peers);
+  assert.equal(cr.level, 'L', JSON.stringify(cr)); assert.ok(cr.reasons.some(x => /parts/.test(x)) && cr.reasons.some(x => /touchpoints/.test(x)));
+  assert.equal(bug.level, 'L', JSON.stringify(bug)); assert.ok(bug.reasons.includes('several causes'));
+  assert.ok(small.score <= 1, JSON.stringify(small));
+  const huge = effortOf({ ...CR07, descriptionMd: CR07.descriptionMd + '\n5. **Data.** Migrate \`packages/a/x.ts\`, \`packages/a/y.ts\`, \`/admin/audit\`.\nTC-01 TC-02 TC-03 TC-04 TC-05 TC-06. Several causes.' }, peers);
+  assert.equal(huge.heavy, true, JSON.stringify(huge));
 });

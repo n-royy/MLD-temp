@@ -11,7 +11,7 @@ and deadline items first and never queue them behind another item (dependencies 
 dependent slot when the blocker lands, not by waiting).
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any worker starts.
 Background jobs from preparation (slot installs, baseline run) never delay the first spawns; handle JOBS_DONE as SKILL.md 2b says. Spawn subagents only with the
-native spawn_agent tool and fork_turns "none"; at most 3 workers (s1-s3) plus the heavy worker (s5) run at once. Keep your own context small.
+native spawn_agent tool and fork_turns "none"; at most 4 workers (s1-s3, s6) plus the heavy worker (s5) run at once. Keep your own context small.
 Never launch another Codex CLI, Claude Code CLI, app-server or independent CLI process for match work.
 Stay inside matchRoot (and the slots) for source, answers and evidence; never force-push or change the remote.
 Write nothing between waits. Never ping a working subagent (no send_message status checks): wait with wait_for_update in the 270 s cell; a

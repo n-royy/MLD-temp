@@ -49,13 +49,13 @@ const TOOLS = [
       '(plus every KB article they reference) into <slotMatchRoot>/.mtm-tmp/<ID>/incident/: digest.md (coverage, services, ' +
       'releases, flags, entities), logs.json (all entries, by time), entities.json (timeline per invoice/ticket id), kb.md. ' +
       'Returns slot, briefFile, answerFile, validateCommand, doneFile and the coverage. refresh re-collects.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
-    description: 'Create (or keep, on resume) up to 5 slots (s1-s3 for workers, s4 for the orchestrator itself, s5 for the heavy-item worker): Git worktrees of the assigned repository at ' +
+    description: 'Create (or keep, on resume) up to 6 slots (s1-s3 and s6 for the 4 workers, s4 for the orchestrator itself, s5 for the heavy-item worker): Git worktrees of the assigned repository at ' +
       '<checkoutRoot>.slots/sN on local-only branches mtm-slot/sN (never pushed). copyFiles copies git-ignored local files ' +
       '(e.g. src/.env) from matchRoot into each slot; replace {"find":"with {slot}"} makes per-slot values such as database ' +
       'names or ports. Does not change tracked files of the checkout.',
-    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 5 },
+    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 6 },
       copyFiles: { type: 'array', maxItems: 10, items: { anyOf: [{ type: 'string' },
         obj({ path: { type: 'string' }, replace: { type: 'object', additionalProperties: { type: 'string' } } }, ['path'])] } } }) },
   { name: 'start_work', handler: a => session.startWork(a),
@@ -63,8 +63,8 @@ const TOOLS = [
       'startInstruction, submitTemplate, MVS and requiredTestCases; creates <matchRoot>/answers/<ID>/submit.json from the ' +
       'template and the evidence/ folder; logs IN_PROGRESS and BACKLOG_TESTS NOT_RUN. No get_backlog_item call is needed ' +
       'afterwards. Calling again for a started item is a harmless replay.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5'],
-      description: 'Slot (s1-s3 for workers, s4 when you do the item yourself, s5 for a heavy item and its dedicated worker). The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'],
+      description: 'Slot (s1-s3 and s6 for workers, s4 when you do the item yourself, s5 for a heavy item and its dedicated worker). The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
         'summary with briefFile/doneFile for the worker instead of the whole brief.' } }, ['backlogItemKey']) },
   { name: 'integrate_item', handler: a => session.integrateItem(a),
@@ -86,7 +86,7 @@ const TOOLS = [
     inputSchema: obj({ backlogItemKey: key, summary: { type: 'string', description: 'One line: failing test, cause, fix.' } }, ['backlogItemKey']) },
   { name: 'release_slot', handler: a => session.releaseSlot(a),
     description: 'Free a slot without submitting (item dropped). Its worktree is reset at the next start_work.',
-    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5'] } }, ['slot']) },
+    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] } }, ['slot']) },
   { name: 'validate_answer', handler: a => session.validateAnswer(a),
     description: 'Check the working-tree answers/<ID>/submit.json against the submit schema delivered at Start Work, ' +
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',
