@@ -22,9 +22,12 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-5]$/;
+const SLOT_NAME = /^s[1-6]$/;
 // s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
 const HEAVY_SLOT = 's5';
+// Worker slots for ordinary items (BUG, CR, TASK): s1-s3, plus s6, the 4th worker (1.5.13: items waited 7-18
+// minutes for a worker slot in 5FLQMNAA and 32PTEO8K while quality gates keep slots longer).
+const WORKER_SLOTS = ['s1', 's2', 's3', 's6'];
 // s1..s3 are worker slots; s4 is the orchestrator's own slot (PI or short TASK when every worker is busy), so its
 // work never dirties the main checkout that integrate_item needs clean.
 const OWN_SLOT = 's4';
@@ -69,6 +72,23 @@ export function effortOf(item, peers = [], sizes = {}) {
   if (numbered >= 6) add(1, `${numbered} requirements`);
   // Only a hint about the item itself ("heavy task", "expensive item"), never "a heavy library" (Solova CR-01).
   if (/\b(heavy|expensive|token[- ]intensive|long[- ]running|time[- ]consuming)\s+(task|item|backlog item|job|audit|analysis|computation|processing)\b/i.test(text)) add(2, 'organizer hint');
+  // Code work (1.5.13): how much of the application one item must change and prove. Weighted on 32PTEO8K and the
+  // Solova practice briefs so that the largest code items (CR-07 server + screen + official data, BUG-11 several
+  // causes, Solova CR-01 export) reach L, a heavy candidate, and ordinary BUG/CR stay below.
+  const parts = new Set((req.match(/\*\*[A-Z][\w /-]{2,24}\.\*\*/g) ?? []).map(x => x.toLowerCase())).size;
+  if (parts >= 2) add(1, `${parts} parts (server, screen...)`);
+  const touch = new Set([
+    ...(text.match(/`(?:packages|src|apps|app|lib|server|client)\/[^`\s]+`/g) ?? []),
+    ...(text.match(/`\/[a-z][\w/-]*`/g) ?? []),
+    ...(text.match(/data-testid=\\?"[^"\\]+/g) ?? [])]).size;
+  if (touch >= 6) add(2, `${touch} code touchpoints (files, routes, test ids)`);
+  else if (touch >= 4) add(1, `${touch} code touchpoints`);
+  if (/\b(more than one cause|several (causes|defects|ways)|multiple (causes|defects|root causes))\b/i.test(text)) add(1, 'several causes');
+  const criteria = ((text.match(/##\s*Acceptance criteria[\s\S]*?(?=\n##\s|$)/i) ?? [''])[0].match(/^\s*\d+\.\s/gm) ?? []).length;
+  if (criteria >= 5) add(1, `${criteria} acceptance criteria`);
+  const scenarios = new Set(text.match(/\bTC-\d{2}\b/g) ?? []).size;
+  if (scenarios >= 5) add(1, `${scenarios} test scenarios`);
+  if (/hidden tests?[^.]{0,80}\b(many more|more cases|other data|whole pipeline)/i.test(text)) add(1, 'hidden tests beyond the scenarios');
   const type = String(item?.backlogType ?? item?.type ?? '').toUpperCase();
   const same = peers.filter(i => String(i.backlogType ?? i.type ?? '').toUpperCase() === type);
   if (same.length >= 3) {
@@ -527,7 +547,7 @@ export class MatchSession {
       try {
         const all = this.#slots();
         const free = n => all[n] && !all[n].item && existsSync(join(all[n].path ?? '', '.git'));
-        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null);
+        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : WORKER_SLOTS.find(free) ?? null);
         if (slot && c.apiKey) {
           try { start = await this.startWork({ backlogItemKey: key, slot }); }
           catch (error) { startError = `${error.code ?? 'START_WORK_FAILED'}: ${clip(String(error.message), 160)}`; slot = null; }
@@ -595,7 +615,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s5');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s6');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -1056,7 +1076,7 @@ export class MatchSession {
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 5) fail('INVALID_SLOT_COUNT', 'count must be 1..5 (s1-s3 for the 3 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
+    if (!Number.isInteger(n) || n < 1 || n > 6) fail('INVALID_SLOT_COUNT', 'count must be 1..6 (s1-s3 and s6 for the 4 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
@@ -1118,7 +1138,7 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3 (workers), s4 (orchestrator) or s5 (heavy worker)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3, s6 (workers), s4 (orchestrator) or s5 (heavy worker)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);

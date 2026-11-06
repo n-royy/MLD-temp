@@ -302,12 +302,12 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('slot s5 is the heavy worker slot; a PI is never placed there', async () => {
+test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI is never placed in s5', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    const r = await h.call('prepare_slots', { count: 5 });
-    assert.equal(r.slots.length, 5);
+    const r = await h.call('prepare_slots', { count: 6 });
+    assert.equal(r.slots.length, 6); assert.equal(r.slots[5].slot, 's6');
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
     gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
@@ -317,6 +317,7 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
     const board = await h.call('refresh_match');
     assert.ok(board.slots.some(x => x.slot === 's5' && x.role === 'heavy-worker' && x.item === 'CR-11'));
+    assert.ok(board.slots.some(x => x.slot === 's6' && x.role === 'worker'), JSON.stringify(board.slots));
     await h.call('release_slot', { slot: 's5' });
     for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
     gm.reveal({ ...PI, key: 'PI-05' });

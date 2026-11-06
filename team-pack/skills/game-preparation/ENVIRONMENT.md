@@ -20,7 +20,7 @@ only the orchestrator writes progress events.
   the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
   `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
   `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
-  `install-s1`..`install-s5` for slots, `baseline` for the baseline test run. Run independent jobs together.
+  `install-s1`..`install-s6` for slots, `baseline` for the baseline test run. Run independent jobs together.
 - **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
@@ -94,13 +94,14 @@ Rules for installs:
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
 ## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
-With one `start_jobs` call: `install-s1`..`install-s5` (in each slot app folder, the same locked install plus
+With one `start_jobs` call: `install-s1`..`install-s6` (in each slot app folder, the same locked install plus
 `--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
 and E while they run.
-**Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs) and s5 (heavy
-items) are needed later or not at all. Five installs at once share the disk and all finish late (5FLQMNAA: about 12
-minutes, so a worker waited ~4 minutes into the game). So `install-s4` and `install-s5` first wait, at most 10
-minutes, until `install-s1`..`install-s3` have an exit file, then install. PowerShell prefix for those two commands
+**Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs), s5 (heavy
+items) and s6 (the 4th worker, needed once the backlog outgrows three workers) come later. Six installs at once
+share the disk and all finish late (5FLQMNAA: about 12 minutes, so a worker waited ~4 minutes into the game). So
+`install-s4`, `install-s5` and `install-s6` first wait, at most 10 minutes, until `install-s1`..`install-s3` have an
+exit file, then install. PowerShell prefix for those three commands
 (`<jobsDir>` = the jobs `dir`):
 `$t=0; while ((@('install-s1','install-s2','install-s3') | Where-Object { -not (Test-Path "<jobsDir>\$_.exit") }) -and $t -lt 600) { Start-Sleep 5; $t+=5 }; ` The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
