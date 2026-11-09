@@ -67,6 +67,8 @@ background jobs that continue after READY and are picked up in the game (`JOBS_D
    baseline patch ready yes/no (+ one line), checkout clean yes/no.
    ```
    `wait_agent`. This step never blocks READY on slot installs or the baseline run: they keep running.
+   The scout stays open after this: Codex counts its thread whether it works or not, so in the game it is the first
+   agent the orchestrator reuses as a worker (its instructions allow it). Note its name for the game.
 7. **MATCH_LOGIN** - `login_match`, then `refresh_match`. It must show this match ID and team `teamId`. Do not act on
    any backlog item even if some are visible.
 8. Append readiness:
