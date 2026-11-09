@@ -37,6 +37,9 @@ Worker:
   fix its grade needs itself, from the start, and never waits; the cherry-pick is optional.
 - Deadline items commit after every passing row.
 - SUITE_DETECTION: one mutant for every rule id before any second one; mutate each section as soon as it is written.
+- SUITE_DETECTION matrix (from an audit of SC0E8AV2's TASK-08 suite, 31 cases, every rule id covered, 80/100): each
+  `or` alternative gets its own case; a move or replace is checked on both ends; an "every change" rule is checked
+  after each kind of change the specification lists.
 - DATA_REQUIREMENTS: the generator writes the manifest from the issued parser's and import's output.
 
 Tests: 27, all passing (new: one install at a time; safety-net commit of uncommitted work inside the slots test).
