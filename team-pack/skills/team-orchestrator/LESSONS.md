@@ -70,9 +70,12 @@ Short rules learned from real matches. Each line names where it came from. They 
   large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)
 - Agent threads are capped and an idle agent keeps its thread: reuse finished agents (the scout first) before
   spawning. (6QYJQAVJ: spawn refused with 4 sub-agents; the orchestrator did 6 items itself)
-- Assign deadline items before working a PI; when a deadline item has no slot, take one from a no-deadline item
-  (WRAP_UP). (6QYJQAVJ CR-07: 0/100)
+- Assign deadline items in the first cell of a wave, then work the PI yourself at once; never give a PI to a worker.
+  Wrap up only a worker already in its quality gate. (6QYJQAVJ CR-07 0/100; 6YOBNM4Z PI 20 min, BUG-09 15/80)
 - Numbers read from an image are read twice from crops and checked against the team's answers.
   (6QYJQAVJ TASK-11: one transposed digit, 64/80)
 - A suite scored by broken builds must also fail on the issued source's real defects, with non-ASCII text variants.
   (6QYJQAVJ TASK-08: 80/100 despite 36/37 own mutants caught)
+- The heavy worker (high reasoning) is for XL items only; deadline and L items run faster on feature workers.
+  (6YOBNM4Z CR-07 56/100 on a heavy worker)
+- Evidence rows are proved, not abandoned: change the approach, not the target, while time remains. (6YOBNM4Z BUG-09)

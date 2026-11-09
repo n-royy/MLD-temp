@@ -302,7 +302,7 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI is never placed in s5', async () => {
+test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI takes s5 when it is the only free slot', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
@@ -324,7 +324,8 @@ test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI is never placed 
     await new Promise(r => setTimeout(r, 1100));
     const w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI');
-    assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
+    // 1.5.15: a PI takes any free slot, s5 included (6YOBNM4Z: PI-03 waited 10 minutes with no slot).
+    assert.equal(w.incident.slot, 's5', 'the PI takes the only free slot');
   } finally { h.close(); }
 });
 
@@ -451,7 +452,7 @@ test('1.5.14: an unstarted deadline item at risk is reported with free and preem
     item('BUG-41', 'BUG', null, 'Customer books.'),
     item('TASK-51', 'TASK', null, 'Read the voucher image `data/voucher.png` and report its figures.')
   ];
-  gm.state.clock = { elapsedSec: 600 + 6 * 60, remainingSec: 1500 }; // CR-47: 14 minutes left
+  gm.state.clock = { elapsedSec: 600 + 12 * 60, remainingSec: 1500 }; // CR-47: 8 minutes left (effort S needs 6 + 3)
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
@@ -459,14 +460,18 @@ test('1.5.14: an unstarted deadline item at risk is reported with free and preem
     await h.call('configure_session', { descriptors: [prepare, start] });
     for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
     await h.call('refresh_match');
-    for (const [k, s] of [['TASK-48', 's1'], ['BUG-49', 's2'], ['BUG-41', 's3']]) await h.call('start_work', { backlogItemKey: k, slot: s });
+    const st = {};
+    for (const [k, s] of [['TASK-48', 's1'], ['BUG-49', 's2'], ['BUG-41', 's3']]) st[k] = await h.call('start_work', { backlogItemKey: k, slot: s });
+    // 1.5.15: only a worker in its quality gate (phase GATE) may be wrapped up; BUG-49 is still on its rows.
+    writeFileSync(join(dirname(st['TASK-48'].doneFile), 'phase.json'), JSON.stringify({ phase: 'GATE' }));
+    writeFileSync(join(dirname(st['BUG-49'].doneFile), 'phase.json'), JSON.stringify({ phase: 'ROWS' }));
     const w = await h.call('wait_for_update', { noWait: true });
     assert.equal(w.reason, 'DEADLINE_AT_RISK', JSON.stringify(w).slice(0, 400));
     const r = w.atRisk.find(x => x.backlogItemKey === 'CR-47');
-    assert.ok(r && r.minutesLeft <= 15);
+    assert.ok(r && r.minutesLeft <= 9 && r.needMinutes === 6, JSON.stringify(r));
     assert.deepEqual(r.freeSlots.sort(), ['s5', 's6']); assert.equal(r.action, 'START_NOW_IN_FREE_SLOT');
     // BUG-41 is CR-47's prerequisite (it has the deadline through it): never a preemption candidate.
-    assert.deepEqual(r.preemptable.map(x => x.item).sort(), ['BUG-49', 'TASK-48']);
+    assert.deepEqual(r.preemptable.map(x => x.item), ['TASK-48']);
     assert.ok(!w.atRisk.some(x => x.backlogItemKey === 'BUG-41'), 'started items are not at risk');
     const again = await h.call('wait_for_update', { noWait: true });
     assert.notEqual(again.reason, 'DEADLINE_AT_RISK', 'reported once per item');

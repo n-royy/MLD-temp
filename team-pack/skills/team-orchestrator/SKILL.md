@@ -45,11 +45,11 @@ small: never paste briefs, diffs or logs into it.
 - **Agents are a pool, and a finished agent still holds its place.** Codex caps the agent threads (6QYJQAVJ:
   `collab spawn failed: agent thread limit reached` with 4 sub-agents: the idle preparation scout plus 3 workers; the
   heavy worker for TASK-10 was never created and you did 6 items yourself, one of them wrong). So:
-  - **Reuse before spawning.** An agent whose item is done (its DONE.json integrated, or it answered) takes the next
-    item with `followup_task` (new briefFile, slot): the preparation scout is the first such agent (its instructions
-    allow it to work as a worker after preparation). `list_agents` shows who is idle.
-  - Spawn only when no agent is idle. A spawn refused for the thread limit: note the limit (`poolSize` = agents you
-    have), never retry it in this match, and from then on only reuse.
+  - **A fresh agent per item while the pool allows** (`agents.max_threads = 10` in the pack config: 6YOBNM4Z ran 6
+    sub-agents). A worker that finished an item takes the next with `followup_task` when that saves a spawn.
+  - **The scout last.** Its context is full of the preparation (6YOBNM4Z: the reused scout left BUG-09's three
+    browser rows unrun, 15/80); give it an item only when a spawn is refused.
+  - A spawn refused for the thread limit: never retry it in this match; from then on only reuse.
   - Slots are not tied to agent types: any free slot (s1-s3, s5, s6) takes any item; `heavy` only chooses
     `team_heavy_worker` when an agent is spawned (a reused agent reads WORKER.md "Heavy items" for a heavy brief).
 - **One worker per item, all worker slots (s1-s3, s6) busy** (see "Wave planning"). A worker may get a second item in
@@ -102,12 +102,13 @@ criteria or scenarios, hidden tests beyond the scenarios),
 `SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
 scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
 items: the profile is the signal. Decide with it in this order, for every item:
-1. **Urgency**: deadline items and their prerequisites, nearest first, then the PI (by you). Assigning a deadline
-   item takes seconds (start_work + followup_task/spawn); do it **before** you start working a PI, never after
-   (6QYJQAVJ: two PIs took you 12 minutes while CR-07, due in 20, waited and was lost).
-2. **Effort**: `heavy` gets a `team_heavy_worker` (spawned, or an idle agent reused) in any free slot, s5 first;
-   `heavyCandidate` likewise when an agent is free, otherwise it is an ordinary item. Effort never keeps a slot
-   empty: s5 takes any item when no heavy item waits. Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
+1. **Urgency**: the PI is yours and it races: work it yourself at once, never through a worker (6YOBNM4Z: a PI
+   given to a worker took 20 minutes instead of ~7). In the same first cell of the wave, before the PI, only
+   assign the deadline items and their prerequisites (`start_work` + spawn: seconds), nearest deadline first.
+2. **Effort**: only `heavy` (XL) gets a `team_heavy_worker`, in any free slot, s5 first. `heavyCandidate` (L) and
+   every deadline item get a `team_feature_worker`: the heavy worker reasons longer per step (6YOBNM4Z: CR-07 on a
+   heavy worker reached its deadline with three rows unrun). Effort never keeps a slot empty: s5 takes any item
+   when no heavy item waits. Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
 3. **Value**: the rest by points per expected effort (S before M at equal points).
 4. **Grading**: an item with `gradingKind` keeps its slot for its quality gate (the "Quality gate" paragraph of the SLOT_DONE steps; WORKER.md "Quality gate"):
    never treat early rows passing as the end.
@@ -131,8 +132,9 @@ When a wave appears (game start, or `newItems` on the board):
    a value TASK with no free worker slot you do in s4 ("Doing an item yourself"); a BUG/CR takes the next worker
    slot that frees (`integrate_item` with `next` on the slot whose item finishes first), never s4.
    **Heavy items** (`heavy: true`: the helper's effort profile from the brief says XL: large data to process,
-   traps, aggregated answers; `heavyCandidate: true` (L) when an agent is free) go to slot s5 first (any free slot
-   otherwise) with an agent of type **`team_heavy_worker`** when one can be spawned (higher reasoning effort,
+   traps, aggregated answers) go to slot s5 first (any free slot otherwise) with an agent of type
+   **`team_heavy_worker`** when one can be spawned (a `heavyCandidate` (L) gets s5 when free, but a
+   `team_feature_worker`) (higher reasoning effort,
    quality-first instructions), or an idle agent reused with the same note. As soon as a heavy item appears and the
    deadline items of its wave are assigned: `start_work` and spawn or reuse. Spawn
    note: `Heavy item: WORKER.md "Heavy items" (plan.md and progress.md, rows one by one with a
@@ -254,15 +256,14 @@ by <owner ID>; do not touch it`. Integrate the owner first when several workers 
 the owner is integrated already contain the fix.
 
 ## Deadline item without a slot (on `DEADLINE_AT_RISK`)
-The helper reports each unstarted deadline item (own deadline or as a prerequisite) once, when 15 minutes or less
-remain, with `freeSlots` (any slot but s4) and `preemptable` (slots whose items have no deadline). Act at once:
-1. `freeSlots` not empty: `start_work` there and give it to an idle agent (`followup_task`) or spawn one.
-2. Otherwise preempt: pick the `preemptable` slot whose item is furthest along (rows done, in its quality gate) and
-   `send_message` its worker: `WRAP_UP: commit what passes as a valid PARTIAL answer now, write DONE.json now, then
-   stop (no quality gate)`. On its SLOT_DONE, `integrate_item` with `next: <deadline item>` and `followup_task` the
-   same agent with the deadline item. The preempted item is submitted as it stands; never leave it uncommitted.
-3. `NO_SLOT` (every slot holds a deadline item): leave it queued; it starts on the first SLOT_DONE.
-A no-deadline item's quality gate always yields to a deadline item that waits.
+The helper reports an unstarted deadline item (own deadline or as a prerequisite) once, when its time left falls
+to what its effort needs plus 3 minutes (`needMinutes`: S 6, M 10, L 15, XL 20), with `freeSlots` (any slot but s4)
+and `preemptable`: only no-deadline items whose rows already pass (their worker is in its quality gate). Act:
+1. `START_NOW_IN_FREE_SLOT`: `start_work` there and spawn (or reuse) a `team_feature_worker`.
+2. `WRAP_UP_GATE`: `send_message` that worker `WRAP_UP: end your quality gate, commit, write DONE.json now`. On its
+   SLOT_DONE, `integrate_item` with `next: <deadline item>` and `followup_task` the same agent with it.
+3. `WAIT_FOR_SLOT`: never interrupt a worker on its rows or evidence (6YOBNM4Z: an 80-point BUG-09 wrapped up
+   mid-evidence for a 50-point item scored 15). The deadline item takes the first slot that frees.
 
 ## Safety net (on `DEADLINE_SOON`)
 `wait_for_update` returns `reason: "DEADLINE_SOON"` with `deadlineSoon[]` (`backlogItemKey`, `slot`, `kind`
@@ -292,9 +293,8 @@ after the PI appeared).
    `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,
    `item.description`). `incident.complete` false, `problems` not empty, or a service the brief names
    has no rows in the digest: `prepare_incident` with `refresh: true` once (it queries the services the brief names),
-   then fetch what is still missing yourself with single `company_tool_call`s, one per tool call. Never call Company
-   Tools from a loop or a script in an exec cell (the match README: "Call them one at a time, never from a script or
-   loop").
+   then fetch what is still missing yourself: a few explicit `company_tool_call`s in one cell are fine (the helper
+   runs them one at a time, the PI's ahead of others); never page through a tool with a programmatic loop.
 2. One Node script `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` over `incident/logs.json` / `entities.json` computes every
    field the brief asks for, using the definitions in the KB articles and the brief, and prints each value with the
    log rows that prove it: sets complete (every record that matches the definition, found by joining each record's

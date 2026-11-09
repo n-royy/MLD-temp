@@ -25,8 +25,10 @@ const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
 // s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
 const HEAVY_SLOT = 's5';
-// An unstarted deadline item (own deadline or as a prerequisite) with this many minutes left is at risk.
-const AT_RISK_MINUTES = 15;
+// Minutes an item of each effort level needs from start to submission; an unstarted deadline item is at risk when
+// its time left falls to this plus a 3-minute margin (1.5.14 used a flat 15, so a 15-minute item was at risk the
+// moment it appeared and a nearly finished 80-point BUG was wrapped up for it: 6YOBNM4Z BUG-09 15/80).
+const NEED_MINUTES = { S: 6, M: 10, L: 15, XL: 20 };
 // Minutes a quality gate may take after the rows pass (stopBy still bounds it).
 const GATE_BUDGET_MINUTES = 12;
 // Worker slots for ordinary items (BUG, CR, TASK): s1-s3, plus s6, the 4th worker (1.5.13: items waited 7-18
@@ -446,17 +448,26 @@ export class MatchSession {
       if (item.submission || String(item.status ?? '').toUpperCase() === 'CLOSED' || this.#slotOf(item.key)) continue;
       if (String(item.backlogType ?? item.type ?? '').toUpperCase() === 'PI') continue;
       const left = this.#effectiveMinutesLeft(item, deps);
-      if (left === null || left > AT_RISK_MINUTES || left <= 1 || this.riskWarned.has(item.key)) continue;
+      const need = NEED_MINUTES[this.#effort(item).level] ?? 10;
+      if (left === null || left > need + 3 || left <= 1 || this.riskWarned.has(item.key)) continue;
       this.riskWarned.add(item.key);
       const free = slots.filter(sl => !sl.item && sl.name !== OWN_SLOT).map(sl => sl.name);
+      // Only a no-deadline item whose rows already pass (its worker wrote phase GATE) may be wrapped up: stopping it
+      // costs only its quality gate. A worker still on its rows or evidence is never interrupted.
       const preemptable = slots.filter(sl => sl.item && sl.name !== OWN_SLOT).map(sl => {
         const it = this.#items().find(i => i.key === sl.item);
-        return { slot: sl.name, item: sl.item, minutesLeft: it ? this.#effectiveMinutesLeft(it, deps) : null };
-      }).filter(x => x.minutesLeft === null).map(({ slot, item: k }) => ({ slot, item: k }));
-      out.push({ backlogItemKey: item.key, minutesLeft: left, freeSlots: free, preemptable,
-        action: free.length ? 'START_NOW_IN_FREE_SLOT' : preemptable.length ? 'PREEMPT_NO_DEADLINE_ITEM' : 'NO_SLOT' });
+        return { slot: sl.name, item: sl.item, minutesLeft: it ? this.#effectiveMinutesLeft(it, deps) : null, phase: this.#phase(sl) };
+      }).filter(x => x.minutesLeft === null && x.phase === 'GATE').map(({ slot, item: k }) => ({ slot, item: k }));
+      out.push({ backlogItemKey: item.key, minutesLeft: left, needMinutes: need, freeSlots: free, preemptable,
+        action: free.length ? 'START_NOW_IN_FREE_SLOT' : preemptable.length ? 'WRAP_UP_GATE' : 'WAIT_FOR_SLOT' });
     }
     return out;
+  }
+
+  /** The phase a worker reports in `.mtm-tmp/<ID>/phase.json` (ROWS, EVIDENCE, GATE), or null. */
+  #phase(sl) {
+    try { return String(JSON.parse(readFileSync(join(sl.matchRoot, SCRATCH, sl.item, 'phase.json'), 'utf8')).phase ?? '').toUpperCase() || null; }
+    catch { return null; }
   }
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
@@ -586,7 +597,7 @@ export class MatchSession {
       try {
         const all = this.#slots();
         const free = n => all[n] && !all[n].item && existsSync(join(all[n].path ?? '', '.git'));
-        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : WORKER_SLOTS.find(free) ?? null);
+        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : [...WORKER_SLOTS, HEAVY_SLOT].find(free) ?? null);
         if (slot && c.apiKey) {
           try { start = await this.startWork({ backlogItemKey: key, slot }); }
           catch (error) { startError = `${error.code ?? 'START_WORK_FAILED'}: ${clip(String(error.message), 160)}`; slot = null; }
@@ -597,7 +608,7 @@ export class MatchSession {
         const item = this.#items().find(i => i.key === key) ?? {};
         const summary = await collectIncident({ defs, dir: join(root, SCRATCH, key, 'incident'),
           brief: { key, title: item.title ?? '', description: typeof item.description === 'string' ? item.description : '' },
-          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }) });
+          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }, { priority: true }) });
         let brief = null;
         try { brief = start?.briefFile ? JSON.parse(readFileSync(start.briefFile, 'utf8')) : null; } catch { /* optional */ }
         entry.result = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
@@ -1644,12 +1655,15 @@ export class MatchSession {
    * One Company Tools call at a time (the match README: "Call them one at a time"): every caller (incident
    * collection, the orchestrator, relayed worker calls) waits for the previous call to finish.
    */
-  async companyCall(a = {}) {
-    const prev = this.companyChain ?? Promise.resolve();
-    let release;
-    this.companyChain = new Promise(r => { release = r; });
-    try { await prev; } catch { /* the previous caller handles its own error */ }
-    try { return await this.#companyCallNow(a); } finally { release(); }
+  async companyCall(a = {}, { priority = false } = {}) {
+    // A queue served one at a time; incident collection (a PI race) goes before waiting ordinary calls.
+    this.companyQueue ??= [];
+    if (this.companyBusy) await new Promise(r => (priority ? this.companyQueue.unshift(r) : this.companyQueue.push(r)));
+    this.companyBusy = true;
+    try { return await this.#companyCallNow(a); } finally {
+      const next = this.companyQueue.shift();
+      if (next) next(); else this.companyBusy = false;
+    }
   }
 
   async #companyCallNow({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
