@@ -25,6 +25,10 @@ const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
 // s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
 const HEAVY_SLOT = 's5';
+// An unstarted deadline item (own deadline or as a prerequisite) with this many minutes left is at risk.
+const AT_RISK_MINUTES = 15;
+// Minutes a quality gate may take after the rows pass (stopBy still bounds it).
+const GATE_BUDGET_MINUTES = 12;
 // Worker slots for ordinary items (BUG, CR, TASK): s1-s3, plus s6, the 4th worker (1.5.13: items waited 7-18
 // minutes for a worker slot in 5FLQMNAA and 32PTEO8K while quality gates keep slots longer).
 const WORKER_SLOTS = ['s1', 's2', 's3', 's6'];
@@ -414,10 +418,45 @@ export class MatchSession {
 
   #isHeavy(item) { return this.#effort(item).heavy; }
 
+  /** The answer must be read from an image or a drawing (6QYJQAVJ TASK-11: a digit misread by the orchestrator). */
+  #needsVision(item) {
+    const text = String(item?.descriptionMd ?? item?.description ?? '');
+    return /\.(png|jpe?g|gif|webp|bmp|tiff?)\b/i.test(text) || /\b(image|screenshot|scanned|photo|drawing|diagram|chart)\b/i.test(text);
+  }
+
   /** True when the item's finished result waits for the open PI (see #piHold). */
   #heldForPi(key, hold = this.#piHold(), deps = null) {
     if (!hold.length || hold.includes(key)) return false;
     return !this.#urgent(this.#items().find(i => i.key === key), deps ?? this.#dependencies());
+  }
+
+  /**
+   * Deadline items (own deadline or as a prerequisite) that have no slot yet while their time runs out (6QYJQAVJ:
+   * CR-07, 20-minute deadline, never got a slot because two no-deadline items held the workers for 30+ minutes and
+   * the orchestrator worked two PIs itself; 100 points lost). Reported once per item when 15 minutes or less remain,
+   * with the free slots (any, s5 included) and the slots whose items have no deadline (preemption candidates).
+   */
+  #deadlineAtRisk() {
+    if (this.cfg?.phase !== 'GAME' || !this.#hasSlots()) return [];
+    const deps = this.#dependencies();
+    const slots = Object.values(this.#slots());
+    const out = [];
+    this.riskWarned ??= new Set();
+    for (const item of this.#items()) {
+      if (item.submission || String(item.status ?? '').toUpperCase() === 'CLOSED' || this.#slotOf(item.key)) continue;
+      if (String(item.backlogType ?? item.type ?? '').toUpperCase() === 'PI') continue;
+      const left = this.#effectiveMinutesLeft(item, deps);
+      if (left === null || left > AT_RISK_MINUTES || left <= 1 || this.riskWarned.has(item.key)) continue;
+      this.riskWarned.add(item.key);
+      const free = slots.filter(sl => !sl.item && sl.name !== OWN_SLOT).map(sl => sl.name);
+      const preemptable = slots.filter(sl => sl.item && sl.name !== OWN_SLOT).map(sl => {
+        const it = this.#items().find(i => i.key === sl.item);
+        return { slot: sl.name, item: sl.item, minutesLeft: it ? this.#effectiveMinutesLeft(it, deps) : null };
+      }).filter(x => x.minutesLeft === null).map(({ slot, item: k }) => ({ slot, item: k }));
+      out.push({ backlogItemKey: item.key, minutesLeft: left, freeSlots: free, preemptable,
+        action: free.length ? 'START_NOW_IN_FREE_SLOT' : preemptable.length ? 'PREEMPT_NO_DEADLINE_ITEM' : 'NO_SLOT' });
+    }
+    return out;
   }
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
@@ -721,6 +760,9 @@ export class MatchSession {
           }
         }
       } catch { wait = 10000; }
+      // After new items and status changes (they may bring the deadline items themselves).
+      const risk = this.#deadlineAtRisk();
+      if (risk.length) return { changed: true, reason: 'DEADLINE_AT_RISK', atRisk: risk, board: this.#board([]) };
       const left = deadline - Date.now();
       if (left <= 0) break;
       // Slot results are checked every 5 s even while Game Master is quiet.
@@ -756,6 +798,21 @@ export class MatchSession {
       appendFileSync(join(this.#stateDir(), 'timeline.ndjson'),
         JSON.stringify({ at: new Date().toISOString(), event, ...(key ? { key } : {}), ...extra }) + '\n');
     } catch { /* telemetry only */ }
+  }
+
+  /** Values of every submitted answer (meta fields left out), for cross-item checks by later workers. */
+  #indexAnswer(key, answer) {
+    try {
+      const f = join(this.#stateDir(), 'answers-index.json');
+      const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {};
+      const values = {};
+      for (const [k, v] of Object.entries(answer ?? {})) {
+        if (['schemaVersion', 'backlogId', 'status', 'evidenceFiles', 'gitRevision', 'testResults', 'engineeringRecord', 'cases'].includes(k) || /Record$/.test(k)) continue;
+        values[k] = v;
+      }
+      all[key] = values;
+      writeFileSync(f, JSON.stringify(all, null, 1));
+    } catch { /* index only */ }
   }
 
   #stateDir() {
@@ -1038,6 +1095,7 @@ export class MatchSession {
       let board = null;
       try { await this.#getProjection(); this.signature = this.#signature(); board = this.#board(this.lastFresh); } catch { /* next wait_for_update refreshes */ }
       this.#timeline('SUBMITTED', backlogItemKey, { receipt: receipt.status ?? null });
+      this.#indexAnswer(backlogItemKey, answer);
       // Compact on purpose: this result stays in the orchestrator's context for the rest of the match.
       return { status: 'SUBMITTED', receipt: { id: receipt.id, status: receipt.status, scoreStatus: receipt.scoreStatus },
         gitRevision: full, evidenceFiles: evidence.length, schemaChecked, ...(changedTests.length ? { changedTests } : {}),
@@ -1127,13 +1185,15 @@ export class MatchSession {
   #checkOwnSlot(key) {
     const item = this.#items().find(i => i.key === key);
     const type = String(item?.backlogType ?? item?.type ?? key.split('-')[0]).toUpperCase();
-    if (!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) return;
+    // An answer read from an image goes to a worker: careful reading needs its own context (6QYJQAVJ TASK-11).
+    const vision = this.#needsVision(item);
+    if ((!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) && !vision) return;
     const workers = Object.values(this.#slots()).filter(s => s.name !== OWN_SLOT && s.name !== HEAVY_SLOT);
     if (!workers.length) return; // single-agent fallback: no worker slot exists
     const free = workers.find(s => !s.item);
     fail('OWN_SLOT_RESERVED', free
-      ? `${key} is a ${type}: start it in the free worker slot ${free.name} and spawn a worker`
-      : `${key} is a ${type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
+      ? `${key} is a ${vision ? 'item read from an image' : type}: start it in the free worker slot ${free.name} and spawn (or reuse) a worker`
+      : `${key} is a ${vision ? 'item read from an image' : type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
         '(integrate_item with next) and keep integrating.', { freeWorkerSlot: free?.name ?? null });
   }
 
@@ -1221,6 +1281,10 @@ export class MatchSession {
       // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
       ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
       issuedRevision: c.environmentRevision ?? null,
+      gateBudgetMinutes: GATE_BUDGET_MINUTES,
+      ...(this.#needsVision(item) ? { needsVision: true } : {}),
+      // Every submitted answer of the team, so a value that comes from another item is checked against it.
+      teamAnswersFile: join(this.#stateDir(), 'answers-index.json'),
       // How the organizer scores this item, word for word: the worker plans from it, whatever kind of item it is.
       grading: (m => m ? clip(m[1].trim().replace(/\s+/g, ' '), 1500) : null)(String(item?.descriptionMd ?? item?.description ?? '').match(/#+\s*(?:Grading|Score|Scoring)\b([\s\S]*?)(?=\n#+\s|$)/i)),
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
@@ -1576,7 +1640,19 @@ export class MatchSession {
       note: 'Large answer saved to a file: extract what you need with a script; do not print it whole.' };
   }
 
-  async companyCall({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
+  /**
+   * One Company Tools call at a time (the match README: "Call them one at a time"): every caller (incident
+   * collection, the orchestrator, relayed worker calls) waits for the previous call to finish.
+   */
+  async companyCall(a = {}) {
+    const prev = this.companyChain ?? Promise.resolve();
+    let release;
+    this.companyChain = new Promise(r => { release = r; });
+    try { await prev; } catch { /* the previous caller handles its own error */ }
+    try { return await this.#companyCallNow(a); } finally { release(); }
+  }
+
+  async #companyCallNow({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
     if (!this.cfg?.apiKey && slotMatchRoot) {
       // Worker helper: relay through the orchestrator helper; long answers go to a file the worker reads in slices.
       const r = await relayCompany(slotMatchRoot, { op: 'call', name, arguments: args, backlogId });

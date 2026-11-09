@@ -440,3 +440,65 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     assert.equal(by['BUG-37'].qualityGate, undefined);
   } finally { h.close(); }
 });
+
+test('1.5.14: an unstarted deadline item at risk is reported with free and preemptable slots; image items never go to s4', async () => {
+  const item = (key, type, deadlineMinutes, descriptionMd, revealedElapsedSec = 600) => ({ key, backlogType: type, title: key, deadlineMinutes,
+    revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
+  gm.state.backlog = [
+    item('TASK-48', 'TASK', null, 'Long integration suite.'),
+    item('BUG-49', 'BUG', null, 'Schedule boundary.'),
+    item('CR-47', 'CR', 20, 'Audit page; right only with the BUG-41 fixes.', 600),
+    item('BUG-41', 'BUG', null, 'Customer books.'),
+    item('TASK-51', 'TASK', null, 'Read the voucher image `data/voucher.png` and report its figures.')
+  ];
+  gm.state.clock = { elapsedSec: 600 + 6 * 60, remainingSec: 1500 }; // CR-47: 14 minutes left
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    await h.call('prepare_slots', { count: 6 });
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    await h.call('refresh_match');
+    for (const [k, s] of [['TASK-48', 's1'], ['BUG-49', 's2'], ['BUG-41', 's3']]) await h.call('start_work', { backlogItemKey: k, slot: s });
+    const w = await h.call('wait_for_update', { noWait: true });
+    assert.equal(w.reason, 'DEADLINE_AT_RISK', JSON.stringify(w).slice(0, 400));
+    const r = w.atRisk.find(x => x.backlogItemKey === 'CR-47');
+    assert.ok(r && r.minutesLeft <= 15);
+    assert.deepEqual(r.freeSlots.sort(), ['s5', 's6']); assert.equal(r.action, 'START_NOW_IN_FREE_SLOT');
+    // BUG-41 is CR-47's prerequisite (it has the deadline through it): never a preemption candidate.
+    assert.deepEqual(r.preemptable.map(x => x.item).sort(), ['BUG-49', 'TASK-48']);
+    assert.ok(!w.atRisk.some(x => x.backlogItemKey === 'BUG-41'), 'started items are not at risk');
+    const again = await h.call('wait_for_update', { noWait: true });
+    assert.notEqual(again.reason, 'DEADLINE_AT_RISK', 'reported once per item');
+    // An image item is refused in s4 and named for a worker slot; its brief says so and lists the team answers file.
+    const own = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's4' });
+    assert.equal(own.error?.code, 'OWN_SLOT_RESERVED', JSON.stringify(own));
+    const s = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's6' });
+    const brief = JSON.parse(readFileSync(s.briefFile, 'utf8'));
+    assert.equal(brief.needsVision, true); assert.equal(brief.gateBudgetMinutes, 12);
+    assert.ok(brief.teamAnswersFile.endsWith('answers-index.json'));
+  } finally { h.close(); }
+});
+
+test('1.5.14: services the brief names are queried even when the unfiltered dump looked complete', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mtm-inc-'));
+  try {
+    const logs = [
+      { ts: '2025-10-15T10:00:00Z', service: 'deploy', message: 'release 2025.10.2', context: { release: '2025.10.2' } },
+      { ts: '2025-10-15T10:05:00Z', service: 'rule-engine', message: 'rule.applied', context: { tx: 'TX-1' } },
+      { ts: '2025-10-15T10:06:00Z', service: 'rule-engine', message: 'rule.applied', context: { tx: 'TX-2' } }
+    ];
+    // The server's unfiltered search hides one service (a default window), yet reports itself complete.
+    const call = async (name, a) => {
+      if (name === 'search_logs') {
+        const hit = a.service ? logs.filter(e => e.service === a.service) : logs.filter(e => e.service !== 'rule-engine');
+        return { text: JSON.stringify({ total: hit.length, entries: hit.slice(a.offset ?? 0, (a.offset ?? 0) + 20) }) };
+      }
+      return { text: JSON.stringify({ articles: [] }) };
+    };
+    const brief = { key: 'PI-09', description: 'The rule engine and the deploy pipeline log to the production logs.' };
+    await collectIncident({ call, defs: TOOLS, dir, brief });
+    const got = JSON.parse(readFileSync(join(dir, 'logs.json'), 'utf8'));
+    assert.equal(got.filter(e => e.service === 'rule-engine').length, 2, JSON.stringify(got.map(e => e.service)));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

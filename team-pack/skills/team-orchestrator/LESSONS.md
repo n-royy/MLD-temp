@@ -68,3 +68,11 @@ Short rules learned from real matches. Each line names where it came from. They 
   tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
 - The organizer no longer marks heavy items: read the effort profile (board effort/heavy/heavyCandidate with reasons:
   large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)
+- Agent threads are capped and an idle agent keeps its thread: reuse finished agents (the scout first) before
+  spawning. (6QYJQAVJ: spawn refused with 4 sub-agents; the orchestrator did 6 items itself)
+- Assign deadline items before working a PI; when a deadline item has no slot, take one from a no-deadline item
+  (WRAP_UP). (6QYJQAVJ CR-07: 0/100)
+- Numbers read from an image are read twice from crops and checked against the team's answers.
+  (6QYJQAVJ TASK-11: one transposed digit, 64/80)
+- A suite scored by broken builds must also fail on the issued source's real defects, with non-ASCII text variants.
+  (6QYJQAVJ TASK-08: 80/100 despite 36/37 own mutants caught)

@@ -37,6 +37,10 @@ T5QSM1E2 lost 3/4 rows of BUG-02 (sidebar of BUG-01 intercepted the Accounting t
   your verification" below): briefs list "unrelated UI changes" as out of scope.
 - Every shorter path used goes into that row's `note`, e.g. "opened Accounting by URL with the keyboard because the
   desktop sidebar (BUG-01) covers the tab; invoice entered and issued through the form".
+- Time box (6QYJQAVJ BUG-09: the fix took minutes, a home-made Playwright script for the schedule dialogs took 20):
+  the browser part of an item gets about 8 minutes. Start from `shot.mjs` and the slot's tools; your own script only
+  for the steps they cannot do, and at most two rewrites of it. Still failing: keep the rows you proved, report the
+  rest with the exact blocker, and spend the time on the rows that score.
 
 ## Check the evidence path first (UI items)
 Before changing code, open each screen your evidence rows need once (`shot.mjs` or one browser step) and confirm the
@@ -96,8 +100,11 @@ minute 12 of 40 with a planted bug undetected, 84/100; TASK-07 35/50). When the 
 rows pass and are committed, run the gate for its `kind`, write the result to `qualityGate.reportFile` (a table:
 check, result, what you changed), fix what it finds, commit, and put
 `"qualityGate":{"kind":"<kind>","status":"PASS|PARTIAL","summary":"one line"}` in DONE.json.
-Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. Stop it
-at `stopBy` minus ~5 minutes, commit what holds, and report `PARTIAL` with what was not checked. Never leave a
+Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. It is
+bounded by `gateBudgetMinutes` (12) from the moment your rows passed, and by `stopBy` minus ~5 minutes: commit what
+holds and report the gate `PARTIAL` with what was not checked (6QYJQAVJ: a 36-minute TASK-08 and a 29-minute BUG-09
+held two of three workers while a 100-point deadline item never got a slot). A `WRAP_UP` message from the
+orchestrator ends the gate at once ("Messages while you work"). Never leave a
 mutant, a temporary source restore or a debug edit in the tree: `git status --porcelain` must be empty before DONE.
 - **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on):
   1. Rule matrix: for every rule of the specification, every operation that reaches it (create, update of each
@@ -108,6 +115,13 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      (`git -C <worktreeRoot> checkout -- <file>`). A rule no case catches gets a new case. The application fixes you
      made stay; the mutants never.
   3. Never assert what the specification does not state: a case that fails on a correct build never counts.
+  4. The organizer's broken builds are the defects the issued source shipped with, not only the ones you imagine
+     (6QYJQAVJ TASK-08: 36 of 37 own mutants caught, 80/100). Run your suite on the issued behaviour: restore every
+     product file that differs from `issuedRevision` in the specification's modules (fixes by any item, the branch
+     included: `git -C <worktreeRoot> diff --name-only <issuedRevision> HEAD -- <modules>`), run, record which cases
+     fail, restore HEAD. Every fix in those modules must turn at least one case red; a fix none catches gets a case.
+  5. Any rule about text (equal ignoring case, title case, trimming, parsing amounts) gets non-ASCII variants:
+     accented and Vietnamese letters in both cases (`Phở`/`PHỞ`, `Đà Nẵng`/`đà nẵng`), and Unicode signs (`−` minus).
 - **`DATA_REQUIREMENTS`** (a pack, dataset or manifest checked against requirements):
   1. Requirement table: every quantity, ratio, mix, overlap, recurrence, special case and size limit of the
      specification, the value you reached and the margin. Where a requirement is a bound or range, stay clearly
@@ -123,6 +137,27 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      from the brief and the current standards; they must agree.
   2. Hidden tests check the rule in more cases than the MVS: one test of your own per rule boundary the brief or
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
+
+## Messages while you work
+- `WRAP_UP` (the orchestrator needs your slot for a deadline item): stop what you are doing, commit everything that
+  passes as a valid answer (status `PARTIAL` if a row or the gate is open, with what is missing), validate, write
+  DONE.json, answer in one line. Within 2 minutes; no new checks.
+- A rebase notice (`<ID> is on <branch>`): rebase before your final checks, as it says.
+
+## Reading values from an image or a drawing (brief `needsVision`)
+A misread digit costs the field (6QYJQAVJ TASK-11: `255230227` read as `252320227`, 16 points). For every number,
+id and code you take from an image:
+1. Read it twice, independently: the whole image once, then a crop or zoom of just that region (write the crop
+   with a short script: sharp/Playwright/`magick`, whatever the slot has), and compare digit by digit, counting the
+   digits. Different readings: read a third, larger crop.
+2. A value the image or brief says comes from elsewhere ("TASK-10 baseline", "the balance of …") is checked against
+   that source: the team's submitted answers in `teamAnswersFile` (JSON by item key), the data, or the app. A
+   mismatch means a misread until proven otherwise.
+3. Write each value with the region it came from in your evidence.
+
+## Values that come from another item
+Whenever an input refers to another item's figure, compare it with `teamAnswersFile` (every submitted answer of
+the team) before you use it, and name the source in the record.
 
 ## Heavy items (brief `heavy: true`)
 The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
@@ -225,6 +260,8 @@ Your helper process has no team key, so pass your slot: `company_tools_list({ sl
 `company_tool_call({ name, arguments, backlogId: "<ID>", slotMatchRoot })`. The call is relayed through the
 orchestrator's helper. Answers over 6000 characters are saved to a file in your slot and you get its path: read it
 in slices. Use them for every standard, QA data set, log and ticket the item needs; do not guess a format.
+One call per tool call: never call Company Tools from a loop or a script in an exec cell (the match README: "Call
+them one at a time, never from a script or loop"); the helper queues calls one at a time.
 
 ## Boundaries
 - Edit only inside `slotMatchRoot`. Never touch the main checkout, other slots or other items' answers.
@@ -333,7 +370,9 @@ assigned branch. The baseline owner:
 ## Status of an answer
 `status` follows the item's own acceptance criteria exactly: `DONE` when every criterion holds, `PARTIAL` when one
 is not met (say which one and why in the engineering record), `BLOCKED` when the work could not proceed. Do not mark
-an item PARTIAL for a problem outside its criteria.
+an item PARTIAL for a problem outside its criteria: an existing test that fails or times out on this machine without
+your change (6QYJQAVJ TASK-08: a 5-second budget-load timeout on Windows) is recorded as pre-existing, not a reason
+for PARTIAL.
 
 ## Scratch scripts
 Organizer scripts (seed, report, run-checks; copies are in `organizerFiles`) and your own check or reproduction
