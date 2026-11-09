@@ -86,3 +86,10 @@ Short rules learned from real matches. Each line names where it came from. They 
   it is submitted. (32PTEO8K / 6QYJQAVJ / UA9QF7DU CR-07)
 - A PI is values first: no source change, build or test suite before the fields are computed and submitted, unless
   its grading scores the change. (UA9QF7DU PI-02 not submitted after 20 minutes)
+- One item per cell: start_work and spawn together, deadline items first; a PI still being collected never holds
+  back the news. (SC0E8AV2: CR-07 got its worker 10 minutes after it appeared)
+- A deadline item that needs another item's fix makes the part it needs itself from the start, and commits after
+  every passing row. (SC0E8AV2 CR-07: no commit at the deadline, 0/100)
+- Never burst Company Tools: a rate-limited log set gives wrong counts. (SC0E8AV2 PI-02: first, 76/120)
+- Mutate every rule id once before mutating any rule twice; compute a data manifest by running the parser.
+  (TASK-08 80-84 three matches in a row with half the rules never mutated; TASK-07 35/50 with a predicted manifest)

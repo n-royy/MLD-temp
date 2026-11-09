@@ -118,7 +118,11 @@ When a wave appears (game start, or `newItems` on the board):
    lost 27 points). A prerequisite also gets `DEADLINE_SOON` (kind `PREREQUISITE_DEADLINE`) and a `stopBy`. **Heavy items** (board `heavy: true`) are outside this order: they go
    at once to slot s5 (see "Heavy items" below).
 3. **Assign in that order, one item per free worker slot (s1, s2, s3, s6), until they are full.** Never leave a slot idle while an
-   item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
+   item is open. **One item per cell: `start_work` and `spawn_agent` for that item in the same cell, then the next
+   item** - never several `start_work` calls first and the spawns after (SC0E8AV2: three `start_work` in one cell took
+   7.5 minutes; CR-07, deadline 20, got its worker 10 minutes after it appeared and was never submitted).
+   `MATCH_UPDATED` with `incidentPending` means a PI is being collected: assign the deadline items now; `NEW_PI`
+   follows on the next `wait_for_update`. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
    a value TASK with no free worker slot you do in s4 ("Doing an item yourself"); a BUG/CR takes the next worker
    slot that frees (`integrate_item` with `next` on the slot whose item finishes first), never s4.
    **Heavy items** (`heavy: true`: the helper's effort profile from the brief says XL: large data to process,
@@ -151,9 +155,13 @@ When a wave appears (game start, or `newItems` on the board):
      `git -C <slot path> diff --name-only <branch>...HEAD` (plus `status --porcelain`) and compare it with the
      integrated item's files (`git -C <checkoutRoot> diff --name-only <previous tip> <new tip>`). On an overlap, `send_message` that worker once: `<ID> on <branch> changed <files>; rebase at your
      preflight`. At most one overlap notice per running item; no notice when nothing overlaps.
-   - **Prerequisite of a deadline item** (board `prerequisiteOf`, the dependent shows `dependsOn`): start both in the
-     same cell, the prerequisite first. The dependent does not wait for the prerequisite to be submitted: the
-     prerequisite's worker commits its fix first, in its own commit, and the helper wakes you with
+   - **Prerequisite of a deadline item** (board `prerequisiteOf`, the dependent shows `dependsOn`): start both at
+     once, the dependent first when only one slot is free. **The dependent works as if the prerequisite were
+     already fixed** (1.5.17): its worker writes the feature against the correct behaviour and makes the part of the
+     prerequisite's fix that its own grade needs itself, in its own commit, from the start (WORKER.md "Your item
+     needs another item's changes"); its spawn note says so. It never waits for the other worker (SC0E8AV2: BUG-11's
+     fix was committed 16 minutes after it appeared, CR-07's deadline was 20). The prerequisite's worker still
+     commits its fix first, in its own commit, and the helper wakes you with
      `reason: "PREREQ_FIX_READY"` (`prereqFix[]`: `backlogItemKey`, `commit`, `dependents[]` with their slots). For each
      dependent with a slot, `send_message` its worker once: `<prereq ID> fix is commit <sha> (slot branch <branch>):
      git -C <worktreeRoot> cherry-pick <sha> now, then go on` (WORKER.md "Your item needs another item's changes").
@@ -263,7 +271,8 @@ DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it cl
    (PARTIAL if a criterion is not met), validate, write doneFile."
 2. `wait_for_update` with `timeoutMs: 60000` (honoured only right after DEADLINE_SOON). On `SLOT_DONE`, integrate.
 3. Still no DONE.json: `integrate_item` with `allowUncommitted: true` and the honest test counts - an unsubmitted
-   item scores 0 anyway. If the answer is not valid yet, the gate says so; then `release_slot` and move on.
+   item scores 0 anyway. The helper commits the worker's uncommitted files itself first (SC0E8AV2 CR-07: no commit
+   at the deadline, `NOTHING_TO_INTEGRATE`, 0 points). If the answer is not valid yet, the gate says so; then `release_slot` and move on.
 For your own item in s4, the same steps apply to yourself: commit, answer, doneFile, `integrate_item`.
 An entry with `heavy: true` (`action: INTEGRATE_LAST_COMMIT_NOW`, about 1.5 minutes left) skips steps 1-2: call
 `integrate_item` with `allowUncommitted: true` at once. The heavy worker commits a valid PARTIAL answer after every
@@ -283,7 +292,12 @@ after the PI appeared).
 1. No worker, no WORKER.md. Read `incident.files.digest` (coverage, services, releases, flags, entities, KB list),
    `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,
    `item.description`). `incident.complete` false or `problems` not empty: `prepare_incident` with `refresh: true`
-   once, then page what is still missing yourself (`company_tool_call`, saved to a file).
+   once (the helper retries rate-limited pages with back-off), then page what is still missing yourself
+   (`company_tool_call`, saved to a file), **at most 4 calls per cell and never `Promise.all` over dozens of
+   queries**: Company Tools answer one call at a time and rate-limit bursts (SC0E8AV2 PI-02: 80 and then 720
+   parallel searches, 18 answered RATE_LIMITED, the log set stayed incomplete, two fields wrong: 76/120 although
+   first; the burst also queued every worker's calls). Submit only when every field is computed from a complete
+   set; a field you could not complete is a stated gap, not a guess.
 2. One Node script `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` over `incident/logs.json` / `entities.json` computes every
    field the brief asks for, using the definitions in the KB articles and the brief, and prints each value with the
    log rows that prove it: sets complete (every record that matches the definition, found by joining each record's

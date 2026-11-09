@@ -102,9 +102,9 @@ test('1.5.16: heavy jobs share a machine-wide queue, first started first served;
   } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('1.5.16: a game job goes before waiting slot installs and the baseline', async () => {
+test('1.5.16: a game job goes before the waiting baseline; slot installs keep their order', async () => {
   const { ticketFile } = await import('../src/jobs.mjs');
   const { basename } = await import('node:path');
-  const names = [ticketFile('100', 1, 'install-s5'), ticketFile('100', 2, 'baseline'), ticketFile('200', 3, 'integration-1')].map(f => basename(f)).sort();
+  const names = [ticketFile('100', 1, 'baseline'), ticketFile('200', 3, 'integration-1')].map(f => basename(f)).sort();
   assert.ok(names[0].endsWith('-3.json'), names.join(','));
 });

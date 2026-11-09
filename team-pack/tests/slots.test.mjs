@@ -232,6 +232,16 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   assert.equal(d1.status, 'SUBMITTED', JSON.stringify(d1));
   assert.equal(d1.integratedCommits, 1, 'the fix already on the branch is not picked again');
   assert.equal(g(checkoutRoot, 'log', '--oneline', '--grep', 'BUG-02: fix the books').split('\n').length, 1);
+
+  // 1.5.17 safety net: a worker with nothing committed at the deadline still gets its files submitted.
+  gm.reveal({ key: 'CR-03', backlogType: 'CR', title: 'Late', revisionNo: 1, workStatus: 'NOT_STARTED', deadlineMinutes: 10, descriptionMd: 'Late.' });
+  await h.call('refresh_match');
+  const p3 = await h.call('start_work', { backlogItemKey: 'CR-03', slot: 's1' });
+  work(p3, 'CR-03', { file: 'src/late.txt', content: 'late\n', commit: false, done: false });
+  assert.equal((await h.call('integrate_item', { backlogItemKey: 'CR-03' })).error.code, 'SLOT_UNCOMMITTED');
+  const d3 = await h.call('integrate_item', { backlogItemKey: 'CR-03', allowUncommitted: true, tests: { required: 1, executed: 1, passed: 1, failed: 0 } });
+  assert.equal(d3.status, 'SUBMITTED', JSON.stringify(d3));
+  assert.ok(g(checkoutRoot, 'log', '-1', '--format=%s').length > 0);
   h.close();
 
   // Resume: a new helper process sees the slots and never resubmits.
@@ -245,6 +255,6 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   const raw = readFileSync(logFile, 'utf8');
   assert.ok(!raw.includes(gm.pass) && !raw.includes(gm.apiKey));
   for (const e of events()) assert.equal(validateEvent(e), null, JSON.stringify(e));
-  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 5); // TASK-01, BUG-01, CR-01, CR-02, BUG-02
+  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 6); // TASK-01, BUG-01, CR-01, CR-02, BUG-02, CR-03
   assert.ok(!g(bare, 'branch', '--list').includes('mtm-slot'));
 });

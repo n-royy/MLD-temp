@@ -105,8 +105,8 @@ With one `start_jobs` call, in this order: `install-s1`, `install-s2`, `install-
 `install-s5` (in each slot app folder, the same locked install plus `--prefer-offline`), then `baseline` (the full
 test suite in the main checkout, output to its log). Then go on with D and E while they run.
 **The job runner queues the heavy jobs itself** (1.5.16): installs, builds and full test runs of every slot and
-worker share one machine-wide queue, at most 3 at a time, first started first served (a worker's build or test
-run goes before waiting slot installs and the baseline), so do not add wait loops to the commands. The order above is the priority: the first wave's workers need s1 and s2, the PI needs your s4 at
+worker share one machine-wide queue, at most 3 at a time, first started first served (only the baseline waits
+behind later jobs), so do not add wait loops to the commands. The order above is the priority: the first wave's workers need s1 and s2, the PI needs your s4 at
 about minute 7 (UA9QF7DU: s4 was ready only at minute 17, after the PI had waited 5 minutes), then s3, s6 and the
 heavy slot s5. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause

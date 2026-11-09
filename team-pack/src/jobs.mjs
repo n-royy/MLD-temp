@@ -69,10 +69,11 @@ export function heavyJob(name, command) {
 
 /** The machine-wide queue of heavy jobs (see job-runner.mjs) and a job's place in it. */
 export const queueDir = () => process.env.MTM_HEAVY_QUEUE_DIR || join(tmpdir(), 'mtm-heavy-queue');
-// Preparation's background jobs (slot installs, the baseline run) queue behind the game's own jobs (a worker's build
-// or test run is on an item's critical path); within a class, first started first served.
+// The baseline run queues behind everything else. Slot installs do not: in SC0E8AV2 (1.5.16) they did, and the
+// workers' test runs starved install-s3/s5/s6 until minute 20, so wave 2 started in slots still installing and each
+// start_work took 3.5 minutes. Within a class, first started first served.
 export const ticketFile = (order, pid, name = '') =>
-  join(queueDir(), `${/^(install-s\d|baseline)$/.test(name) ? 2 : 1}-${String(order || Date.now()).padStart(20, '0')}-${pid}.json`);
+  join(queueDir(), `${name === 'baseline' ? 2 : 1}-${String(order || Date.now()).padStart(20, '0')}-${pid}.json`);
 
 const RUNNER = fileURLToPath(new URL('./job-runner.mjs', import.meta.url));
 
