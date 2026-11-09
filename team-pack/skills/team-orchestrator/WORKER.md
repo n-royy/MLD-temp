@@ -76,17 +76,23 @@ The brief lists in `dependsOn` the items your brief names, with their state (`NO
 with those changes in it (e.g. "right only on source that also contains the <ID> fixes", "loads the official data
 with your submission"), the other item's changes must be in your commit:
 - `SUBMITTED`: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) before your final checks.
-- Not submitted and it may not land before your `stopBy` minus ~5 minutes: make the smallest change that item needs
-  for **your** grade yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and
-  name it in the engineering record (the other item's worker may make the same change; identical changes integrate
-  cleanly). Rebase again if it lands before you finish.
+- **Your item has a deadline and the other is not submitted: work as if it were already fixed** (1.5.17; SC0E8AV2:
+  CR-07 waited for BUG-11, whose fix came 16 minutes after reveal, and missed its 20-minute deadline). Write your
+  feature and your checks against the correct behaviour from the first minute. Within your first ~5 minutes, list
+  what of the other item's fix your rows need (read its brief in `dependsOn`, its scenarios, the code), make that
+  smallest change yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and name
+  it in the engineering record. Never wait for the other worker.
+- No deadline on your item: the same smallest change when the other item may not land before your `stopBy` minus
+  ~5 minutes. Rebase again if it lands before you finish.
 - Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
   include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
-- **The prerequisite's fix arrives by cherry-pick** (1.5.16): the prerequisite's worker commits its fix first, and
-  the orchestrator sends you `<other ID> fix is commit <sha> ...: git -C <worktreeRoot> cherry-pick <sha>`. Do it at
-  once (a conflict with your own change of the same lines: keep both intents, `git cherry-pick --continue`), rerun
-  what it touches, go on. Until then work on everything that does not need it; never wait idle for it. If the
-  message has not come by `stopBy` minus ~8 minutes, use the rule above (smallest change yourself).
+- **The prerequisite's fix may also arrive by cherry-pick**: the orchestrator sends you `<other ID> fix is commit
+  <sha> ...: git -C <worktreeRoot> cherry-pick <sha>`. If your own version already makes your rows pass, skip it
+  (`git cherry-pick --abort` on a conflict) and say so in one line; otherwise take it (a conflict with your own
+  change of the same lines: keep the other item's version, which its own tests prove), rerun, go on.
+- **Deadline items commit early**: after every row that passes, commit (source, tests, the answer filled honestly
+  with PARTIAL and the rows not yet run as NOT_RUN). At the deadline the orchestrator submits your last commit as it
+  is, so an uncommitted half-feature is worth 0 and a committed passing row is worth its points.
 Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
 your deadline (your `stopBy` already uses it). **Commit the fix they need first, alone**: as soon as the code change
 works (your reproduction passes), before evidence, answer or quality gate, commit only the source change (no
@@ -138,8 +144,13 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      path; "any number of lines" → at least 3 lines in one call, with the rule on the 2nd or 3rd line, not only the
      first; "at most 7 days before or after" → 7 and 8 days, before and after; "otherwise" → both branches; "never"
      → the case that would tempt the code. A broken build usually breaks one value of one dimension.
-  7. **Mutants by script, not by hand.** Write `.mtm-tmp/<ID>/mutants.mjs`: a list of `{file, find, replace, rule}`
-     (one per rule clause and quantifier value, aim for 30+), and for each: apply it, run only your suite files
+  7. **Mutants by script, not by hand, every rule id first.** (SC0E8AV2 TASK-08: 10 mutants, all on T and A rules,
+     the I0 one interrupted; the I, R, S, M and B rules - half of the specification - were never mutated, 80/100
+     for the third match in a row.) Order the list rule-first: one mutant for EVERY rule id of the specification
+     (T1..T6, A1, A2, B1, I0..I5, R1..R3, S1, S2, M1..M3 in that example: 25 runs of ~20 s, ~9 minutes) before any
+     second mutant of a rule; then the quantifier values of step 6. Mutate each section as soon as its cases are
+     written, not all at the end. Write `.mtm-tmp/<ID>/mutants.mjs`: a list of `{file, find, replace, rule}`
+     (aim for 30+), and for each: apply it, run only your suite files
      (`vitest run <files>` or the project's equivalent, not the whole suite), record KILLED/SURVIVED, restore the
      file in a `finally`. Run it as one job (`start_jobs`/`wait_jobs`), print only the survivors. Every survivor
      gets a case or a stated reason (equivalent mutant). The table goes into `qualityGate.reportFile`.
@@ -155,6 +166,12 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      differs (`git -C <worktreeRoot> diff --name-only <issuedRevision> HEAD -- <app source dir>`, tests excluded) with
      `git checkout <issuedRevision> -- <files>`, run the replay, then `git checkout HEAD -- <files>`. Every number in
      the manifest must match the replay exactly.
+  3. **The manifest is the parser's output, never your prediction** (SC0E8AV2 TASK-07, 35/50 for the third time: the
+     generator wrote what it intended and submitted with "parser/import replay pending"). The generator script
+     writes the files, then runs the issued parser and import itself (the same functions the grader calls, with
+     the stated settings, in a fresh test database) and writes the manifest from what they return: parsed rows,
+     added per file, final count and balance. One script, one run: the manifest cannot disagree with the replay.
+     Do this from the first version, even under a deadline; a hand-predicted manifest is the slow path.
 - **`OFFICIAL_DATA`** (hidden tests, the official test data loaded with your submitted source):
   1. Load the official test data with your own branch (rebased on everything your brief `dependsOn` needs, see
      "Your item needs another item's changes") and compare every reported figure with values computed independently

@@ -61,6 +61,11 @@ export function shellFor(command, exitFile = null, platform = process.platform) 
 }
 
 /** Installs, builds and test runs share the machine-wide queue of job-runner.mjs; servers and short commands do not. */
+/** Package installs: one at a time machine-wide (SC0E8AV2: one alone ~40 s, three at once 6 minutes). */
+export function installJob(name, command) {
+  return /(^|-)install(-|$)/i.test(name) || /\b(npm ci|(pnpm|yarn|npm|bun)(\.cmd)?\s+install|yarn-[\d.]+\.cjs\s+install)\b/i.test(command);
+}
+
 export function heavyJob(name, command) {
   const text = `${name} ${command}`;
   if (/serve\.mjs|\b(dev|start|preview|serve|watch)\b(?![-:\w])/i.test(command)) return false;
@@ -69,10 +74,11 @@ export function heavyJob(name, command) {
 
 /** The machine-wide queue of heavy jobs (see job-runner.mjs) and a job's place in it. */
 export const queueDir = () => process.env.MTM_HEAVY_QUEUE_DIR || join(tmpdir(), 'mtm-heavy-queue');
-// Preparation's background jobs (slot installs, the baseline run) queue behind the game's own jobs (a worker's build
-// or test run is on an item's critical path); within a class, first started first served.
+// The baseline run queues behind everything else. Slot installs do not: in SC0E8AV2 (1.5.16) they did, and the
+// workers' test runs starved install-s3/s5/s6 until minute 20, so wave 2 started in slots still installing and each
+// start_work took 3.5 minutes. Within a class, first started first served.
 export const ticketFile = (order, pid, name = '') =>
-  join(queueDir(), `${/^(install-s\d|baseline)$/.test(name) ? 2 : 1}-${String(order || Date.now()).padStart(20, '0')}-${pid}.json`);
+  join(queueDir(), `${name === 'baseline' ? 2 : 1}-${String(order || Date.now()).padStart(20, '0')}-${pid}.json`);
 
 const RUNNER = fileURLToPath(new URL('./job-runner.mjs', import.meta.url));
 
@@ -90,7 +96,7 @@ function launch(dir, name, cwd, mode, order = '') {
       const command = readFileSync(join(dir, `${name}.cmd.txt`), 'utf8');
       if (child.pid && heavyJob(name, command)) {
         mkdirSync(queueDir(), { recursive: true });
-        writeFileSync(ticketFile(order, child.pid, name), JSON.stringify({ pid: child.pid, job: name, state: 'WAIT', since: Date.now() }));
+        writeFileSync(ticketFile(order, child.pid, name), JSON.stringify({ pid: child.pid, job: name, install: installJob(name, command), state: 'WAIT', since: Date.now() }));
       }
     } catch { /* the runner takes its place itself */ }
     return child.pid ?? null;

@@ -102,9 +102,28 @@ test('1.5.16: heavy jobs share a machine-wide queue, first started first served;
   } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('1.5.16: a game job goes before waiting slot installs and the baseline', async () => {
+test('1.5.16: a game job goes before the waiting baseline; slot installs keep their order', async () => {
   const { ticketFile } = await import('../src/jobs.mjs');
   const { basename } = await import('node:path');
-  const names = [ticketFile('100', 1, 'install-s5'), ticketFile('100', 2, 'baseline'), ticketFile('200', 3, 'integration-1')].map(f => basename(f)).sort();
+  const names = [ticketFile('100', 1, 'baseline'), ticketFile('200', 3, 'integration-1')].map(f => basename(f)).sort();
   assert.ok(names[0].endsWith('-3.json'), names.join(','));
+});
+
+test('1.5.17: installs run one at a time while other heavy jobs share the queue', { skip: process.platform === 'win32' && 'POSIX shell test' }, async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'mld-install-'));
+  const dir = join(tmp, 'm', '.mtm-tmp', 'jobs'); const cwd = join(tmp, 'm'); mkdirSync(cwd, { recursive: true });
+  const h = new Helper({ MTM_HEAVY_JOBS: '3', MTM_HEAVY_QUEUE_DIR: join(tmp, 'queue') });
+  const { readFileSync } = await import('node:fs');
+  try {
+    const mark = n => `echo ${n} >> ${join(tmp, 'order.txt')}`;
+    await h.call('start_jobs', { dir, jobs: [
+      { name: 'install-s1', cwd, command: `${mark('i1-begin')}; sleep 2; ${mark('i1-end')}` },
+      { name: 'install-s2', cwd, command: `${mark('i2-begin')}; ${mark('i2-end')}` },
+      { name: 'prep-build', cwd, command: `${mark('b-begin')}; sleep 1; ${mark('b-end')}` }] });
+    const w = await h.call('wait_jobs', { dir, timeoutMs: 30000 });
+    assert.ok(w.done, JSON.stringify(w));
+    const order = readFileSync(join(tmp, 'order.txt'), 'utf8').trim().split('\n');
+    assert.ok(order.indexOf('i1-end') < order.indexOf('i2-begin'), `installs one at a time: ${order.join(',')}`);
+    assert.ok(order.indexOf('b-begin') < order.indexOf('i1-end'), `the build does not wait for the installs: ${order.join(',')}`);
+  } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });

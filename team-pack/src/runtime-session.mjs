@@ -635,6 +635,12 @@ export class MatchSession {
     } catch { return 'error'; } // the regular loop below retries
   }
 
+  /** How long a still-collecting PI may hold back the news: not at all when a deadline item just appeared. */
+  #piWaitMs(fresh = []) {
+    const urgent = fresh.some(k => { const i = this.#items().find(x => x.key === k); return i && !isIncident(i) && i.deadlineMinutes; });
+    return urgent ? 0 : 20000;
+  }
+
   /** NEW_PI result for the first prepared, unreported incident; waits up to waitMs for one still being prepared. */
   async #incidentUpdate(waitMs, fresh = []) {
     const open = [...this.incidents.values()].filter(e => !e.reported);
@@ -696,7 +702,28 @@ export class MatchSession {
     return item;
   }
 
-  async waitForUpdate({ timeoutMs = 240000, noWait = false } = {}) {
+  /**
+   * Discovers revealed items while the orchestrator is busy in its own cells (SC0E8AV2: wave 3 with PI-03 was
+   * published at 08:25:48 and discovered at 08:31:30, so the PI's data collection started 6 minutes late). Every
+   * 10 s outside wait_for_update, one feed read; a new PI starts its collection at once.
+   */
+  #watchFeed() {
+    if (this.feedTimer || process.env.MTM_FEED_WATCH === '0') return;
+    this.feedTimer = setInterval(async () => {
+      if (this.inWait || this.feedBusy || this.cfg?.phase !== 'GAME') return;
+      this.feedBusy = true;
+      try { await this.#peekFeed(); } catch { /* the next tick retries */ } finally { this.feedBusy = false; }
+    }, 10000);
+    this.feedTimer.unref?.();
+  }
+
+  async waitForUpdate(args = {}) {
+    this.#watchFeed();
+    this.inWait = true;
+    try { return await this.#waitForUpdate(args); } finally { this.inWait = false; }
+  }
+
+  async #waitForUpdate({ timeoutMs = 240000, noWait = false } = {}) {
     const c = this.#need();
     // The loop returns within ~5 s of any change (new item, status, SLOT_DONE), so a shorter wait only adds idle model
     // turns that re-send the whole context (7GAZA14X: a 60 s wait plus a status line every minute while workers ran).
@@ -717,7 +744,9 @@ export class MatchSession {
       // A PI outranks everything else (race for 100/90/75/60 %): its data is ready before the orchestrator wakes.
       // Before reporting anything, a cheap feed check discovers an item revealed since the last read.
       const peek = await this.#peekFeed();
-      const pi = await this.#incidentUpdate(90000, this.peekFresh ?? []);
+      // Never hold back other news for a PI still being collected (SC0E8AV2: a 90 s wait, twice, kept CR-07 (deadline
+      // 20) and BUG-11 off the board for 2.3 minutes). New items first; NEW_PI follows on the next call.
+      const pi = await this.#incidentUpdate(this.#piWaitMs(this.peekFresh ?? []), this.peekFresh ?? []);
       if (pi) { this.peekFresh = []; return pi; }
       const done = this.#newSlotResults();
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
@@ -733,7 +762,7 @@ export class MatchSession {
       try {
         const feed = this.projection?.api?.feedEndpoint;
         // A change the peek above already read is compared below; a quiet peek replaces this iteration's feed request.
-        let full = peek === 'changed' || Date.now() - lastFull > 30000 || !feed;
+        let full = peek === 'changed' || (this.peekFresh?.length ?? 0) > 0 || Date.now() - lastFull > 30000 || !feed;
         if (!full && peek !== 'same') {
           const url = new URL(feed, c.gmOrigin);
           url.searchParams.set('afterSequence', String(this.projection?.match?.currentSequence ?? 0));
@@ -755,8 +784,10 @@ export class MatchSession {
             fresh.push(...this.lastFresh);
             const now = this.projection?.match?.status;
             const reason = now && now !== status && !['IN_PROGRESS', 'PREPARING', 'PREPARED', 'READY'].includes(now) ? `MATCH_${now}` : 'MATCH_UPDATED';
-            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(90000, fresh); if (pi) return pi; }
-            return { changed: true, reason, board: this.#board(fresh) };
+            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(this.#piWaitMs(fresh), fresh); if (pi) return pi; }
+            const pending = [...this.incidents.values()].filter(e => !e.done).map(e => e.key);
+            return { changed: true, reason, board: this.#board(fresh),
+              ...(pending.length ? { incidentPending: pending, note: 'PI data is being collected; NEW_PI follows. Start the deadline items first.' } : {}) };
           }
         }
       } catch { wait = 10000; }
@@ -1460,6 +1491,14 @@ export class MatchSession {
       fail('SLOT_UNCOMMITTED', `${s.name} has uncommitted changes; the worker must commit them (or pass allowUncommitted at the safety net)`,
         { files: dirty.split(/\r?\n/).slice(0, 10) });
     }
+    if (dirty && allowUncommitted) {
+      // Safety net (SC0E8AV2 CR-07: 7 minutes of work, no commit, NOTHING_TO_INTEGRATE at the deadline, 0 points):
+      // what the worker has is committed as it is (scratch stays ignored) so a partial answer can still be graded.
+      await git(s.path, ['add', '-A', '--', c.repository.folder]);
+      await git(s.path, ['reset', '-q', '--', `${c.repository.folder}/${SCRATCH}`]);
+      await git(s.path, ['-c', 'core.safecrlf=false', 'commit', '-q', '--no-verify', '-m', `${backlogItemKey}: work in progress (safety net)`], { timeoutMs: 180000 });
+      this.#timeline('SAFETY_NET_COMMIT', backlogItemKey, { slot: s.name });
+    }
     const cur = (await gitOk(c.checkoutRoot, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
     if (cur !== c.repository.branch) fail('BRANCH_MISMATCH', `checkoutRoot is on ${cur}, not ${c.repository.branch}`);
     const mainDirty = (await gitOk(c.checkoutRoot, ['status', '--porcelain', '--untracked-files=no'])).trim();
@@ -1662,7 +1701,20 @@ export class MatchSession {
     this.companyQueue ??= [];
     if (this.companyBusy) await new Promise(r => (priority ? this.companyQueue.unshift(r) : this.companyQueue.push(r)));
     this.companyBusy = true;
-    try { return await this.#companyCallNow(a); } finally {
+    try {
+      // SC0E8AV2 PI-02: 18 calls answered RATE_LIMITED, the log set stayed incomplete and two answer fields were
+      // wrong (76/120 although first). Back off and retry instead of returning a gap.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const r = await this.#companyCallNow(a);
+          if (r?.isError && /rate.?limit|too many requests|429/i.test(String(r.text ?? r.head ?? '')) && attempt < 4) { await sleep(1500 * 2 ** attempt); continue; }
+          return r;
+        } catch (e) {
+          if (/RATE_LIMIT|429/i.test(`${e.code ?? ''} ${e.message ?? ''}`) && attempt < 4) { await sleep(1500 * 2 ** attempt); continue; }
+          throw e;
+        }
+      }
+    } finally {
       const next = this.companyQueue.shift();
       if (next) next(); else this.companyBusy = false;
     }

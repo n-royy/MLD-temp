@@ -54,8 +54,13 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
      the checkout's git-ignored env file (e.g. `..._<matchId>` and `..._<matchId>_test`); the application role has
      CREATEDB. Before baseline tests, confirm the database's recorded migrations equal the checkout's migration
      folder; if the tool warns about migrations missing from the folder, you are on a stale database: switch names.
-   - Job `prep-install`: the locked install (`pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...);
-     `wait_jobs`.
+   - **First command, as soon as you know the package manager** (README / `packageManager` / lockfile; at most a
+     minute of reading): ONE `start_jobs` with, in this order, `prep-install` (the locked install in the main
+     checkout: `pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...) and `install-s1`, `install-s2`,
+     `install-s4`, `install-s3`, `install-s6`, `install-s5` (the same install in each slot's app folder, from the
+     slot list in your task). The job runner runs installs one at a time, in that order (SC0E8AV2: alone ~40 s,
+     three at once 6 minutes), so they all finish within a few minutes, mostly before the game starts. Then
+     `wait_jobs` for `prep-install` only and go on; the slot installs keep running (the game reads `JOBS_DONE`).
    - Then in parallel: job `prep-build` (the documented build, e.g. `prepare-source.ps1` or `pnpm run build`) and job
      `prep-db` (the provided migration and seed steps, then the `doctor`/check script). One `wait_jobs` for both.
      The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
@@ -100,15 +105,12 @@ Rules for installs:
 - Keep installer output short (`| Select-Object -Last 5`), and time-box each install to ~10 minutes.
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
-## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
-With one `start_jobs` call, in this order: `install-s1`, `install-s2`, `install-s4`, `install-s3`, `install-s6`,
-`install-s5` (in each slot app folder, the same locked install plus `--prefer-offline`), then `baseline` (the full
-test suite in the main checkout, output to its log). Then go on with D and E while they run.
-**The job runner queues the heavy jobs itself** (1.5.16): installs, builds and full test runs of every slot and
-worker share one machine-wide queue, at most 3 at a time, first started first served (a worker's build or test
-run goes before waiting slot installs and the baseline), so do not add wait loops to the commands. The order above is the priority: the first wave's workers need s1 and s2, the PI needs your s4 at
-about minute 7 (UA9QF7DU: s4 was ready only at minute 17, after the PI had waited 5 minutes), then s3, s6 and the
-heavy slot s5. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
+## B. BACKGROUND JOBS (start them, do not wait)
+The slot installs were queued in part A. Start the `baseline` job now (the full test suite in the main checkout,
+output to its log) and go on with D and E while it runs. **The job runner queues heavy jobs itself**: installs run
+one at a time in their start order; installs, builds and full test runs of every slot and worker share one
+machine-wide queue of at most 3 at a time, and the baseline waits behind later jobs. Do not add wait loops to the
+commands. The game reads the results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
 guess from the design documents.
 Do not change tracked files.
