@@ -41,28 +41,36 @@ go to one `team_repo_scout` subagent; you keep only its short replies.
 **Time matters here** (UV8P4HUS 1.5.3: 26 minutes, and the match clock was already running at ENVIRONMENT_READY).
 READY needs only: doctor READY, build PASS, match login. Everything else (slot installs, baseline test run) runs as
 background jobs that continue after READY and are picked up in the game (`JOBS_DONE`).
+**The slot installs are the long pole, so they start first** (SC0E8AV2: clone, main install, main build, worktrees
+and only then the slot installs, at minute 7.5 of a 9.5-minute preparation; the first wave's slots were ready 4
+minutes into the game, three others at minute 20). Worktrees right after the clone, every install queued in the
+scout's first command, one install at a time (alone ~40 s; three at once took 6 minutes on this machine).
+
+3b. **Slots first** - `prepare_slots` with `count: 6` and no `copyFiles` right after the clone (worktrees only, ~45 s;
+   s1-s3 and s6 for the 4 workers, s4 for your own PI/TASK work, s5 for the heavy-item worker).
 
 4. **ENVIRONMENT + BUILD** - report `ENVIRONMENT` `IN_PROGRESS` and `BUILD` `IN_PROGRESS`, then `spawn_agent`
    (team_repo_scout, `fork_turns: "none"`):
    ```
    Preparation specialist for match <matchId>. checkoutRoot: <path>. matchRoot: <path>. teamWorkspace: <path>.
-   Follow <teamWorkspace>/.agents/skills/game-preparation/ENVIRONMENT.md "0. Speed rules" and part A (environment
-   and build of the main checkout, per-match database names, machine prerequisites from .mtm-local; long commands
-   only through start_jobs/wait_jobs). Reply in at most 120 words: OK or BLOCKED (+ exact error); build PASS/FAIL;
+   Slots (worktrees, created): <slot matchRoots from step 3b, in the order s1, s2, s4, s3, s6, s5>.
+   Follow <teamWorkspace>/.agents/skills/game-preparation/ENVIRONMENT.md "0. Speed rules" and part A (the FIRST
+   start_jobs queues the main install and every slot install; then environment and build of the main checkout,
+   per-match database names, machine prerequisites from .mtm-local; long commands only through start_jobs/wait_jobs). Reply in at most 120 words: OK or BLOCKED (+ exact error); build PASS/FAIL;
    the git-ignored env file(s) relative to matchRoot that hold local values; the exact database-name and port
    strings in them.
    ```
    `wait_agent` until it answers. `ENVIRONMENT` `COMPLETED` when it says OK (BLOCKED: report `BLOCKED` with its
    one-line error); `BUILD` `COMPLETED` when the build passed and `git -C <checkoutRoot> status --porcelain
    --untracked-files=no` is empty (check it yourself).
-5. **Slots** - `prepare_slots` with `count: 6` (s1-s3 and s6 for the 4 workers, s4 for your own PI/TASK work, s5 for the heavy-item worker) and `copyFiles` = the env file(s) from the reply, each with
+5. **Slot env files** - `prepare_slots` again with `count: 6` (existing worktrees are kept) and `copyFiles` = the env file(s) from the reply, each with
    `replace` turning the TEST database name into `<name>_{slot}` (and the app database too only when the env-require
    README demands one per working copy) and the app port `<p>` into `<p + 10·n>` (write the port as text, e.g.
    `"PORT=3000": "PORT=30{n}0"` style). It does not change tracked files.
 6. **Background jobs, repo map, tools** - `followup_task` to the scout:
    ```
-   Now ENVIRONMENT.md parts B (start background jobs, do NOT wait for them), D, E, and F only if its condition
-   holds. Slots: <slot matchRoots from prepare_slots>. Reply in at most 120 words: jobs started (names), repo map
+   Now ENVIRONMENT.md parts B (start the baseline job, do NOT wait for it; the slot installs already run), D, E,
+   and F only if its condition holds. Reply in at most 120 words: jobs started (names), repo map
    written yes/no, serve.mjs/shot.mjs verified yes/no, baseline result if already finished (failing tests by name),
    baseline patch ready yes/no (+ one line), checkout clean yes/no.
    ```

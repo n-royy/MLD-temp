@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { heavyJob, queueDir, shellFor, ticketFile } from './jobs.mjs';
+import { heavyJob, installJob, queueDir, shellFor, ticketFile } from './jobs.mjs';
 
 // Test hook: simulate the Windows failure seen in CVNXDTQY (detached process dies at once, writes nothing).
 if (process.env.MTM_JOB_RUNNER_BROKEN === '1') process.exit(0);
@@ -21,6 +21,7 @@ const command = readFileSync(join(dir, `${name}.cmd.txt`), 'utf8').replace(/\n$/
 // started first served (start_jobs passes its call order). Servers and short commands are not queued.
 const QUEUE = queueDir();
 const LIMIT = Math.max(1, Number(process.env.MTM_HEAVY_JOBS) || 3);
+const INSTALL_LIMIT = Math.max(1, Number(process.env.MTM_INSTALL_JOBS) || 1);
 const STUCK_MS = 20 * 60000; // a job running longer than this no longer holds its place
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
@@ -29,10 +30,12 @@ let ticket = null;
 async function queueTurn() {
   mkdirSync(QUEUE, { recursive: true });
   ticket = ticketFile(order, process.pid, name); // usually written already by start_jobs, in start order
-  writeFileSync(ticket, JSON.stringify({ pid: process.pid, job: name, state: 'WAIT', since: Date.now() }));
+  const install = installJob(name, command);
+  writeFileSync(ticket, JSON.stringify({ pid: process.pid, job: name, install, state: 'WAIT', since: Date.now() }));
   let said = 0;
   for (;;) {
     const ahead = [];
+    let installsAhead = 0;
     for (const f of readdirSync(QUEUE).sort()) {
       const file = join(QUEUE, f);
       if (file === ticket) break;
@@ -41,15 +44,16 @@ async function queueTurn() {
       if (!alive(t.pid)) { try { rmSync(file); } catch { /* another runner removed it */ } continue; }
       if (t.state === 'RUN' && Date.now() - t.since > STUCK_MS) continue;
       ahead.push(t.job);
+      if (t.install) installsAhead++;
     }
-    if (ahead.length < LIMIT) break;
+    if (ahead.length < LIMIT && (!install || installsAhead < INSTALL_LIMIT)) break;
     if (Date.now() - said > 60000) {
       said = Date.now();
       writeFileSync(log, `[mtm] queued behind ${ahead.length} heavy job(s) on this machine: ${ahead.slice(0, 6).join(', ')}\n`, { flag: 'a' });
     }
     await sleep(2000);
   }
-  writeFileSync(ticket, JSON.stringify({ pid: process.pid, job: name, state: 'RUN', since: Date.now() }));
+  writeFileSync(ticket, JSON.stringify({ pid: process.pid, job: name, install, state: 'RUN', since: Date.now() }));
 }
 const leave = () => { if (ticket) { try { rmSync(ticket); } catch { /* ignore */ } ticket = null; } };
 

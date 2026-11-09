@@ -93,3 +93,4 @@ Short rules learned from real matches. Each line names where it came from. They 
 - Never burst Company Tools: a rate-limited log set gives wrong counts. (SC0E8AV2 PI-02: first, 76/120)
 - Mutate every rule id once before mutating any rule twice; compute a data manifest by running the parser.
   (TASK-08 80-84 three matches in a row with half the rules never mutated; TASK-07 35/50 with a predicted manifest)
+- Slot installs start right after the clone, one at a time; they are the long pole of preparation. (SC0E8AV2)

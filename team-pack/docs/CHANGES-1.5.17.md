@@ -22,6 +22,13 @@ Helper:
 - Safety net: `integrate_item` with `allowUncommitted` commits the worker's uncommitted files itself.
 - Heavy job queue: slot installs keep their start order (only the baseline waits behind later jobs).
 
+Preparation (slot installs were the long pole: SC0E8AV2 clone 3 min, main install 40 s, build 46 s, worktrees, and
+only then the slot installs, at minute 7.5 of a 9.5-minute preparation):
+- `prepare_slots` right after the clone; a second call later only copies the env files.
+- The scout's first command queues the main install and all six slot installs (s1, s2, s4, s3, s6, s5).
+- The job runner runs installs one at a time (alone ~40 s, three at once 6 minutes); builds and tests still share
+  the queue of 3. The baseline starts after the build.
+
 Orchestrator: one item per cell (`start_work` + spawn), deadline items first; at most 4 Company Tools calls per
 cell, `prepare_incident refresh` for gaps; submit a PI only from a complete set.
 
@@ -32,4 +39,4 @@ Worker:
 - SUITE_DETECTION: one mutant for every rule id before any second one; mutate each section as soon as it is written.
 - DATA_REQUIREMENTS: the generator writes the manifest from the issued parser's and import's output.
 
-Tests: 26, all passing (new: safety-net commit of uncommitted work, inside the slots test).
+Tests: 27, all passing (new: one install at a time; safety-net commit of uncommitted work inside the slots test).

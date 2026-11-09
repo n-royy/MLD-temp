@@ -61,6 +61,11 @@ export function shellFor(command, exitFile = null, platform = process.platform) 
 }
 
 /** Installs, builds and test runs share the machine-wide queue of job-runner.mjs; servers and short commands do not. */
+/** Package installs: one at a time machine-wide (SC0E8AV2: one alone ~40 s, three at once 6 minutes). */
+export function installJob(name, command) {
+  return /(^|-)install(-|$)/i.test(name) || /\b(npm ci|(pnpm|yarn|npm|bun)(\.cmd)?\s+install|yarn-[\d.]+\.cjs\s+install)\b/i.test(command);
+}
+
 export function heavyJob(name, command) {
   const text = `${name} ${command}`;
   if (/serve\.mjs|\b(dev|start|preview|serve|watch)\b(?![-:\w])/i.test(command)) return false;
@@ -91,7 +96,7 @@ function launch(dir, name, cwd, mode, order = '') {
       const command = readFileSync(join(dir, `${name}.cmd.txt`), 'utf8');
       if (child.pid && heavyJob(name, command)) {
         mkdirSync(queueDir(), { recursive: true });
-        writeFileSync(ticketFile(order, child.pid, name), JSON.stringify({ pid: child.pid, job: name, state: 'WAIT', since: Date.now() }));
+        writeFileSync(ticketFile(order, child.pid, name), JSON.stringify({ pid: child.pid, job: name, install: installJob(name, command), state: 'WAIT', since: Date.now() }));
       }
     } catch { /* the runner takes its place itself */ }
     return child.pid ?? null;
