@@ -144,6 +144,16 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      path; "any number of lines" → at least 3 lines in one call, with the rule on the 2nd or 3rd line, not only the
      first; "at most 7 days before or after" → 7 and 8 days, before and after; "otherwise" → both branches; "never"
      → the case that would tempt the code. A broken build usually breaks one value of one dimension.
+     Three shapes the quantifier list misses (SC0E8AV2 TASK-08 audit: the suite covered every rule id and still
+     scored 80; these were its open cells):
+     - **`or` lists alternatives**: each alternative gets its own case ("a date or recurrence" → a one-off AND a
+       recurring schedule; the code had a separate branch for recurring ones that no case reached).
+     - **A move or replace is checked on both ends**: the new place has the result AND the old place no longer
+       has it (a counterpart moved to another account: present there, gone from the first account, total count
+       unchanged).
+     - **A rule about "every change" is checked after each kind of change the specification lists**: add, edit,
+       delete, import, merge, schedule posting, transfer creation and removal (B1 "every change shows in the
+       activity at once" → read the activity after each of them, not only after adds and edits).
   7. **Mutants by script, not by hand, every rule id first.** (SC0E8AV2 TASK-08: 10 mutants, all on T and A rules,
      the I0 one interrupted; the I, R, S, M and B rules - half of the specification - were never mutated, 80/100
      for the third match in a row.) Order the list rule-first: one mutant for EVERY rule id of the specification
