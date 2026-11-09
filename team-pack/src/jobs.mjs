@@ -8,6 +8,7 @@
 // written when the command ends). No secrets are written: commands must read passwords from env files themselves.
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -59,17 +60,39 @@ export function shellFor(command, exitFile = null, platform = process.platform) 
     `try { & { ${command} } ; $c = if ($LASTEXITCODE) { $LASTEXITCODE } else { 0 } } catch { Write-Output $_; $c = 1 }${write}; exit $c`]];
 }
 
+/** Installs, builds and test runs share the machine-wide queue of job-runner.mjs; servers and short commands do not. */
+export function heavyJob(name, command) {
+  const text = `${name} ${command}`;
+  if (/serve\.mjs|\b(dev|start|preview|serve|watch)\b(?![-:\w])/i.test(command)) return false;
+  return /\b(install|ci|build|test|tests|vitest|jest|playwright|e2e|typecheck|tsc|baseline|lage)\b/i.test(text);
+}
+
+/** The machine-wide queue of heavy jobs (see job-runner.mjs) and a job's place in it. */
+export const queueDir = () => process.env.MTM_HEAVY_QUEUE_DIR || join(tmpdir(), 'mtm-heavy-queue');
+// Preparation's background jobs (slot installs, the baseline run) queue behind the game's own jobs (a worker's build
+// or test run is on an item's critical path); within a class, first started first served.
+export const ticketFile = (order, pid, name = '') =>
+  join(queueDir(), `${/^(install-s\d|baseline)$/.test(name) ? 2 : 1}-${String(order || Date.now()).padStart(20, '0')}-${pid}.json`);
+
 const RUNNER = fileURLToPath(new URL('./job-runner.mjs', import.meta.url));
 
-function launch(dir, name, cwd, mode) {
+function launch(dir, name, cwd, mode, order = '') {
   const log = join(dir, `${name}.log`), exitFile = join(dir, `${name}.exit`);
   if (mode === 'runner') {
     // CVNXDTQY: on Windows a DETACHED pwsh (no console) exits at once with code 0 and no output. So the detached
     // process is a small Node runner (needs no console); it starts the shell normally (hidden console), waits and
     // writes the exit code. The runner outlives the helper and the Codex turn.
-    const child = spawn(process.execPath, [RUNNER, dir, name, cwd], { cwd, detached: true, windowsHide: true, stdio: 'ignore', env: { ...process.env, CI: '1' } });
+    const child = spawn(process.execPath, [RUNNER, dir, name, cwd, String(order)], { cwd, detached: true, windowsHide: true, stdio: 'ignore', env: { ...process.env, CI: '1' } });
     child.on('error', err => { try { writeFileSync(exitFile, '127'); writeFileSync(log, `runner start failed: ${err.message}\n`, { flag: 'a' }); } catch { /* ignore */ } });
     child.unref();
+    // Take the queue place now, in start order: the runner processes start at their own pace.
+    try {
+      const command = readFileSync(join(dir, `${name}.cmd.txt`), 'utf8');
+      if (child.pid && heavyJob(name, command)) {
+        mkdirSync(queueDir(), { recursive: true });
+        writeFileSync(ticketFile(order, child.pid, name), JSON.stringify({ pid: child.pid, job: name, state: 'WAIT', since: Date.now() }));
+      }
+    } catch { /* the runner takes its place itself */ }
     return child.pid ?? null;
   }
   // Fallback: the shell as a direct, non-detached child (works everywhere, but may die with the helper).
@@ -91,7 +114,8 @@ export async function startJobs({ dir, jobs, restartFailed = false } = {}) {
   if (!Array.isArray(jobs) || jobs.length === 0 || jobs.length > 12) fail('INVALID_JOBS', 'jobs must be an array of 1..12 {name, cwd, command}');
   mkdirSync(dir, { recursive: true });
   const out = [];
-  for (const j of jobs) {
+  const batch = Date.now();
+  for (const [idx, j] of jobs.entries()) {
     if (!NAME.test(j?.name ?? '')) fail('INVALID_JOBS', `invalid job name ${j?.name}`);
     if (typeof j.command !== 'string' || !j.command.trim()) fail('INVALID_JOBS', `${j.name}: command required`);
     if (typeof j.cwd !== 'string' || !isAbsolute(j.cwd) || !existsSync(j.cwd)) fail('INVALID_JOBS', `${j.name}: cwd must be an existing absolute folder`);
@@ -100,7 +124,7 @@ export async function startJobs({ dir, jobs, restartFailed = false } = {}) {
     writeFileSync(join(dir, `${j.name}.exit`), '');
     writeFileSync(join(dir, `${j.name}.log`), '');
     writeFileSync(join(dir, `${j.name}.cmd.txt`), j.command + '\n');
-    const pid = launch(dir, j.name, j.cwd, 'runner');
+    const pid = launch(dir, j.name, j.cwd, 'runner', `${batch}${String(idx).padStart(3, '0')}`);
     writeFileSync(join(dir, `${j.name}.pid`), String(pid ?? ''));
     out.push({ name: j.name, state: 'RUNNING', pid, started: true, mode: 'runner', cwd: j.cwd });
   }

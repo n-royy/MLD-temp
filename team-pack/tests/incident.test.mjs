@@ -442,17 +442,16 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
   } finally { h.close(); }
 });
 
-test('1.5.14: an unstarted deadline item at risk is reported with free and preemptable slots; image items never go to s4', async () => {
+test('1.5.16: no preemption events; image items never go to s4', async () => {
   const item = (key, type, deadlineMinutes, descriptionMd, revealedElapsedSec = 600) => ({ key, backlogType: type, title: key, deadlineMinutes,
     revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
   gm.state.backlog = [
     item('TASK-48', 'TASK', null, 'Long integration suite.'),
-    item('BUG-49', 'BUG', null, 'Schedule boundary.'),
     item('CR-47', 'CR', 20, 'Audit page; right only with the BUG-41 fixes.', 600),
     item('BUG-41', 'BUG', null, 'Customer books.'),
     item('TASK-51', 'TASK', null, 'Read the voucher image `data/voucher.png` and report its figures.')
   ];
-  gm.state.clock = { elapsedSec: 600 + 12 * 60, remainingSec: 1500 }; // CR-47: 8 minutes left (effort S needs 6 + 3)
+  gm.state.clock = { elapsedSec: 600 + 12 * 60, remainingSec: 1500 };
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
@@ -460,27 +459,15 @@ test('1.5.14: an unstarted deadline item at risk is reported with free and preem
     await h.call('configure_session', { descriptors: [prepare, start] });
     for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
     await h.call('refresh_match');
-    const st = {};
-    for (const [k, s] of [['TASK-48', 's1'], ['BUG-49', 's2'], ['BUG-41', 's3']]) st[k] = await h.call('start_work', { backlogItemKey: k, slot: s });
-    // 1.5.15: only a worker in its quality gate (phase GATE) may be wrapped up; BUG-49 is still on its rows.
-    writeFileSync(join(dirname(st['TASK-48'].doneFile), 'phase.json'), JSON.stringify({ phase: 'GATE' }));
-    writeFileSync(join(dirname(st['BUG-49'].doneFile), 'phase.json'), JSON.stringify({ phase: 'ROWS' }));
+    await h.call('start_work', { backlogItemKey: 'TASK-48', slot: 's1' });
+    // 1.5.15's DEADLINE_AT_RISK / WRAP_UP is gone: an unstarted deadline item is the orchestrator's ordering, not an event.
     const w = await h.call('wait_for_update', { noWait: true });
-    assert.equal(w.reason, 'DEADLINE_AT_RISK', JSON.stringify(w).slice(0, 400));
-    const r = w.atRisk.find(x => x.backlogItemKey === 'CR-47');
-    assert.ok(r && r.minutesLeft <= 9 && r.needMinutes === 6, JSON.stringify(r));
-    assert.deepEqual(r.freeSlots.sort(), ['s5', 's6']); assert.equal(r.action, 'START_NOW_IN_FREE_SLOT');
-    // BUG-41 is CR-47's prerequisite (it has the deadline through it): never a preemption candidate.
-    assert.deepEqual(r.preemptable.map(x => x.item), ['TASK-48']);
-    assert.ok(!w.atRisk.some(x => x.backlogItemKey === 'BUG-41'), 'started items are not at risk');
-    const again = await h.call('wait_for_update', { noWait: true });
-    assert.notEqual(again.reason, 'DEADLINE_AT_RISK', 'reported once per item');
-    // An image item is refused in s4 and named for a worker slot; its brief says so and lists the team answers file.
+    assert.notEqual(w.reason, 'DEADLINE_AT_RISK');
     const own = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's4' });
     assert.equal(own.error?.code, 'OWN_SLOT_RESERVED', JSON.stringify(own));
     const s = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's6' });
     const brief = JSON.parse(readFileSync(s.briefFile, 'utf8'));
-    assert.equal(brief.needsVision, true); assert.equal(brief.gateBudgetMinutes, 12);
+    assert.equal(brief.needsVision, true); assert.equal(brief.gateBudgetMinutes, undefined);
     assert.ok(brief.teamAnswersFile.endsWith('answers-index.json'));
   } finally { h.close(); }
 });

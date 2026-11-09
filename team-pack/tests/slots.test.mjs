@@ -205,6 +205,33 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   assert.equal(i3.integratedCommits, 1);
   assert.equal(g(checkoutRoot, 'log', '--oneline', '--grep', 'CR-01: work').split('\n').length, 1, 'no duplicated commits');
   assert.equal((await h.call('integrate_item', { backlogItemKey: 'CR-01' })).error.code, 'ITEM_NOT_IN_SLOT');
+
+  // 1.5.16: a prerequisite's fix reaches the dependent by cherry-pick before either is submitted (PREREQ_FIX_READY),
+  // and the copy already on the branch is skipped when the second item is integrated.
+  gm.reveal({ key: 'BUG-02', backlogType: 'BUG', title: 'Books', revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'Fix the books.' });
+  gm.reveal({ key: 'CR-02', backlogType: 'CR', title: 'Audit', revisionNo: 1, workStatus: 'NOT_STARTED', deadlineMinutes: 20,
+    descriptionMd: 'Audit page; right only on source that also contains the BUG-02 fixes.' });
+  await h.call('refresh_match');
+  const p1 = await h.call('start_work', { backlogItemKey: 'BUG-02', slot: 's1' });
+  const p2 = await h.call('start_work', { backlogItemKey: 'CR-02', slot: 's2' });
+  assert.ok(JSON.parse(readFileSync(p1.briefFile, 'utf8')).fixCommitFile.endsWith('FIX_COMMIT'));
+  writeFileSync(join(p1.slotMatchRoot, 'src', 'fix.txt'), 'fixed\n');
+  g(p1.worktreeRoot, 'add', '--', gm.matchId); g(p1.worktreeRoot, 'commit', '-qm', 'BUG-02: fix the books');
+  const sha = g(p1.worktreeRoot, 'rev-parse', 'HEAD');
+  writeFileSync(join(dirname(p1.doneFile), 'FIX_COMMIT'), `${sha}\n`);
+  const pf = await h.call('wait_for_update', { noWait: true });
+  assert.equal(pf.reason, 'PREREQ_FIX_READY', JSON.stringify(pf).slice(0, 300));
+  assert.deepEqual([pf.prereqFix[0].backlogItemKey, pf.prereqFix[0].commit, pf.prereqFix[0].dependents[0].slot], ['BUG-02', sha, 's2']);
+  assert.notEqual((await h.call('wait_for_update', { noWait: true })).reason, 'PREREQ_FIX_READY', 'reported once');
+  g(p2.worktreeRoot, 'cherry-pick', sha);
+  work(p2, 'CR-02', { file: 'src/audit.txt', content: 'audit\n' });
+  work(p1, 'BUG-02', { file: 'src/books.txt', content: 'books\n' });
+  const d2 = await h.call('integrate_item', { backlogItemKey: 'CR-02' });
+  assert.equal(d2.status, 'SUBMITTED', JSON.stringify(d2));
+  const d1 = await h.call('integrate_item', { backlogItemKey: 'BUG-02' });
+  assert.equal(d1.status, 'SUBMITTED', JSON.stringify(d1));
+  assert.equal(d1.integratedCommits, 1, 'the fix already on the branch is not picked again');
+  assert.equal(g(checkoutRoot, 'log', '--oneline', '--grep', 'BUG-02: fix the books').split('\n').length, 1);
   h.close();
 
   // Resume: a new helper process sees the slots and never resubmits.
@@ -218,6 +245,6 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   const raw = readFileSync(logFile, 'utf8');
   assert.ok(!raw.includes(gm.pass) && !raw.includes(gm.apiKey));
   for (const e of events()) assert.equal(validateEvent(e), null, JSON.stringify(e));
-  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 3);
+  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 5); // TASK-01, BUG-01, CR-01, CR-02, BUG-02
   assert.ok(!g(bare, 'branch', '--list').includes('mtm-slot'));
 });

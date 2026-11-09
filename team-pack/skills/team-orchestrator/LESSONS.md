@@ -68,10 +68,10 @@ Short rules learned from real matches. Each line names where it came from. They 
   tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
 - The organizer no longer marks heavy items: read the effort profile (board effort/heavy/heavyCandidate with reasons:
   large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)
-- Agent threads are capped and an idle agent keeps its thread: reuse finished agents (the scout first) before
-  spawning. (6QYJQAVJ: spawn refused with 4 sub-agents; the orchestrator did 6 items itself)
-- Assign deadline items in the first cell of a wave, then work the PI yourself at once; never give a PI to a worker.
-  Wrap up only a worker already in its quality gate. (6QYJQAVJ CR-07 0/100; 6YOBNM4Z PI 20 min, BUG-09 15/80)
+- Agent threads are capped: the pack sets max_threads 10 for 4 workers, the heavy worker and the idle scout.
+  (6QYJQAVJ: spawn refused with 4 sub-agents; the orchestrator did 6 items itself)
+- Assign deadline items in the first cell of a wave, then work the PI yourself at once; never give a PI to a worker,
+  never interrupt a worker for another item. (6QYJQAVJ CR-07 0/100; 6YOBNM4Z PI 20 min, BUG-09 15/80 after WRAP_UP)
 - Numbers read from an image are read twice from crops and checked against the team's answers.
   (6QYJQAVJ TASK-11: one transposed digit, 64/80)
 - A suite scored by broken builds must also fail on the issued source's real defects, with non-ASCII text variants.
@@ -79,3 +79,10 @@ Short rules learned from real matches. Each line names where it came from. They 
 - The heavy worker (high reasoning) is for XL items only; deadline and L items run faster on feature workers.
   (6YOBNM4Z CR-07 56/100 on a heavy worker)
 - Evidence rows are proved, not abandoned: change the approach, not the target, while time remains. (6YOBNM4Z BUG-09)
+- The machine is the bottleneck before the agents are: stale servers of an earlier match, six installs, production
+  builds and a full baseline at once made every git call and test run crawl. Free the machine, queue heavy jobs,
+  run the narrowest proof. (UA9QF7DU: one submission in 25 minutes)
+- A deadline item that needs another item's fix takes it by cherry-pick as soon as that fix is committed, not when
+  it is submitted. (32PTEO8K / 6QYJQAVJ / UA9QF7DU CR-07)
+- A PI is values first: no source change, build or test suite before the fields are computed and submitted, unless
+  its grading scores the change. (UA9QF7DU PI-02 not submitted after 20 minutes)

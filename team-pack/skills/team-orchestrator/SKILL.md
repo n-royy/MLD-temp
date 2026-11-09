@@ -20,7 +20,7 @@ small: never paste briefs, diffs or logs into it.
    (the second one carries the team API key; the first one carries the portal login).
 2. `report_progress` `GAME_START_STATUS` stage `BACKLOG_SYNC` `IN_PROGRESS` → `refresh_match` →
    `GAME_START_STATUS` `BACKLOG_SYNC` `COMPLETED`. `refresh_match` already logs `DISCOVERED` for each new item.
-   The board lists `slots` (prepared during preparation: s1..s3 for workers, s4 for you). If it has none, call
+   The board lists `slots` (prepared during preparation: s1-s3 and s6 for the 4 workers, s4 for you, s5 for the heavy worker). If it has none, call
    `prepare_slots` with the values from your preparation summary, or work single-agent ("Doing an item yourself").
 2b. **Background jobs from preparation** (slot installs `install-sN`, the `baseline` test run in
    `<matchRoot>/.mtm-tmp/jobs`) may still be running: do not wait for them. Spawn workers at once; each worker waits
@@ -41,17 +41,9 @@ small: never paste briefs, diffs or logs into it.
 - Call `spawn_agent`, `followup_task`, `send_message`, `wait_agent`, `interrupt_agent`, `list_agents` as direct tool
   calls (they are not in the `exec` `tools.*` namespace). Read their tool definitions once for the field names.
 - Spawn with the role/agent type `team_feature_worker` and `fork_turns: "none"` (a fresh, small context: never fork
-  your history). Do not set model or reasoning effort. A heavy item gets agent type `team_heavy_worker`.
-- **Agents are a pool, and a finished agent still holds its place.** Codex caps the agent threads (6QYJQAVJ:
-  `collab spawn failed: agent thread limit reached` with 4 sub-agents: the idle preparation scout plus 3 workers; the
-  heavy worker for TASK-10 was never created and you did 6 items yourself, one of them wrong). So:
-  - **A fresh agent per item while the pool allows** (`agents.max_threads = 10` in the pack config: 6YOBNM4Z ran 6
-    sub-agents). A worker that finished an item takes the next with `followup_task` when that saves a spawn.
-  - **The scout last.** Its context is full of the preparation (6YOBNM4Z: the reused scout left BUG-09's three
-    browser rows unrun, 15/80); give it an item only when a spawn is refused.
-  - A spawn refused for the thread limit: never retry it in this match; from then on only reuse.
-  - Slots are not tied to agent types: any free slot (s1-s3, s5, s6) takes any item; `heavy` only chooses
-    `team_heavy_worker` when an agent is spawned (a reused agent reads WORKER.md "Heavy items" for a heavy brief).
+  your history). Do not set model or reasoning effort. At most 4 workers run at once (slots s1, s2, s3, s6) plus one
+  heavy worker for s5 (heavy items only, agent type `team_heavy_worker`). The pack sets `agents.max_threads = 10`, so
+  these 5 agents and the idle preparation scout fit (6QYJQAVJ: the default limit refused a 5th agent).
 - **One worker per item, all worker slots (s1-s3, s6) busy** (see "Wave planning"). A worker may get a second item in
   the same slot (`integrate_item` with `next`, then `followup_task`) only for a queued no-deadline item when that
   slot is the first to free; it keeps its running server and knowledge of the code. Otherwise spawn a fresh worker.
@@ -63,8 +55,8 @@ small: never paste briefs, diffs or logs into it.
   ```
 - Follow-up message for a queued item in the same slot (after `integrate_item` returned `next`):
   `Next item <ID> (<TYPE>): briefFile <path>. Your slot was reset to the branch head, which includes <previous ID>. <deadline>.`
-- Messages to a working worker: only the blocker note ("Wave planning" step 4), the baseline-owner note (2b) and
-  the safety net. `followup_task`
+- Messages to a working worker: only the blocker note and the prerequisite-fix note ("Wave planning" step 4), the
+  baseline-owner note (2b) and the safety net. `followup_task`
   only to fix a rejected gate, to hand over the `next` item, or to replace a placeholder value.
 - Never put credentials, the API key or descriptor objects in a message.
 
@@ -95,20 +87,18 @@ syncing the dependent slot when the blocker lands, not by queueing.
 The helper reads every brief and puts a profile on each board entry, so you plan without opening briefs:
 `type`, `points`, `minutesLeft` / `effectiveMinutesLeft` (urgency, own deadline or as a prerequisite),
 `dependsOn` / `prerequisiteOf`, `effort` (`S`/`M`/`L`/`XL` from the brief: data to process and its volume,
-data-cleaning traps, aggregated answers, points above the same type, a long multi-requirement brief; for code work
-the parts to build (server, screen...), the files, routes and test ids it names, several causes, many acceptance
-criteria or scenarios, hidden tests beyond the scenarios),
+data-cleaning traps, aggregated answers, points above the same type, a long multi-requirement brief),
 `heavy` (XL) or `heavyCandidate` (L) with `effortReasons`, and `gradingKind` (what is scored beyond the rows:
 `SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
 scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
 items: the profile is the signal. Decide with it in this order, for every item:
-1. **Urgency**: the PI is yours and it races: work it yourself at once, never through a worker (6YOBNM4Z: a PI
-   given to a worker took 20 minutes instead of ~7). In the same first cell of the wave, before the PI, only
-   assign the deadline items and their prerequisites (`start_work` + spawn: seconds), nearest deadline first.
-2. **Effort**: only `heavy` (XL) gets a `team_heavy_worker`, in any free slot, s5 first. `heavyCandidate` (L) and
-   every deadline item get a `team_feature_worker`: the heavy worker reasons longer per step (6YOBNM4Z: CR-07 on a
-   heavy worker reached its deadline with three rows unrun). Effort never keeps a slot empty: s5 takes any item
-   when no heavy item waits. Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
+1. **Urgency**: deadline items and their prerequisites, nearest first, are assigned in the first cell of the wave
+   (`start_work` + spawn: seconds); then the PI is yours, at once, in that same turn ("Incident fast path"), never a
+   worker's (6YOBNM4Z: a PI given to a worker took 20 minutes instead of ~7).
+2. **Effort**: `heavy` (XL) goes to the s5 heavy worker at once; `heavyCandidate` (L) goes to s5 only when s5 is
+   free, no `heavy` item waits and the item has no deadline (own or as a prerequisite); otherwise it is an ordinary
+   item. A deadline item never goes to the heavy worker: it reasons longer per step (6YOBNM4Z: CR-07 on the heavy
+   worker reached its deadline with three rows unrun, 56/100). Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
 3. **Value**: the rest by points per expected effort (S before M at equal points).
 4. **Grading**: an item with `gradingKind` keeps its slot for its quality gate (the "Quality gate" paragraph of the SLOT_DONE steps; WORKER.md "Quality gate"):
    never treat early rows passing as the end.
@@ -116,7 +106,8 @@ items: the profile is the signal. Decide with it in this order, for every item:
 When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
-2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
+2. **Order:** deadline items and their prerequisites are started first, in one cell (seconds), then **the PI,
+   immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then the other deadline items, nearest deadline first (deadline
    minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
    expected effort (CR/BUG usually before TASK).
    **Prerequisites count as deadline items.** The helper reads every brief: an item whose brief names another open
@@ -124,20 +115,19 @@ When a wave appears (game start, or `newItems` on the board):
    (the nearest deadline among the items that need it). Order by `minutesLeft`, or `effectiveMinutesLeft` when it is
    smaller: a prerequisite starts no later than the deadline item that needs it, ideally first (32PTEO8K: BUG-11 had
    no deadline but CR-07's grade needed its fixes; it started 18 minutes late, after CR-07 was submitted, and CR-07
-   lost 27 points). A prerequisite also gets `DEADLINE_SOON` (kind `PREREQUISITE_DEADLINE`) and a `stopBy`. **Heavy items** (board `heavy: true`) start as soon as an agent is
-   free, s5 first (see "Heavy items" below), but never before a deadline item that waits.
-3. **Assign in that order, one item per free slot (s1, s2, s3, s6, and s5 when no heavy item waits), until the
-   slots or the agents run out.** Never leave a slot idle while an
+   lost 27 points). A prerequisite also gets `DEADLINE_SOON` (kind `PREREQUISITE_DEADLINE`) and a `stopBy`. **Heavy items** (board `heavy: true`) are outside this order: they go
+   at once to slot s5 (see "Heavy items" below).
+3. **Assign in that order, one item per free worker slot (s1, s2, s3, s6), until they are full.** Never leave a slot idle while an
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
    a value TASK with no free worker slot you do in s4 ("Doing an item yourself"); a BUG/CR takes the next worker
    slot that frees (`integrate_item` with `next` on the slot whose item finishes first), never s4.
    **Heavy items** (`heavy: true`: the helper's effort profile from the brief says XL: large data to process,
-   traps, aggregated answers) go to slot s5 first (any free slot otherwise) with an agent of type
-   **`team_heavy_worker`** when one can be spawned (a `heavyCandidate` (L) gets s5 when free, but a
-   `team_feature_worker`) (higher reasoning effort,
-   quality-first instructions), or an idle agent reused with the same note. As soon as a heavy item appears and the
-   deadline items of its wave are assigned: `start_work` and spawn or reuse. Spawn
-   note: `Heavy item: WORKER.md "Heavy items" (plan.md and progress.md, rows one by one with a
+   traps, aggregated answers; `heavyCandidate: true` (L) when s5 is free) belong to the
+   dedicated **heavy worker in slot s5**, a 5th agent that only does heavy items, so they never take a slot from the
+   other items and never wait for the end of the backlog. As soon as a heavy item appears (and after the PI, if one
+   appeared in the same wave): `start_work` with `slot: "s5"` and spawn one agent of type **`team_heavy_worker`**
+   (higher reasoning effort, quality-first instructions; if that type is refused, spawn `team_feature_worker`). Spawn
+   note: `Heavy item in the dedicated slot s5: WORKER.md "Heavy items" (plan.md and progress.md, rows one by one with a
    valid answer committed after each PASS, self-review, sync with the branch before the final checks; work until
    done or until stopBy)`. It works the item through to the end; integrate it on
    `SLOT_DONE` like any item. Its final call is `DEADLINE_SOON` with `heavy: true` about 1.5 minutes before its
@@ -148,9 +138,9 @@ When a wave appears (game start, or `newItems` on the board):
    - One heavy item at a time in s5. A second heavy item while s5 is busy waits for s5 (`integrate_item` with `next`
      when the first one is submitted); if a worker slot (s1-s3, s6) is free and no other open item waits for one, it may
      take that slot instead (same spawn note).
-   - No agent can be spawned and none is idle: the heavy item waits for the first agent that finishes. Only when
-     its deadline is near and every agent is busy may you work it in s4 (short steps, `wait_for_update` with
-     `noWait: true` after each row, events first).
+   - No s5 (preparation created only 4 slots) or `spawn_agent` refuses a 5th agent: the heavy item takes a worker
+     slot after every other open item is started, or your s4 when every worker slot is busy (work it in short steps and call
+     `wait_for_update` with `noWait: true` after each row, handling events first).
 4. **Dependencies are not a reason to wait:**
    - Verification dependency (e.g. a layout bug hides content another item must screenshot): start both. Tell the
      dependent worker in its spawn note `<blocker ID> fixes <what>; you will be told when it is on the branch`.
@@ -161,6 +151,16 @@ When a wave appears (game start, or `newItems` on the board):
      `git -C <slot path> diff --name-only <branch>...HEAD` (plus `status --porcelain`) and compare it with the
      integrated item's files (`git -C <checkoutRoot> diff --name-only <previous tip> <new tip>`). On an overlap, `send_message` that worker once: `<ID> on <branch> changed <files>; rebase at your
      preflight`. At most one overlap notice per running item; no notice when nothing overlaps.
+   - **Prerequisite of a deadline item** (board `prerequisiteOf`, the dependent shows `dependsOn`): start both in the
+     same cell, the prerequisite first. The dependent does not wait for the prerequisite to be submitted: the
+     prerequisite's worker commits its fix first, in its own commit, and the helper wakes you with
+     `reason: "PREREQ_FIX_READY"` (`prereqFix[]`: `backlogItemKey`, `commit`, `dependents[]` with their slots). For each
+     dependent with a slot, `send_message` its worker once: `<prereq ID> fix is commit <sha> (slot branch <branch>):
+     git -C <worktreeRoot> cherry-pick <sha> now, then go on` (WORKER.md "Your item needs another item's changes").
+     Both items then carry the same fix; the helper skips the copy that is already on the branch when the second one
+     is integrated. This is one of the allowed mid-work messages. Integrate whichever finishes first: the dependent
+     never waits for the prerequisite's submission (32PTEO8K / 6QYJQAVJ / UA9QF7DU: CR-07 starved or graded
+     without BUG-11's fixes).
    - Code dependency (two items rewrite the same function or file): still run both; the second integration may
      need a rebase (`INTEGRATION_CONFLICT` flow). Queue an item behind another (`integrate_item` with `next`) only
      when it has NO deadline and no slot is free anyway.
@@ -193,7 +193,8 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    for all new items in as few calls as possible (one `exec` cell for the helper calls, then the spawns).
 5. Wait with `wait_for_update` (blocks up to 4 minutes; returns early on a new item, a status change, pause/end, or
    `reason: "SLOT_DONE"` with `slotDone[]` when a worker wrote its DONE.json, or `reason: "DEADLINE_SOON"` when a busy
-   item is 3 minutes from its deadline or the match end: go to "Safety net"). Call it again and again **without
+   item is 3 minutes from its deadline or the match end: go to "Safety net"; `reason: "PREREQ_FIX_READY"`: "Wave
+   planning" step 4). Call it again and again **without
    writing any message in between** - no status lines, no "still waiting", nothing (7GAZA14X: a line every minute
    while workers ran). `wait_for_update` always blocks the full 240 s and returns within seconds of any change. A worker's FINAL_ANSWER message needs no reply, and neither does any other
    worker message. Never `send_message` a working worker to ask for status: every ping costs both of you a turn and
@@ -255,16 +256,6 @@ failures")`; every other worker started before the owner is integrated gets `Kno
 by <owner ID>; do not touch it`. Integrate the owner first when several workers finish together. Items started after
 the owner is integrated already contain the fix.
 
-## Deadline item without a slot (on `DEADLINE_AT_RISK`)
-The helper reports an unstarted deadline item (own deadline or as a prerequisite) once, when its time left falls
-to what its effort needs plus 3 minutes (`needMinutes`: S 6, M 10, L 15, XL 20), with `freeSlots` (any slot but s4)
-and `preemptable`: only no-deadline items whose rows already pass (their worker is in its quality gate). Act:
-1. `START_NOW_IN_FREE_SLOT`: `start_work` there and spawn (or reuse) a `team_feature_worker`.
-2. `WRAP_UP_GATE`: `send_message` that worker `WRAP_UP: end your quality gate, commit, write DONE.json now`. On its
-   SLOT_DONE, `integrate_item` with `next: <deadline item>` and `followup_task` the same agent with it.
-3. `WAIT_FOR_SLOT`: never interrupt a worker on its rows or evidence (6YOBNM4Z: an 80-point BUG-09 wrapped up
-   mid-evidence for a 50-point item scored 15). The deadline item takes the first slot that frees.
-
 ## Safety net (on `DEADLINE_SOON`)
 `wait_for_update` returns `reason: "DEADLINE_SOON"` with `deadlineSoon[]` (`backlogItemKey`, `slot`, `kind`
 DEADLINE or MATCH_END, `minutesLeft`) once per busy item, 3 minutes before it closes (heavy items: about 1.5 minutes, with `heavy: true`). For each entry:
@@ -291,16 +282,17 @@ enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for 
 after the PI appeared).
 1. No worker, no WORKER.md. Read `incident.files.digest` (coverage, services, releases, flags, entities, KB list),
    `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,
-   `item.description`). `incident.complete` false, `problems` not empty, or a service the brief names
-   has no rows in the digest: `prepare_incident` with `refresh: true` once (it queries the services the brief names),
-   then fetch what is still missing yourself: a few explicit `company_tool_call`s in one cell are fine (the helper
-   runs them one at a time, the PI's ahead of others); never page through a tool with a programmatic loop.
+   `item.description`). `incident.complete` false or `problems` not empty: `prepare_incident` with `refresh: true`
+   once, then page what is still missing yourself (`company_tool_call`, saved to a file).
 2. One Node script `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` over `incident/logs.json` / `entities.json` computes every
    field the brief asks for, using the definitions in the KB articles and the brief, and prints each value with the
    log rows that prove it: sets complete (every record that matches the definition, found by joining each record's
    events in time order, not only the reported ones), "first/earliest" by timestamp, causes as the KB defines them,
    strings exactly as logged. Never pick values by eye.
    Start from `incident/solve-starter.mjs` (data loaded and indexed; copy it to `../solve.mjs`).
+   Values first: the PI is scored on the fields the brief asks for, in the order of submission. Change source or
+   run builds and test suites only when the brief's `grading` scores a code change, and never before the values
+   are computed (UA9QF7DU: a rule fix and its test run under load delayed PI-02 past minute 25).
 3. One call submits it: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
    short incident record: impact, timeline, root cause, containment, recovery, prevention), `evidence`
    (`{"investigation.json": {"from": "<the script output file>"}}`) and `integrate: true`. It fills the template,
@@ -312,11 +304,10 @@ after the PI appeared does not prepare it by itself: call `prepare_incident` for
 not in `board.incidents`.
 
 ## Doing an item yourself (value TASK while every worker slot is busy)
-Only the PI and short value questions answered from source or one small computation (effort S or M, no image);
-never a BUG or CR, which change source and need a server, tests and evidence for many minutes while nobody
-integrates, and never an answer read from an image or drawing (brief `needsVision`: a digit misread in a 2-minute
-rush cost 16 points in 6QYJQAVJ TASK-11). `start_work` refuses both in s4 with `OWN_SLOT_RESERVED`; a heavy or
-multi-step item waits for an agent rather than for you, unless the pool is exhausted and its deadline is near. Keep it short: one script that computes the value, then `answer_item` with
+Only items whose answer is a value (TASK questions, investigations) and the PI; never a BUG or CR, which change
+source and need a server, tests and evidence for many minutes while nobody integrates (`start_work` refuses them in
+s4 with `OWN_SLOT_RESERVED`), and never an answer read from an image or a drawing (brief `needsVision`: a digit
+misread in a 2-minute rush cost 16 points in 6QYJQAVJ TASK-11; the helper refuses it in s4 too). Keep it short: one script that computes the value, then `answer_item` with
 `integrate: true`. Between steps call `wait_for_update` with `noWait: true` and integrate any `SLOT_DONE` first.
 Work in **your own slot s4**, never in the main checkout (`integrate_item` needs it clean for the workers):
 `start_work` with `slot: "s4"` → read its `briefFile` and `.agents/skills/team-orchestrator/WORKER.md` (item kinds 2

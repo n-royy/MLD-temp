@@ -77,3 +77,34 @@ test('a runner that dies at once (CVNXDTQY on Windows) falls back to a direct ch
     assert.match(w.jobs.find(j => j.name === 'prep-build').tail, /built/);
   } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('1.5.16: heavy jobs share a machine-wide queue, first started first served; servers are not queued', { skip: process.platform === 'win32' && 'POSIX shell test' }, async () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'mld-queue-'));
+  const dir = join(tmp, 'm', '.mtm-tmp', 'jobs'); const cwd = join(tmp, 'm'); mkdirSync(cwd, { recursive: true });
+  const h = new Helper({ MTM_HEAVY_JOBS: '1', MTM_HEAVY_QUEUE_DIR: join(tmp, 'queue') });
+  const { readFileSync } = await import('node:fs');
+  const { heavyJob } = await import('../src/jobs.mjs');
+  try {
+    assert.equal(heavyJob('install-s1', 'pnpm install --frozen-lockfile'), true);
+    assert.equal(heavyJob('fixed-build', 'yarn build:browser'), true);
+    assert.equal(heavyJob('ui', 'node .mtm-tmp/tools/serve.mjs --mode prod --port 5101'), false);
+    assert.equal(heavyJob('app', 'pnpm dev'), false);
+    const mark = n => `echo ${n} >> ${join(tmp, 'order.txt')}`;
+    await h.call('start_jobs', { dir, jobs: [
+      { name: 'install-a', cwd, command: `${mark('a-begin')}; sleep 2; ${mark('a-end')}` },
+      { name: 'install-b', cwd, command: `${mark('b-begin')}; ${mark('b-end')}` },
+      { name: 'srv', cwd, command: `node serve.mjs 2>/dev/null; ${mark('srv')}` }] });
+    const w = await h.call('wait_jobs', { dir, timeoutMs: 30000 });
+    assert.ok(w.done, JSON.stringify(w));
+    const order = readFileSync(join(tmp, 'order.txt'), 'utf8').trim().split('\n');
+    assert.ok(order.indexOf('a-end') < order.indexOf('b-begin'), order.join(','));
+    assert.ok(order.indexOf('srv') < order.indexOf('a-end'), `the server is not queued: ${order.join(',')}`);
+  } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('1.5.16: a game job goes before waiting slot installs and the baseline', async () => {
+  const { ticketFile } = await import('../src/jobs.mjs');
+  const { basename } = await import('node:path');
+  const names = [ticketFile('100', 1, 'install-s5'), ticketFile('100', 2, 'baseline'), ticketFile('200', 3, 'integration-1')].map(f => basename(f)).sort();
+  assert.ok(names[0].endsWith('-3.json'), names.join(','));
+});
