@@ -25,6 +25,13 @@ only the orchestrator writes progress events.
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
   in your reply. BLOCKED is only for a real environment failure (database, install, build).
+- **Free the machine first** (UA9QF7DU: two Next.js servers of an earlier match, JTYYBXTL, still ran during the
+  game while six installs, two production builds and the baseline fought for the disk; git calls timed out and a
+  PI took 20 minutes). Before the first install, stop every process left by an earlier match: `node`, `pnpm`,
+  `yarn`, `vite`, `next`, `vitest`, `playwright` and browser processes whose command line contains
+  `<teamWorkspace>\matches\` but NOT this match ID (PowerShell: `Get-CimInstance Win32_Process` filtered on
+  `CommandLine`, then `Stop-Process -Id <pid> -Force`). Never stop anything outside `<teamWorkspace>\matches\`.
+  One line in your reply: how many you stopped.
 - **Stay off the critical path.** READY needs only doctor READY and build PASS. Slot installs and the baseline run
   are started as jobs and NOT awaited: they finish during the first minutes of the game.
 - **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline` (also in slots, in parallel).
@@ -94,16 +101,14 @@ Rules for installs:
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
 ## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
-With one `start_jobs` call: `install-s1`..`install-s6` (in each slot app folder, the same locked install plus
-`--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
-and E while they run.
-**Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs), s5 (heavy
-items) and s6 (the 4th worker, needed once the backlog outgrows three workers) come later. Six installs at once
-share the disk and all finish late (5FLQMNAA: about 12 minutes, so a worker waited ~4 minutes into the game). So
-`install-s4`, `install-s5` and `install-s6` first wait, at most 10 minutes, until `install-s1`..`install-s3` have an
-exit file, then install. PowerShell prefix for those three commands
-(`<jobsDir>` = the jobs `dir`):
-`$t=0; while ((@('install-s1','install-s2','install-s3') | Where-Object { -not (Test-Path "<jobsDir>\$_.exit") }) -and $t -lt 600) { Start-Sleep 5; $t+=5 }; ` The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
+With one `start_jobs` call, in this order: `install-s1`, `install-s2`, `install-s4`, `install-s3`, `install-s6`,
+`install-s5` (in each slot app folder, the same locked install plus `--prefer-offline`), then `baseline` (the full
+test suite in the main checkout, output to its log). Then go on with D and E while they run.
+**The job runner queues the heavy jobs itself** (1.5.16): installs, builds and full test runs of every slot and
+worker share one machine-wide queue, at most 3 at a time, first started first served (a worker's build or test
+run goes before waiting slot installs and the baseline), so do not add wait loops to the commands. The order above is the priority: the first wave's workers need s1 and s2, the PI needs your s4 at
+about minute 7 (UA9QF7DU: s4 was ready only at minute 17, after the PI had waited 5 minutes), then s3, s6 and the
+heavy slot s5. The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
 guess from the design documents.
 Do not change tracked files.

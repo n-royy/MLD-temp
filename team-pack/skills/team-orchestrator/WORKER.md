@@ -82,8 +82,18 @@ with your submission"), the other item's changes must be in your commit:
   cleanly). Rebase again if it lands before you finish.
 - Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
   include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
+- **The prerequisite's fix arrives by cherry-pick** (1.5.16): the prerequisite's worker commits its fix first, and
+  the orchestrator sends you `<other ID> fix is commit <sha> ...: git -C <worktreeRoot> cherry-pick <sha>`. Do it at
+  once (a conflict with your own change of the same lines: keep both intents, `git cherry-pick --continue`), rerun
+  what it touches, go on. Until then work on everything that does not need it; never wait idle for it. If the
+  message has not come by `stopBy` minus ~8 minutes, use the rule above (smallest change yourself).
 Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
-your deadline (your `stopBy` already uses it), and commit the part they need first.
+your deadline (your `stopBy` already uses it). **Commit the fix they need first, alone**: as soon as the code change
+works (your reproduction passes), before evidence, answer or quality gate, commit only the source change (no
+`answers/`, no tests of yours) as `<your ID>: fix <what>`, then write its full sha to
+`<slotMatchRoot>/.mtm-tmp/<your ID>/FIX_COMMIT` (one line). The helper hands it to the dependent worker, so its
+deadline item no longer waits for your submission. Later corrections of the fix go in new commits (never amend or
+rebase that commit) and get a new FIX_COMMIT line only when the dependent needs them.
 
 ## An item of a kind no section here names
 The brief's `grading` is the organizer's scoring text. Plan from it whatever the item is: list what is scored (each
@@ -101,11 +111,8 @@ minute 12 of 40 with a planted bug undetected, 84/100; TASK-07 35/50). When the 
 rows pass and are committed, run the gate for its `kind`, write the result to `qualityGate.reportFile` (a table:
 check, result, what you changed), fix what it finds, commit, and put
 `"qualityGate":{"kind":"<kind>","status":"PASS|PARTIAL","summary":"one line"}` in DONE.json.
-Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. It is
-bounded by `gateBudgetMinutes` (12) from the moment your rows passed, and by `stopBy` minus ~5 minutes: commit what
-holds and report the gate `PARTIAL` with what was not checked (6QYJQAVJ: a 36-minute TASK-08 and a 29-minute BUG-09
-held two of three workers while a 100-point deadline item never got a slot). A `WRAP_UP` message from the
-orchestrator ends the gate at once ("Messages while you work"). Never leave a
+Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. Stop it
+at `stopBy` minus ~5 minutes, commit what holds, and report `PARTIAL` with what was not checked. Never leave a
 mutant, a temporary source restore or a debug edit in the tree: `git status --porcelain` must be empty before DONE.
 - **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on):
   1. Rule matrix: for every rule of the specification, every operation that reaches it (create, update of each
@@ -123,6 +130,22 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      fail, restore HEAD. Every fix in those modules must turn at least one case red; a fix none catches gets a case.
   5. Any rule about text (equal ignoring case, title case, trimming, parsing amounts) gets non-ASCII variants:
      accented and Vietnamese letters in both cases (`Phở`/`PHỞ`, `Đà Nẵng`/`đà nẵng`), and Unicode signs (`−` minus).
+  6. **Every quantifier of a rule is a dimension of the matrix** (32PTEO8K / 6QYJQAVJ TASK-08: the misses were an
+     update-path payee defect and non-ASCII names, both in words of the spec). Underline the words `either`,
+     `both`, `each`, `every`, `any number`, `however`, `in any account`, `included`, `only`, `otherwise`, `never`,
+     `at most`, `before or after`; each one lists the values a broken build may handle wrongly. Write one case per
+     value: "either side" → change the first side AND the second side; "however the payee was set" → each listed
+     path; "any number of lines" → at least 3 lines in one call, with the rule on the 2nd or 3rd line, not only the
+     first; "at most 7 days before or after" → 7 and 8 days, before and after; "otherwise" → both branches; "never"
+     → the case that would tempt the code. A broken build usually breaks one value of one dimension.
+  7. **Mutants by script, not by hand.** Write `.mtm-tmp/<ID>/mutants.mjs`: a list of `{file, find, replace, rule}`
+     (one per rule clause and quantifier value, aim for 30+), and for each: apply it, run only your suite files
+     (`vitest run <files>` or the project's equivalent, not the whole suite), record KILLED/SURVIVED, restore the
+     file in a `finally`. Run it as one job (`start_jobs`/`wait_jobs`), print only the survivors. Every survivor
+     gets a case or a stated reason (equivalent mutant). The table goes into `qualityGate.reportFile`.
+  8. **No false alarm on a correct build:** run your suite files 3 times on HEAD (all three green; a flaky case is
+     fixed or removed), with generous timeouts for Windows (no 5-second budget-load timeouts), each test on its own
+     fresh data (no order dependence), and no assertion on ids, timestamps or order the spec leaves open.
 - **`DATA_REQUIREMENTS`** (a pack, dataset or manifest checked against requirements):
   1. Requirement table: every quantity, ratio, mix, overlap, recurrence, special case and size limit of the
      specification, the value you reached and the margin. Where a requirement is a bound or range, stay clearly
@@ -138,14 +161,6 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      from the brief and the current standards; they must agree.
   2. Hidden tests check the rule in more cases than the MVS: one test of your own per rule boundary the brief or
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
-
-## Messages while you work
-- Phase file: write `<slotMatchRoot>/.mtm-tmp/<ID>/phase.json` as `{"phase":"ROWS"}` when you start,
-  `{"phase":"EVIDENCE"}` when the code is done and you prove the rows, `{"phase":"GATE"}` once every row passes and
-  is committed (quality gate, self-review). Only a worker in GATE can be asked to wrap up.
-- `WRAP_UP` (the orchestrator needs your slot for a deadline item; only in GATE): end the gate, commit, validate,
-  write DONE.json, answer in one line. Within 2 minutes; no new checks.
-- A rebase notice (`<ID> is on <branch>`): rebase before your final checks, as it says.
 
 ## Reading values from an image or a drawing (brief `needsVision`)
 A misread digit costs the field (6QYJQAVJ TASK-11: `255230227` read as `252320227`, 16 points). For every number,
@@ -387,6 +402,12 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
 `.agents/skills/game-preparation/ENVIRONMENT.md` (user scope, no admin), then continue.
 
 ## Speed (from BCYRV9M9: 23-60 one-second polls and up to 14 reruns of a home-made screenshot script per item)
+- **The machine is shared by six slots** (UA9QF7DU: two 1 GB production builds, three installs and the baseline at
+  once; test runs took 4 minutes, git timed out, nothing was submitted in 25 minutes). Run the narrowest command
+  that proves your point: the test files you touched, not the whole suite; the dev server, not a production build,
+  unless your evidence needs the build. Builds, installs and full test runs go through `start_jobs`: the job runner
+  queues them machine-wide (at most 3 at once), so a job may wait before it starts; its log says so. Stop your
+  servers and watchers (`serve.mjs --stop`) when your item is done.
 - Long commands (install, build, full test runs, typecheck, prisma): an exec call returns after about 30 s whatever
   `yield_time_ms` it asks for (UV8P4HUS), so anything longer goes through `start_jobs` (dir
   `<slotMatchRoot>/.mtm-tmp/jobs`) and ONE blocking `wait_jobs`. Never poll a running command with `write_stdin` or

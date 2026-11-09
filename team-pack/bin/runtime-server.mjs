@@ -30,7 +30,8 @@ const TOOLS = [
       'end, a heavy item about 1.5 minutes with heavy: true - integrate its last commit at once; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - s4 ' +
       'first - and collected every log page and the incident rules into incident.dir: digest.md, logs.json, entities.json, kb.md; ' +
       'it outranks every other reason and arrives once per PI), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
-      'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
+      'reported once each), PREREQ_FIX_READY (prereqFix[]: the worker of a prerequisite wrote its fix commit to FIX_COMMIT; ' +
+      'tell each dependent worker to cherry-pick it; reported once per commit), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
       'dependsOn/prerequisiteOf from the briefs, and effectiveMinutesLeft for a prerequisite of a deadline item; effort S/M/L/XL ' +
       'from the brief, heavy (XL) or heavyCandidate (L) with effortReasons, gradingKind). ' +
