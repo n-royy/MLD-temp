@@ -37,10 +37,11 @@ T5QSM1E2 lost 3/4 rows of BUG-02 (sidebar of BUG-01 intercepted the Accounting t
   your verification" below): briefs list "unrelated UI changes" as out of scope.
 - Every shorter path used goes into that row's `note`, e.g. "opened Accounting by URL with the keyboard because the
   desktop sidebar (BUG-01) covers the tab; invoice entered and issued through the form".
-- Time box (6QYJQAVJ BUG-09: the fix took minutes, a home-made Playwright script for the schedule dialogs took 20):
-  the browser part of an item gets about 8 minutes. Start from `shot.mjs` and the slot's tools; your own script only
-  for the steps they cannot do, and at most two rewrites of it. Still failing: keep the rows you proved, report the
-  rest with the exact blocker, and spend the time on the rows that score.
+- Be efficient, not quick to give up (6QYJQAVJ BUG-09: 20 minutes on a home-made Playwright script; 6YOBNM4Z: the
+  same rows left NOT_RUN scored 15/80). Start from `shot.mjs` and the slot's tools; write your own script only for the
+  steps they cannot do. When it fails twice the same way, change the approach (a foundation shortcut above, a URL,
+  the keyboard), not the target: every MVS row is run and proved while `stopBy` allows; a row is NOT_RUN only when
+  time is out.
 
 ## Check the evidence path first (UI items)
 Before changing code, open each screen your evidence rows need once (`shot.mjs` or one browser step) and confirm the
@@ -139,9 +140,11 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
 
 ## Messages while you work
-- `WRAP_UP` (the orchestrator needs your slot for a deadline item): stop what you are doing, commit everything that
-  passes as a valid answer (status `PARTIAL` if a row or the gate is open, with what is missing), validate, write
-  DONE.json, answer in one line. Within 2 minutes; no new checks.
+- Phase file: write `<slotMatchRoot>/.mtm-tmp/<ID>/phase.json` as `{"phase":"ROWS"}` when you start,
+  `{"phase":"EVIDENCE"}` when the code is done and you prove the rows, `{"phase":"GATE"}` once every row passes and
+  is committed (quality gate, self-review). Only a worker in GATE can be asked to wrap up.
+- `WRAP_UP` (the orchestrator needs your slot for a deadline item; only in GATE): end the gate, commit, validate,
+  write DONE.json, answer in one line. Within 2 minutes; no new checks.
 - A rebase notice (`<ID> is on <branch>`): rebase before your final checks, as it says.
 
 ## Reading values from an image or a drawing (brief `needsVision`)

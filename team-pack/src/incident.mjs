@@ -219,7 +219,7 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
     for (const m of String(brief.description ?? '').matchAll(phrase)) {
       const a1 = m[1].toLowerCase(), b1 = m[2].toLowerCase();
       if (['the', 'a', 'an', 'our', 'their', 'its', 'this', 'that', 'each', 'every'].includes(a1)) continue;
-      for (const n of [`${a1}-${b1}`, `${a1}s-${b1}`, `${a1}_${b1}`, a1, `${a1}s`]) if (!present.has(n)) fromBrief.add(n);
+      for (const n of [`${a1}-${b1}`, `${a1}s-${b1}`]) if (!present.has(n)) fromBrief.add(n);
     }
     if (all && all.complete && t.serviceKey) {
       for (const svc of fromBrief) {
