@@ -84,14 +84,15 @@ syncing the dependent slot when the blocker lands, not by queueing.
 
 ### Item profile (any kind of item, including kinds not seen before)
 The helper reads every brief and puts a profile on each board entry, so you plan without opening briefs:
-`type`, `points`, `minutesLeft` / `effectiveMinutesLeft` (urgency, own deadline or as a prerequisite),
-`dependsOn` / `prerequisiteOf`, `effort` (`S`/`M`/`L`/`XL` from the brief: data to process and its volume,
+`type`, `points`, `minutesLeft` (urgency: the item's own deadline), `effort` (`S`/`M`/`L`/`XL` from the brief: data to process and its volume,
 data-cleaning traps, aggregated answers, points above the same type, a long multi-requirement brief),
 `heavy` (XL) or `heavyCandidate` (L) with `effortReasons`, and `gradingKind` (what is scored beyond the rows:
 `SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
 scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
 items: the profile is the signal. Decide with it in this order, for every item:
-1. **Urgency**: PI (by you), deadline items and their prerequisites, nearest first.
+1. **Urgency**: PI (by you), then deadline items, nearest deadline first, then the rest. An item named by a deadline
+   item is not scheduled earlier for that: the deadline item's worker makes the fix it needs itself (WORKER.md
+   "Your item needs another item's changes").
 2. **Effort**: `heavy` goes to the s5 heavy worker at once; `heavyCandidate` goes to s5 when s5 is free, otherwise
    it is an ordinary item. Write one line in your plan for every heavy or candidate decision (`<ID> heavy: <reasons>`).
 3. **Value**: the rest by points per expected effort (S before M at equal points).
@@ -104,12 +105,11 @@ When a wave appears (game start, or `newItems` on the board):
 2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
    minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
    expected effort (CR/BUG usually before TASK).
-   **Prerequisites count as deadline items.** The helper reads every brief: an item whose brief names another open
-   item shows `dependsOn: [<key>]`, and the named item shows `prerequisiteOf: [<key>]` with `effectiveMinutesLeft`
-   (the nearest deadline among the items that need it). Order by `minutesLeft`, or `effectiveMinutesLeft` when it is
-   smaller: a prerequisite starts no later than the deadline item that needs it, ideally first (32PTEO8K: BUG-11 had
-   no deadline but CR-07's grade needed its fixes; it started 18 minutes late, after CR-07 was submitted, and CR-07
-   lost 27 points). A prerequisite also gets `DEADLINE_SOON` (kind `PREREQUISITE_DEADLINE`) and a `stopBy`. **Heavy items** (board `heavy: true`) are outside this order: they go
+   **An item whose grade needs another item's fix** (its brief says e.g. "right only on source that also contains
+   the <ID> fixes") keeps its own place in this order and does not wait for the other item: its worker makes that
+   fix itself from the start, in its own commit (WORKER.md "Your item needs another item's changes"; 32PTEO8K /
+   6QYJQAVJ / SC0E8AV2: CR-07 waited for BUG-11 and lost 27 to 100 points). Its spawn note says so: `Your grade
+   needs <ID>'s fix: make it yourself first (WORKER.md)`. **Heavy items** (board `heavy: true`) are outside this order: they go
    at once to slot s5 (see "Heavy items" below).
 3. **Assign in that order, one item per free worker slot (s1-s3), until they are full.** Never leave a slot idle while an
    item is open. A deadline item or PI is never queued behind another item: a PI is yours ("Incident fast path");
@@ -259,7 +259,7 @@ call at a time cost minutes, so the helper does the mechanical part the moment t
 plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
 with `incident` before any other reason. From then on the PI comes first: integrations and spawns of items
 **without a deadline** wait until it is submitted. Only these may go before it: a `DEADLINE_SOON` safety net and a
-`SLOT_DONE` of a deadline item or of a prerequisite of one (board `minutesLeft` or `effectiveMinutesLeft`). The helper
+`SLOT_DONE` of a deadline item (board `minutesLeft`). The helper
 enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for those; any other finished slot shows
 `DONE_HELD_FOR_PI` (listed in `board.heldForPi`) and is reported right after the PI is submitted (at most 8 minutes
 after the PI appeared).

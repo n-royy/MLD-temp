@@ -309,47 +309,12 @@ export class MatchSession {
     return total !== null && el !== null ? Math.round((total - el) / 6) / 10 : null;
   }
 
-  /**
-   * Dependencies between open items, read from the briefs: an item whose description names another revealed item
-   * depends on it (32PTEO8K: CR-07 was "right only on source that also contains the BUG-11 fixes"; BUG-11 had no
-   * deadline and started 18 minutes late, after CR-07 was submitted). Returns key -> { dependsOn, prerequisiteOf }.
-   */
-  #dependencies() {
-    const items = this.#items();
-    const keys = new Set(items.map(i => i.key));
-    const out = new Map(items.map(i => [i.key, { dependsOn: [], prerequisiteOf: [] }]));
-    for (const i of items) {
-      const text = [i.descriptionMd, i.description, i.startInstruction].filter(t => typeof t === 'string').join('\n');
-      const named = new Set((text.match(/\b[A-Z][A-Z0-9]{1,9}-\d{1,4}\b/g) ?? []).filter(k => k !== i.key && keys.has(k)));
-      for (const k of named) { out.get(i.key).dependsOn.push(k); out.get(k).prerequisiteOf.push(i.key); }
-    }
-    return out;
-  }
-
-  /**
-   * Minutes until the item must be on the branch: its own deadline, or the nearest deadline among the open
-   * (unsubmitted) items that depend on it, directly or through other items. Null: nothing with a deadline waits on it.
-   */
-  #effectiveMinutesLeft(item, deps = this.#dependencies(), seen = new Set()) {
-    if (!item || seen.has(item.key)) return null;
-    seen.add(item.key);
-    const own = item.submission ? null : this.#minutesLeft(item);
-    const vals = own === null ? [] : [own];
-    for (const k of deps.get(item.key)?.prerequisiteOf ?? []) {
-      const d = this.#items().find(i => i.key === k);
-      if (!d || d.submission || String(d.status).toUpperCase() === 'CLOSED') continue;
-      const v = this.#effectiveMinutesLeft(d, deps, seen);
-      if (v !== null) vals.push(v);
-    }
-    return vals.length ? Math.min(...vals) : null;
-  }
-
-  /** Open deadline items (with a deadline of their own or one they are a prerequisite of). */
-  #urgent(item, deps = this.#dependencies()) { return this.#effectiveMinutesLeft(item, deps) !== null; }
+  /** Open items with a deadline of their own (1.5.21: dependencies between items are no longer scheduled). */
+  #urgent(item) { return Boolean(item) && !item.submission && this.#minutesLeft(item) !== null; }
 
   /**
    * An open PI holds back finished items that are not urgent: while it is unsubmitted, wait_for_update reports
-   * SLOT_DONE only for deadline items and their prerequisites (a PI scores by submission order). At most 8 minutes
+   * SLOT_DONE only for deadline items (a PI scores by submission order). At most 8 minutes
    * after the PI was first seen, so a stuck PI never parks finished work for long.
    */
   #piHold() {
@@ -395,9 +360,9 @@ export class MatchSession {
   #isHeavy(item) { return this.#effort(item).heavy; }
 
   /** True when the item's finished result waits for the open PI (see #piHold). */
-  #heldForPi(key, hold = this.#piHold(), deps = null) {
+  #heldForPi(key, hold = this.#piHold()) {
     if (!hold.length || hold.includes(key)) return false;
-    return !this.#urgent(this.#items().find(i => i.key === key), deps ?? this.#dependencies());
+    return !this.#urgent(this.#items().find(i => i.key === key));
   }
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
@@ -411,14 +376,10 @@ export class MatchSession {
       const heavy = this.#isHeavy(item);
       const soon = heavy ? HEAVY_FINAL_MINUTES : SOON_MINUTES;
       const extra = heavy ? { heavy: true, action: 'INTEGRATE_LAST_COMMIT_NOW' } : {};
-      const own = this.#minutesLeft(item);
-      const left = own ?? this.#effectiveMinutesLeft(item);
+      const left = this.#minutesLeft(item);
       if (left !== null && left <= soon && left > -1 && !this.warned.has(`${s.item}:deadline`)) {
         this.warned.add(`${s.item}:deadline`);
-        // A prerequisite has no deadline of its own: it is due when the item that needs it is.
-        const kind = own === null ? 'PREREQUISITE_DEADLINE' : 'DEADLINE';
-        const forItems = own === null ? { for: this.#dependencies().get(s.item)?.prerequisiteOf ?? [] } : {};
-        out.push({ backlogItemKey: s.item, slot: s.name, kind, minutesLeft: left, ...forItems, ...extra });
+        out.push({ backlogItemKey: s.item, slot: s.name, kind: 'DEADLINE', minutesLeft: left, ...extra });
       } else if (end !== null && end <= soon && !this.warned.has(`${s.item}:end`)) {
         this.warned.add(`${s.item}:end`);
         out.push({ backlogItemKey: s.item, slot: s.name, kind: 'MATCH_END', minutesLeft: end, ...extra });
@@ -433,7 +394,7 @@ export class MatchSession {
   }
 
   /** Decision fields of one item for the compact board (5FLQMNAA: the full entries made each board ~6-26k chars). */
-  #boardItem(item, deps = this.#dependencies()) {
+  #boardItem(item) {
     const out = { key: item.key, type: item.backlogType ?? item.type ?? null, title: clip(item.title ?? item.backlogTitle ?? '', 90),
       status: item.status ?? null, workStatus: item.workStatus ?? null, points: item.points ?? null };
     if (item.deadlineMinutes != null) out.deadlineMinutes = item.deadlineMinutes;
@@ -450,13 +411,6 @@ export class MatchSession {
     if (kind) out.gradingKind = kind;
     const slot = this.#hasSlots() ? this.#slotOf(item.key) : null;
     if (slot) out.slot = slot.name;
-    const dep = deps.get(item.key);
-    if (dep?.dependsOn.length) out.dependsOn = dep.dependsOn;
-    if (dep?.prerequisiteOf.length && !item.submission) {
-      out.prerequisiteOf = dep.prerequisiteOf;
-      const eff = this.#effectiveMinutesLeft(item, deps);
-      if (eff !== null && eff !== left) out.effectiveMinutesLeft = eff; // schedule it like a deadline item
-    }
     return out;
   }
 
@@ -471,7 +425,7 @@ export class MatchSession {
       const left = this.#matchMinutesLeft();
       return {
         match: { status: m.status ?? null, ...(left !== null ? { minutesLeft: left } : {}) },
-        items: (deps => this.#items().map(i => this.#boardItem(i, deps)))(this.#dependencies()),
+        items: this.#items().map(i => this.#boardItem(i)),
         ...(held => held.length ? { heldForPi: held } : {})(this.#slotSummary().filter(x => x.state === 'DONE_HELD_FOR_PI').map(x => x.item)),
         newItems,
         ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
@@ -1047,9 +1001,8 @@ export class MatchSession {
     // A DONE.json written while the orchestrator was busy shows as DONE at once, so it integrates before anything else.
     const done = s => s.item && s.state !== 'DONE' && existsSync(join(s.matchRoot, SCRATCH, s.item, 'DONE.json'));
     const hold = this.#piHold();
-    const deps = hold.length ? this.#dependencies() : null;
     return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : s.name === HEAVY_SLOT ? 'heavy-worker' : 'worker', item: s.item ?? null,
-      state: s.item ? (done(s) ? (this.#heldForPi(s.item, hold, deps) ? 'DONE_HELD_FOR_PI' : 'DONE') : s.state) : 'FREE' }));
+      state: s.item ? (done(s) ? (this.#heldForPi(s.item, hold) ? 'DONE_HELD_FOR_PI' : 'DONE') : s.state) : 'FREE' }));
   }
   #slotOf(key) { return Object.values(this.#slots()).find(s => s.item === key) ?? null; }
 
@@ -1186,17 +1139,11 @@ export class MatchSession {
       // Background jobs started during preparation (slot install, baseline run) may still be running at game start.
       // Wall-clock limits for a worker that budgets its own time (heavy items, partial submission).
       heavy: this.#isHeavy(item), effort: this.#effort(item), ...this.#timeLimits(item),
-      // The other revealed items, so a worker can tell a defect another item owns from one nobody owns.
-      otherItems: this.#items().filter(i => i.key !== key).map(i => ({ key: i.key, title: i.title ?? null })),
-      // Items this brief names (its result may need their changes on the branch) and items that name this one.
-      ...(deps => {
-        const d = deps.get(key) ?? { dependsOn: [], prerequisiteOf: [] };
-        const state = k => { const i = this.#items().find(x => x.key === k); const sl = this.#hasSlots() ? this.#slotOf(k) : null;
-          return { key: k, title: i?.title ?? null, state: i?.submission ? 'SUBMITTED' : sl ? 'IN_PROGRESS' : 'NOT_STARTED', deadlineMinutes: i?.deadlineMinutes ?? null }; };
-        const eff = this.#effectiveMinutesLeft(item, deps);
-        return { dependsOn: d.dependsOn.map(state), prerequisiteOf: d.prerequisiteOf.map(state),
-          ...(eff !== null && this.#minutesLeft(item) === null ? { effectiveDeadlineAt: new Date(Date.now() + eff * 60000).toISOString() } : {}) };
-      })(this.#dependencies()),
+      // The other revealed items, so a worker can tell a defect another item owns from one nobody owns, and their
+      // full descriptions in one file: an item whose grade needs another item's fix makes that fix itself (WORKER.md).
+      otherItems: this.#items().filter(i => i.key !== key).map(i => ({ key: i.key, title: i.title ?? null,
+        state: i.submission ? 'SUBMITTED' : (this.#hasSlots() && this.#slotOf(i.key)) ? 'IN_PROGRESS' : 'NOT_STARTED' })),
+      backlogFile: this.#writeBacklogFile(dir, key),
       // Grading that rewards more than the rows (detection, requirements, official data): the worker runs the
       // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
       ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
@@ -1217,12 +1164,20 @@ export class MatchSession {
       slotInstallState: brief.slotInstallState };
   }
 
+  /** Every other revealed item's description, for a worker whose grade needs another item's fix. */
+  #writeBacklogFile(dir, key) {
+    const f = join(dir, 'backlog.md');
+    const parts = this.#items().filter(i => i.key !== key).map(i => [`## ${i.key} (${i.backlogType ?? i.type ?? ''}) ${i.title ?? ''}`,
+      `state: ${i.submission ? 'SUBMITTED' : (this.#hasSlots() && this.#slotOf(i.key)) ? 'IN_PROGRESS' : 'NOT_STARTED'}`,
+      String(i.descriptionMd ?? i.description ?? '').trim()].join('\n'));
+    try { writeFileSync(f, `# Other backlog items (as revealed when this item started)\n\n${parts.join('\n\n')}\n`); return f; } catch { return null; }
+  }
+
   /** ISO times when the item's deadline and the match end are reached (null when unknown). */
   #timeLimits(item) {
     const at = min => (min === null || min === undefined ? null : new Date(Date.now() + min * 60000).toISOString());
     const end = this.#matchMinutesLeft();
-    // A prerequisite of a deadline item is due when that item is (its own deadline is null).
-    const dl = this.#minutesLeft(item) ?? (item ? this.#effectiveMinutesLeft(item) : null);
+    const dl = item ? this.#minutesLeft(item) : null;
     const stop = [dl, end].filter(v => v !== null && v !== undefined);
     return { deadlineAt: at(dl), matchEndsAt: at(end), stopBy: stop.length ? at(Math.min(...stop)) : null };
   }
@@ -1259,7 +1214,6 @@ export class MatchSession {
     const all = this.#slots();
     const out = [];
     const hold = this.#piHold();
-    const deps = hold.length ? this.#dependencies() : null;
     for (const s of Object.values(all)) {
       if (!s.item) continue;
       const f = join(s.matchRoot, SCRATCH, s.item, 'DONE.json');
@@ -1267,8 +1221,8 @@ export class MatchSession {
       const raw = readFileSync(f, 'utf8');
       const sig = sha256(raw);
       if (s.reported === sig) continue;
-      // While a PI is open, a finished item without a deadline (own or as a prerequisite) waits until it is submitted.
-      if (this.#heldForPi(s.item, hold, deps)) continue;
+      // While a PI is open, a finished item without a deadline waits until it is submitted.
+      if (this.#heldForPi(s.item, hold)) continue;
       s.reported = sig;
       s.state = 'DONE';
       let doneAt = null;
@@ -1282,7 +1236,7 @@ export class MatchSession {
         const kind = this.#gradingKind(item);
         if (kind) {
           // A gate the worker skipped while there was still time: the orchestrator sends it back once (SKILL.md).
-          const lim = [this.#minutesLeft(item) ?? this.#effectiveMinutesLeft(item), this.#matchMinutesLeft()].filter(v => v !== null);
+          const lim = [this.#minutesLeft(item), this.#matchMinutesLeft()].filter(v => v !== null);
           const left = lim.length ? Math.min(...lim) : null;
           const gate = d.qualityGate && typeof d.qualityGate === 'object' ? String(d.qualityGate.status ?? '').toUpperCase() : '';
           result.qualityGate = { kind, status: gate || 'MISSING', minutesLeft: left,
