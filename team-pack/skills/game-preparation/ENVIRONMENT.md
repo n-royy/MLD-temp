@@ -25,8 +25,9 @@ only the orchestrator writes progress events.
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
   in your reply. BLOCKED is only for a real environment failure (database, install, build).
-- **Stay off the critical path.** READY needs only doctor READY and build PASS. Slot installs and the baseline run
-  are started as jobs and NOT awaited: they finish during the first minutes of the game.
+- **Stay off the critical path, but install the slots in preparation.** READY needs doctor READY and build PASS.
+  The slot installs start right after the main install, beside the build (part A), so they finish before the
+  game; only the baseline run may continue into the game.
 - **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline` (also in slots, in parallel).
 - **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
   folder). If `<teamWorkspace>/.mtm-cache/<key>/` exists (same seed as an earlier match), copy its `repo-map.md`,
@@ -49,8 +50,13 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
      folder; if the tool warns about migrations missing from the folder, you are on a stale database: switch names.
    - Job `prep-install`: the locked install (`pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...);
      `wait_jobs`.
-   - Then in parallel: job `prep-build` (the documented build, e.g. `prepare-source.ps1` or `pnpm run build`) and job
-     `prep-db` (the provided migration and seed steps, then the `doctor`/check script). One `wait_jobs` for both.
+   - Then in parallel, in ONE `start_jobs` call: job `prep-build` (the documented build, e.g. `prepare-source.ps1`
+     or `pnpm run build`), job `prep-db` (the provided migration and seed steps, then the `doctor`/check script) and
+     the slot installs `install-s1`..`install-s5` (in each slot's app folder from your task, the same locked install
+     plus `--prefer-offline`; `install-s4` and `install-s5` with the wait prefix of part B so s1-s3 go first).
+     Then one `wait_jobs` for `prep-build` and `prep-db` only: the slot installs keep running while you finish part A
+     and they are awaited by the orchestrator before READY. (1.5.20: they used to start only after the build, the
+     slot env files and the orchestrator's next message, and ran into the game.)
      The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
      `git status --porcelain` shows no tracked changes.
    - Missing toolchain or service: install it yourself, see "Toolchain installs" below. No human can help
@@ -93,21 +99,21 @@ Rules for installs:
 - Keep installer output short (`| Select-Object -Last 5`), and time-box each install to ~10 minutes.
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
-## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
-With one `start_jobs` call: `install-s1`..`install-s5` (in each slot app folder, the same locked install plus
-`--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
-and E while they run.
+## B. BACKGROUND JOBS (the baseline run; start it, do not wait)
+The slot installs were started in part A. Start the `baseline` job now (the full test suite in the main checkout,
+output to its log), plus the slot databases of part C when the env-require README needs one per working copy (the
+orchestrator has copied the slot env files by now), and go on with D and E while they run.
 **Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs) and s5 (heavy
 items) are needed later or not at all. Five installs at once share the disk and all finish late (5FLQMNAA: about 12
-minutes, so a worker waited ~4 minutes into the game). So `install-s4` and `install-s5` first wait, at most 10
-minutes, until `install-s1`..`install-s3` have an exit file, then install. PowerShell prefix for those two commands
-(`<jobsDir>` = the jobs `dir`):
+minutes, so a worker waited ~4 minutes into the game). So `install-s4` and `install-s5` (started in part A) first
+wait, at most 10 minutes, until `install-s1`..`install-s3` have an exit file, then install. PowerShell prefix for
+those two commands (`<jobsDir>` = the jobs `dir`):
 `$t=0; while ((@('install-s1','install-s2','install-s3') | Where-Object { -not (Test-Path "<jobsDir>\$_.exit") }) -and $t -lt 600) { Start-Sleep 5; $t+=5 }; ` The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
 guess from the design documents.
 Do not change tracked files.
 
-## C. SLOT DATABASES (rules for the slot jobs of part B)
+## C. SLOT DATABASES (rules for the slot jobs; installs in part A, databases in part B)
 - databases: follow the env-require README. If it says working copies share the app database and only the TEST
   database must differ (Solova does), the slot env already has its own test database name and the tests create it:
   nothing to migrate or seed. If each copy needs its own app database, clone the main one instead of migrating and
