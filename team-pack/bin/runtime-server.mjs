@@ -2,7 +2,7 @@
 // MCP Helper (stdio, newline-delimited JSON-RPC). stdout carries JSON-RPC only.
 import { createInterface } from 'node:readline';
 import { MatchSession, ToolError } from '../src/runtime-session.mjs';
-import { startJobs, waitJobs } from '../src/jobs.mjs';
+import { startJobs, stopJobs, waitJobs } from '../src/jobs.mjs';
 
 const session = new MatchSession();
 const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
@@ -29,8 +29,9 @@ const TOOLS = [
       'the helper integrated and submitted a clean DONE item itself - status DONE, no doubts, quality gate PASS - each with ' +
       'suggestNext {backlogItemKey, why, worker} for its free slot; worker "same" = followup_task the same agent, "pi_agent" = followup_task that slot\'s PI agent; PIs are submitted the same way), SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
-      'end, a heavy item about 1.5 minutes with heavy: true - integrate its last commit at once; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free PI slot - s7/s8 ' +
-      '- and collected every log page and the incident rules into incident.dir: digest.md, logs.json, entities.json, kb.md; ' +
+      'end, a heavy item about 1.5 minutes with heavy: true - integrate its last commit at once; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - a PI agent\'s s5/s6 first - ' +
+      'and fetched the incident rules (kb.md) into incident.dir; logsComplete false: the logs are still being collected ' +
+      '(digest.md, logs.json, entities.json, collection.json follow; the PI agent waits with wait_incident_data); ' +
       'it outranks every other reason and arrives once per PI; piAgents[] = the PI agents\' item slots s5/s6 with their item and slack), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
       'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
@@ -47,17 +48,17 @@ const TOOLS = [
         'used between steps of a multi-step handling.' } }) },
   { name: 'prepare_incident', handler: a => session.prepareIncident(a),
     description: 'Incident fast path by hand (normally automatic: wait_for_update reason NEW_PI). Starts the PI in a free slot ' +
-      '(s7/s8, or `slot`) if not started, pages every Company Tools log query to its total and fetches the incident rules ' +
+      '(s5/s6 first, or `slot`) if not started, pages every Company Tools log query to its total and fetches the incident rules ' +
       '(plus every KB article they reference) into <slotMatchRoot>/.mtm-tmp/<ID>/incident/: digest.md (coverage, services, ' +
       'releases, flags, entities), logs.json (all entries, by time), entities.json (timeline per invoice/ticket id), kb.md. ' +
       'Returns slot, briefFile, answerFile, validateCommand, doneFile and the coverage. refresh re-collects.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
-    description: 'Create (or keep, on resume) up to 8 slots (s1-s4 for the 4 workers, s5-s6 for items of the two PI agents, s7-s8 for PIs only): Git worktrees of the assigned repository at ' +
+    description: 'Create (or keep, on resume) up to 6 slots (s1-s4 for the 4 workers, s5-s6 for the two PI agents: PIs first, items while no PI is open): Git worktrees of the assigned repository at ' +
       '<checkoutRoot>.slots/sN on local-only branches mtm-slot/sN (never pushed). copyFiles copies git-ignored local files ' +
       '(e.g. src/.env) from matchRoot into each slot; replace {"find":"with {slot}"} makes per-slot values such as database ' +
       'names or ports. Does not change tracked files of the checkout.',
-    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 8 },
+    inputSchema: obj({ count: { type: 'integer', minimum: 1, maximum: 6 },
       copyFiles: { type: 'array', maxItems: 10, items: { anyOf: [{ type: 'string' },
         obj({ path: { type: 'string' }, replace: { type: 'object', additionalProperties: { type: 'string' } } }, ['path'])] } } }) },
   { name: 'start_work', handler: a => session.startWork(a),
@@ -65,8 +66,8 @@ const TOOLS = [
       'startInstruction, submitTemplate, MVS and requiredTestCases; creates <matchRoot>/answers/<ID>/submit.json from the ' +
       'template and the evidence/ folder; logs IN_PROGRESS and BACKLOG_TESTS NOT_RUN. No get_backlog_item call is needed ' +
       'afterwards. Calling again for a started item is a harmless replay.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'],
-      description: 'Slot (s1-s4 for workers, s5-s6 for a PI agent\'s item, s7-s8 for PIs only: PI_SLOT_RESERVED otherwise). The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'],
+      description: 'Slot (s1-s4 for workers, s5-s6 for the PI agents). The tree is synced to the checkout HEAD before Start Work is sent; the slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
         'summary with briefFile/doneFile for the worker instead of the whole brief.' },
       force: { type: 'boolean', description: 'Start an item without a deadline although a deadline item waits for a slot ' +
@@ -90,7 +91,7 @@ const TOOLS = [
     inputSchema: obj({ backlogItemKey: key, summary: { type: 'string', description: 'One line: failing test, cause, fix.' } }, ['backlogItemKey']) },
   { name: 'release_slot', handler: a => session.releaseSlot(a),
     description: 'Free a slot without submitting (item dropped). Its worktree is reset at the next start_work.',
-    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'] } }, ['slot']) },
+    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] } }, ['slot']) },
   { name: 'validate_answer', handler: a => session.validateAnswer(a),
     description: 'Check the working-tree answers/<ID>/submit.json against the submit schema delivered at Start Work, ' +
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',
@@ -145,7 +146,17 @@ const TOOLS = [
       'each state (DONE / FAILED with exit code / LOST / RUNNING if the wait timed out) and the tail of its log. One call ' +
       'replaces minutes of polling; call it again if done is false. In an exec cell use // @exec: {"yield_time_ms": 290000}.',
     inputSchema: obj({ dir: { type: 'string' }, names: { type: 'array', items: { type: 'string' } },
-      timeoutMs: { type: 'integer', minimum: 1000, maximum: 280000 }, tailLines: { type: 'integer', minimum: 0, maximum: 40 } }, ['dir']) }
+      timeoutMs: { type: 'integer', minimum: 1000, maximum: 280000 }, tailLines: { type: 'integer', minimum: 0, maximum: 40 } }, ['dir']) },
+  { name: 'stop_jobs', handler: a => stopJobs(a),
+    description: 'Stop named background jobs that are still RUNNING (with their child processes). Used at game start for the ' +
+      'baseline test run, so it does not slow every worker for the first minutes of the game.',
+    inputSchema: obj({ dir: { type: 'string' }, names: { type: 'array', minItems: 1, items: { type: 'string' } } }, ['dir', 'names']) },
+  { name: 'wait_incident_data', handler: a => session.waitIncidentData(a),
+    description: 'PI agents: block (up to 280 s) until the helper has collected every log entry of the PI (collection.json in ' +
+      'the incident folder). Returns ready, complete, logEntries, coverage per query and the file paths. Read the brief, the ' +
+      'rules (kb.md) and the code first, then call this before running solve.mjs. Works without a team key.',
+    inputSchema: obj({ dir: { type: 'string', description: 'The incident folder: <slotMatchRoot>/.mtm-tmp/<ID>/incident.' },
+      timeoutMs: { type: 'integer', minimum: 1000, maximum: 280000 } }, ['dir']) }
 ];
 
 const send = msg => process.stdout.write(JSON.stringify(msg) + '\n');

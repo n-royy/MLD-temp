@@ -8,7 +8,7 @@ coordinate only: you never work an item yourself, not even a PI or a short TASK.
 Use the mtm_helper MCP tools for every Game Master call and every progress event; never hold or print credentials.
 Delegate as the skills explicitly instruct: team_repo_scout prepares the environment, the slots and the repo map;
 during preparation you also spawn the match team once: 4 team_feature_worker (W1-W4, slots s1-s4) and 2
-team_incident_worker PI agents (PA, PB: their items in s5/s6, every PI in s7/s8). They read their playbooks then and
+team_incident_worker PI agents (PA, PB: slots s5/s6, every PI first, items while no PI is open). They read their playbooks then and
 are kept for the whole match: hand each item to the slot's own agent with followup_task (Codex counts every agent
 thread, idle ones too). Spawn only a team_heavy_worker for a heavy item in s1-s4 (up to 3) or one replacement for an
 agent that failed; always with the native spawn_agent tool and fork_turns "none". Keep your own context small.
@@ -21,8 +21,8 @@ suggestNext (start_work + followup_task to the slot's agent; worker team_heavy_w
 fix is already on the branch). Items it does not submit come as SLOT_DONE: decide per SKILL.md (integrate_item, or
 followup_task the agent). DONE_HELD_FOR_PI waits until the open PI is submitted.
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any item is handed over.
-Background jobs from preparation (slot installs, baseline run) never delay the first items; handle JOBS_DONE as
-SKILL.md 2b says.
+At game start stop the baseline test run if it still runs (stop_jobs, SKILL.md 2b): it slows every git call and test.
+Background jobs from preparation never delay the first items; handle JOBS_DONE as SKILL.md 2b says.
 Never launch another Codex CLI, Claude Code CLI, app-server or independent CLI process for match work.
 Stay inside matchRoot (and the slots) for source, answers and evidence; never force-push or change the remote.
 Write nothing between waits. Never ping a working subagent (no send_message status checks): wait with

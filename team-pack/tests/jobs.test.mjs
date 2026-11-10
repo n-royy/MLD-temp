@@ -77,3 +77,19 @@ test('a runner that dies at once (CVNXDTQY on Windows) falls back to a direct ch
     assert.match(w.jobs.find(j => j.name === 'prep-build').tail, /built/);
   } finally { h.close(); rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('1.5.25: stop_jobs ends a running job and records exit 143', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { startJobs, stopJobs, jobState } = await import('../src/jobs.mjs');
+  const root = mkdtempSync(join(tmpdir(), 'mld-stop-'));
+  const dir = join(root, '.mtm-tmp', 'jobs');
+  try {
+    await startJobs({ dir, jobs: [{ name: 'baseline', cwd: root, command: 'sleep 30' }] });
+    assert.equal(jobState(dir, 'baseline').state, 'RUNNING');
+    const r = await stopJobs({ dir, names: ['baseline', 'missing'] });
+    assert.deepEqual(r.jobs.map(j => [j.name, j.stopped]), [['baseline', true], ['missing', false]]);
+    assert.equal(jobState(dir, 'baseline').state, 'FAILED');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

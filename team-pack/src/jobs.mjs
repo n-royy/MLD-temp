@@ -139,3 +139,27 @@ export async function waitJobs({ dir, names, timeoutMs = 280000, tailLines = 12 
     jobs: states.map(s => ({ ...s, log: join(dir, `${s.name}.log`), tail: s.state === 'DONE' ? tail(join(dir, `${s.name}.log`), Math.min(lines, 4)) : tail(join(dir, `${s.name}.log`), lines) }))
   };
 }
+
+/**
+ * Stops named jobs (and their child processes) that are still RUNNING, and records exit code 143 (1.5.25: the full
+ * baseline test run kept the disk busy for the first 25 minutes of YH6OAYMZ; the game stops it at its start).
+ */
+export async function stopJobs({ dir, names } = {}) {
+  checkDir(dir);
+  if (!Array.isArray(names) || !names.length) fail('INVALID_JOBS', 'names: the jobs to stop');
+  const out = [];
+  for (const n of names) {
+    if (!NAME.test(n)) fail('INVALID_JOBS', `invalid job name ${n}`);
+    const st = jobState(dir, n);
+    if (st.state !== 'RUNNING') { out.push({ name: n, state: st.state, stopped: false }); continue; }
+    if (isWin) {
+      await new Promise(res => { const k = spawn('taskkill', ['/PID', String(st.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }); k.on('exit', res); k.on('error', res); });
+    } else {
+      try { process.kill(-st.pid, 'SIGTERM'); } catch { try { process.kill(st.pid, 'SIGTERM'); } catch { /* gone */ } }
+    }
+    await sleep(500);
+    try { if (!readFileSync(join(dir, `${n}.exit`), 'utf8').trim()) writeFileSync(join(dir, `${n}.exit`), '143'); } catch { writeFileSync(join(dir, `${n}.exit`), '143'); }
+    out.push({ name: n, state: jobState(dir, n).state, stopped: true });
+  }
+  return { dir, jobs: out };
+}
