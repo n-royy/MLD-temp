@@ -321,7 +321,9 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
     gm.reveal({ ...PI, key: 'PI-05' });
     await new Promise(r => setTimeout(r, 1100));
-    const w = await h.call('wait_for_update', {});
+    let w = await h.call('wait_for_update', {});
+    // Deadline items left by earlier tests can take a free slot: the wave comes first, NEW_PI on the next call.
+    if (w.reason === 'MATCH_UPDATED') w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI');
     assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
   } finally { h.close(); }
@@ -445,5 +447,37 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     assert.equal(by['TASK-38'].qualityGate.status, 'MISSING'); assert.ok(by['TASK-38'].qualityGate.minutesLeft > 20);
     assert.equal(by['TASK-37'].qualityGate.status, 'PASS');
     assert.equal(by['BUG-37'].qualityGate, undefined);
+  } finally { h.close(); }
+});
+
+test('1.5.22: deadlineWaiting skips started and unfinishable items; s4 only takes a value TASK; a PI without a slot holds nothing', async () => {
+  const item = (key, type, deadlineMinutes, revealedElapsedSec, descriptionMd = 'Short item.') => ({ key, backlogType: type, title: key,
+    deadlineMinutes, revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
+  gm.state.backlog = [
+    item('TASK-41', 'TASK', 15, 1000, 'Answer the value.'),
+    item('TASK-42', 'TASK', 15, 1000, 'Build a statement pack: a manifest with volume, mix and overlap requirements; at most 20 MB.\n## Grading\nEach requirement is checked.'),
+    item('CR-43', 'CR', 5, 600),
+    item('TASK-44', 'TASK', null, 1000)
+  ];
+  gm.state.clock = { elapsedSec: 1100, remainingSec: 1300 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    await h.call('prepare_slots', { count: 5 });
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
+    await h.call('refresh_match');
+    // CR-43: 5 minutes from minute 10 at minute 18.3 -> closed; never listed. TASK-42 needs a quality gate.
+    const w = (await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key);
+    assert.deepEqual(w, ['TASK-41', 'TASK-42']);
+    // s4: TASK-44 (no deadline) is refused for TASK-41 (a value TASK) ...
+    assert.equal((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).error?.code, 'DEADLINE_ITEM_WAITING');
+    const t41 = await h.call('start_work', { backlogItemKey: 'TASK-41', slot: 's1' });
+    // ... but not for TASK-42 (a data pack belongs to a worker), so s4 may take TASK-44.
+    assert.ok((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).briefFile);
+    // A started deadline item that was released does not come back as "waiting".
+    await h.call('release_slot', { slot: 's1' });
+    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key), ['TASK-42']);
+    assert.ok(t41.briefFile);
   } finally { h.close(); }
 });

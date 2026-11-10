@@ -13,6 +13,25 @@ On top of 1.5.21.
 Cause: SKILL.md said "PI first, immediately, by you; then deadline items", and nothing stopped a no-deadline item
 from taking a slot a deadline item needed. s1/s2 held BUG-09 and TASK-08 (no deadline) the whole match.
 
+## Review fixes (independent review of the 1.5.22 workflow)
+Priority stays **PI first** (a race: every later team loses 10-40 %), then deadline items, then the rest. Deadline
+items are assigned in the moments the PI does not need the orchestrator, so they cost the PI nothing.
+- A wave with a PI and a deadline item while a slot is free returns `MATCH_UPDATED` with `incidentPending` at once
+  (one cell to start the deadline items); `NEW_PI` follows as soon as the PI's data is ready. `noWait` never waits for
+  a PI's collection, and `DEADLINE_SOON` (the safety net) is checked before it (before: up to 90 s, twice).
+- No `DONE_HELD_FOR_PI` while the PI has no slot yet (the hold parked the very slot the PI needed, up to 8 minutes),
+  nor while a deadline item waits and no slot is free (the finished slot is its way in).
+- `deadlineWaiting` leaves out items started once before (released after a rejected gate) and items with under 4
+  minutes left, so an unfinishable item no longer blocks every start until `force`.
+- Wave order uses the same reveal time as the deadline (`revealedElapsedSec`, else `revealedAtMinute`, else first seen).
+- s4 takes a deadline item only when it is a value TASK (no quality gate, effort S/M); a test suite, data pack, heavy
+  item or BUG/CR goes to a worker.
+- `integrate_item` with `next` returns a fresh board.
+- A heavy item with a deadline while s5 holds a heavy item without one takes the next free worker slot.
+- Stale text removed: the orchestrator agent file's "dependencies are handled by rebasing", "PI and deadline items
+  first"; SKILL.md's "syncing the dependent slot", the slot list without s5, a garbled sentence, and the list of
+  allowed mid-work messages (now the same everywhere).
+
 ## Changes
 Helper:
 - `board.deadlineWaiting`: open deadline items (not PI) without a slot, nearest first.
@@ -30,4 +49,4 @@ Orchestrator (SKILL.md, agent file):
 - While working a PI: `wait_for_update` `noWait` between steps; a waiting deadline item and a free slot means start
   it at once.
 
-Tests: incident test checks `DEADLINE_ITEM_WAITING`, `deadlineWaiting` and its order; all 7 test files pass.
+Tests: incident tests check `DEADLINE_ITEM_WAITING`, `deadlineWaiting` (order, started and unfinishable items left out) and the s4 rule; all 7 test files pass.

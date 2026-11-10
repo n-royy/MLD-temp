@@ -82,6 +82,8 @@ export function effortOf(item, peers = [], sizes = {}) {
   const level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
   return { score, level, heavy: score >= 5, candidate: score >= 3 && score < 5, reasons };
 }
+// A deadline item with less time left than this is not offered as "waiting" (it cannot be finished).
+const WAITING_FLOOR_MINUTES = 4;
 const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
@@ -362,6 +364,10 @@ export class MatchSession {
   /** True when the item's finished result waits for the open PI (see #piHold). */
   #heldForPi(key, hold = this.#piHold()) {
     if (!hold.length || hold.includes(key)) return false;
+    // A PI without a slot needs a finished slot to start in: nothing is held for it (a hold would park the very slot
+    // the PI waits for, up to 8 minutes). A deadline item waiting with no free slot: the finished slot is its way in.
+    if (!hold.some(k => this.#slotOf(k))) return false;
+    if (!this.#freeSlotForDeadline() && this.#deadlineWaiting().length) return false;
     return !this.#urgent(this.#items().find(i => i.key === key));
   }
 
@@ -532,6 +538,16 @@ export class MatchSession {
     } catch { return 'error'; } // the regular loop below retries
   }
 
+  /**
+   * How long to wait for a PI's collection before reporting other news. The PI stays first (NEW_PI as soon as its
+   * data is ready), but the wait is never spent idle while a deadline item could be started in a free slot (SC0E8AV2:
+   * 140 s of collection held back a deadline-20 item), nor on a noWait call.
+   */
+  #piWaitMs(noWait) {
+    if (noWait) return 0;
+    return this.#freeSlotForDeadline() ? 0 : 90000;
+  }
+
   /** NEW_PI result for the first prepared, unreported incident; waits up to waitMs for one still being prepared. */
   async #incidentUpdate(waitMs, fresh = []) {
     const open = [...this.incidents.values()].filter(e => !e.reported);
@@ -614,7 +630,10 @@ export class MatchSession {
       // A PI outranks everything else (race for 100/90/75/60 %): its data is ready before the orchestrator wakes.
       // Before reporting anything, a cheap feed check discovers an item revealed since the last read.
       const peek = await this.#peekFeed();
-      const pi = await this.#incidentUpdate(90000, this.peekFresh ?? []);
+      // The safety net is one call and its minutes cannot wait for a PI's collection.
+      const soonFirst = this.#deadlineSoon();
+      if (soonFirst.length) { this.soonUntil = Date.now() + 300000; return { changed: true, reason: 'DEADLINE_SOON', deadlineSoon: soonFirst, board: this.#board([]) }; }
+      const pi = await this.#incidentUpdate(this.#piWaitMs(noWait), this.peekFresh ?? []);
       if (pi) { this.peekFresh = []; return pi; }
       const done = this.#newSlotResults();
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
@@ -652,8 +671,10 @@ export class MatchSession {
             fresh.push(...this.lastFresh);
             const now = this.projection?.match?.status;
             const reason = now && now !== status && !['IN_PROGRESS', 'PREPARING', 'PREPARED', 'READY'].includes(now) ? `MATCH_${now}` : 'MATCH_UPDATED';
-            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(90000, fresh); if (pi) return pi; }
-            return { changed: true, reason, board: this.#board(fresh) };
+            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(this.#piWaitMs(noWait), fresh); if (pi) return pi; }
+            const pending = [...this.incidents.values()].filter(e => !e.done).map(e => e.key);
+            return { changed: true, reason, board: this.#board(fresh),
+              ...(pending.length ? { incidentPending: pending, note: 'PI data is being collected; NEW_PI follows on the next call. Start the deadline items in free slots now (one cell).' } : {}) };
           }
         }
       } catch { wait = 10000; }
@@ -786,6 +807,7 @@ export class MatchSession {
     }
     this.#api('START_WORK', backlogItemKey, 'POST', url, 'SUCCEEDED', res.status, rid, `Start Work ${backlogItemKey} accepted.`);
     this.#timeline('START_WORK', backlogItemKey, { slot: slot ?? null });
+    (this.startedKeys ??= new Set()).add(backlogItemKey);
     const r = res.json ?? {};
     const dir = this.#stateDir();
     this.#excludeScratch();
@@ -1083,19 +1105,49 @@ export class MatchSession {
    * TASK-06 (no deadline) itself in s4.
    */
   #deadlineWaiting() {
+    this.startedKeys ??= new Set();
+    // Not listed: an item already started once (released after a rejected gate or BLOCKED: it is the orchestrator's
+    // call, not a slot to fill), and one with less than WAITING_FLOOR_MINUTES left (it cannot be finished; it would
+    // only block every other start until force).
     return this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
-      && !this.#slotOf(i.key) && (this.#minutesLeft(i) ?? 0) > 0)
+      && !this.#slotOf(i.key) && !this.startedKeys.has(i.key) && (this.#minutesLeft(i) ?? 0) >= WAITING_FLOOR_MINUTES)
       .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i),
-        heavy: this.#isHeavy(i), wave: Number(i.revealedElapsedSec ?? 0), deadline: Number(i.deadlineMinutes ?? 0), points: Number(i.points ?? 0) }))
+        heavy: this.#isHeavy(i), effort: this.#effort(i).level, gradingKind: this.#gradingKind(i),
+        wave: this.#revealSec(i), deadline: Number(i.deadlineMinutes ?? 0), points: Number(i.points ?? 0) }))
       .sort((a, b) => a.wave - b.wave || a.deadline - b.deadline || b.points - a.points);
+  }
+
+  /** When the item was revealed (seconds into the match), from whichever field the projection gives. */
+  #revealSec(item) {
+    if (Number.isFinite(item?.revealedElapsedSec)) return item.revealedElapsedSec;
+    if (Number.isFinite(item?.revealedAtMinute)) return item.revealedAtMinute * 60;
+    const seen = this.seenAt.get(item?.key);
+    const el = this.#elapsedSec();
+    return seen && el !== null ? Math.max(0, el - (Date.now() - seen) / 1000) : 0;
+  }
+
+  /**
+   * Slot s4 is the orchestrator's: it takes a deadline item only when that is a value answer the orchestrator can
+   * compute in minutes (a TASK without a quality gate, effort S or M). A test suite, a data pack or any BUG/CR goes to
+   * a worker (LESSONS: the orchestrator integrates, it does not code).
+   */
+  #fitsSlot(d, slotName) {
+    if (slotName !== OWN_SLOT) return true;
+    return d.type === 'TASK' && !d.gradingKind && !d.heavy && ['S', 'M'].includes(d.effort);
+  }
+
+  /** A free slot a waiting deadline item could take right now. */
+  #freeSlotForDeadline(waiting = this.#deadlineWaiting()) {
+    if (!waiting.length || !this.#hasSlots()) return null;
+    const free = Object.values(this.#slots()).filter(sl => !sl.item && existsSync(join(sl.path ?? '', '.git')));
+    return free.find(sl => waiting.some(d => this.#fitsSlot(d, sl.name)))?.name ?? null;
   }
 
   /** A slot never takes an item without a deadline while a deadline item that fits that slot waits (force: true overrides). */
   #checkDeadlineFirst(key, slotName) {
     const item = this.#items().find(i => i.key === key);
     if (!item || isIncident(item) || this.#minutesLeft(item) !== null) return;
-    const fits = d => slotName !== OWN_SLOT || !['BUG', 'CR'].includes(d.type) || d.heavy; // s4 takes no BUG/CR
-    const waiting = this.#deadlineWaiting().filter(fits);
+    const waiting = this.#deadlineWaiting().filter(d => this.#fitsSlot(d, slotName));
     if (!waiting.length) return;
     fail('DEADLINE_ITEM_WAITING', `${waiting[0].key} has a deadline (${waiting[0].minutesLeft} min left) and no slot: start it in ` +
       `${slotName} instead of ${key} (no-deadline items wait; pass force: true only when it cannot be finished in time).`,
@@ -1402,6 +1454,7 @@ export class MatchSession {
     if (next && (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY')) {
       try { out.next = await this.startWork({ backlogItemKey: next, slot: s.name }); }
       catch (error) { out.nextError = { code: error.code ?? 'START_WORK_FAILED', message: String(error.message).slice(0, 300) }; }
+      out.board = this.#board([]); // the board from submit_work predates the next item's start
     }
     return out;
   }
