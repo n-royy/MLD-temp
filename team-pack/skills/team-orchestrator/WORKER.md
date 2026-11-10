@@ -1,7 +1,11 @@
 # Working one backlog item (worker playbook)
 
-Read by every `team_feature_worker`, and by the orchestrator when it does an item itself. Same rules as the
-single-agent pack; only the place changes: a worker works in its slot (`slotMatchRoot`) instead of `matchRoot`.
+Read by every `team_feature_worker`, `team_heavy_worker` and PI agent (`team_incident_worker`, for its ordinary
+items; PIs follow INCIDENT.md). Same rules as the single-agent pack; only the place changes: you work in your slot
+(`slotMatchRoot`) instead of `matchRoot`.
+**You are kept for the whole match** (1.5.24): you read this file once when you were spawned during preparation,
+then each item arrives by follow-up (item message). Start every item from its `briefFile`; nothing of the previous
+item applies except what you know about the code base, the tools and the running server.
 
 ## Inputs
 The orchestrator's message gives: backlog ID, `briefFile`, `worktreeRoot`, `slotMatchRoot`, slot index, and notes
@@ -133,7 +137,7 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
 
 ## Heavy items (brief `heavy: true`)
-The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
+The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. Only one heavy item runs at a time, and you have this item only:
 aim for every row, with full quality (tokens are not the limit here; time is). Points come per test-case row, so
 secure rows one by one. The brief gives `stopBy` (ISO time: the earlier of the item deadline and the match end);
 check the clock with `Get-Date` (or `new Date()`) before each step.
@@ -170,12 +174,11 @@ than 3 minutes away. Until then keep trying the next path; commit after each pas
 safety net can integrate what is verified. A home-made browser script that failed twice is replaced by `shot.mjs` or
 by another foundation path, not by `NOT_RUN`. Put each failed path in that row's `note` and in DONE.json `doubts`.
 
-## Next item in the same slot (rare)
-When a queued item has no deadline and your slot frees first, the orchestrator may hand it to you by follow-up.
+## Next item in the same slot (every item after the first)
 - Work on one item at a time, exactly as below, and finish it with its doneFile and a one-line final answer.
-- The orchestrator integrates and submits it, resets your slot to the branch head (which now includes your item and
-  anything else submitted), and sends the next item's briefFile by follow-up. Do not start the next item before that
-  message: its answer folder and brief do not exist yet.
+- The helper (or the orchestrator) submits it, the next `start_work` resets your slot to the branch head (which now
+  includes your item and anything else submitted), and the next item's briefFile comes by follow-up. Do not start
+  the next item before that message: its answer folder and brief do not exist yet.
 - Keep what you learned: the code layout, the running dev server (restart only if it stopped), the database, your
   evidence tools. Re-read only the files the new item touches; files from your previous item are already merged.
 - If `baselineRepair` is set in the brief, the baseline failure is already fixed on the branch: the existing suite

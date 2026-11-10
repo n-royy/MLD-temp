@@ -81,9 +81,9 @@ test('a tool that needs a filter is queried per service and a capped page is rep
 // ---------- through the MCP helper ----------
 let gm, tmp, prepare, start, matchRoot;
 class Helper {
-  constructor() {
+  constructor(extra = {}) {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -140,13 +140,13 @@ before(async () => {
 
 after(async () => { await gm?.close?.(); rmSync(tmp, { recursive: true, force: true }); });
 
-test('a revealed PI is started in s4 and its data collected before the orchestrator wakes; NEW_PI outranks SLOT_DONE', async () => {
+test('a revealed PI is started in a PI slot (s7) and its data collected before the orchestrator wakes; NEW_PI outranks SLOT_DONE', async () => {
   gm.state.backlog = [{ key: 'BUG-07', backlogType: 'BUG', title: 'Layout', deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' }];
   gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    await h.call('prepare_slots', { count: 4 });
+    await h.call('prepare_slots', { count: 8 });
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
     const s1 = await h.call('start_work', { backlogItemKey: 'BUG-07', slot: 's1' });
@@ -160,7 +160,8 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 400));
     assert.ok(Date.now() - t0 < 20000, `took ${Date.now() - t0} ms`);
     const inc = w.incident;
-    assert.equal(inc.backlogItemKey, 'PI-01'); assert.equal(inc.slot, 's4'); assert.equal(inc.started, true);
+    assert.equal(inc.backlogItemKey, 'PI-01'); assert.equal(inc.slot, 's7'); assert.equal(inc.started, true);
+    assert.deepEqual(w.piAgents.map(a => [a.home, a.item]), [['s5', null], ['s6', null]]);
     assert.ok(gm.state.started.has('PI-01'), 'Start Work sent by the helper');
     assert.equal(inc.logEntries, fixture.logs.length); assert.equal(inc.complete, true);
     for (const f of Object.values(inc.files)) assert.ok(existsSync(f), f);
@@ -184,9 +185,9 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
     // Manual trigger returns the same prepared data without collecting again.
     const before = gm.state.companyCalls;
     const again = await h.call('prepare_incident', { backlogItemKey: 'PI-01' });
-    assert.equal(again.slot, 's4'); assert.equal(gm.state.companyCalls, before);
+    assert.equal(again.slot, 's7'); assert.equal(gm.state.companyCalls, before);
     const fresh = await h.call('prepare_incident', { backlogItemKey: 'PI-01', refresh: true });
-    assert.equal(fresh.slot, 's4'); assert.ok(gm.state.companyCalls > before, 'refresh collects again');
+    assert.equal(fresh.slot, 's7'); assert.ok(gm.state.companyCalls > before, 'refresh collects again');
     // 1.5.9: a large Company Tools answer goes to a file in the item's slot; a small one comes back inline.
     const big = await h.call('company_tool_call', { name: 'export_logs', arguments: {}, backlogId: 'PI-01' });
     assert.ok(big.savedTo && big.savedTo.startsWith(inc.slotMatchRoot), JSON.stringify(big).slice(0, 300));
@@ -201,7 +202,7 @@ test('a revealed PI is started in s4 and its data collected before the orchestra
   } finally { h.close(); }
 });
 
-test('with every slot busy the PI is not started but its data is still collected (main scratch folder)', async () => {
+test('with both PI slots busy the PI is not started but its data is still collected (main scratch folder)', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
@@ -209,6 +210,10 @@ test('with every slot busy the PI is not started but its data is still collected
     await h.call('refresh_match');
     await h.call('start_work', { backlogItemKey: 'BUG-08', slot: 's2' });
     await h.call('start_work', { backlogItemKey: 'BUG-10', slot: 's3' });
+    // s7 still holds PI-01; a second PI takes s8; a third one finds no PI slot (item slots stay for items).
+    gm.reveal({ ...PI, key: 'PI-02' });
+    const w0 = await h.call('wait_for_update', {});
+    assert.equal(w0.reason, 'NEW_PI'); assert.equal(w0.incident.slot, 's8');
     gm.reveal({ ...PI, key: 'PI-03' });
     const w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 300));
@@ -217,10 +222,10 @@ test('with every slot busy the PI is not started but its data is still collected
     assert.ok(!gm.state.started.has('PI-03'));
     assert.ok(w.incident.files.digest.startsWith(join(matchRoot, '.mtm-tmp', 'PI-03')), w.incident.files.digest);
     assert.equal(w.incident.logEntries, fixture.logs.length);
-    // A slot frees: prepare_incident now starts the PI there and collects again.
-    await h.call('release_slot', { slot: 's3' });
+    // A PI slot frees: prepare_incident now starts the PI there and collects again.
+    await h.call('release_slot', { slot: 's8' });
     const later = await h.call('prepare_incident', { backlogItemKey: 'PI-03' });
-    assert.equal(later.slot, 's3'); assert.equal(later.started, true); assert.ok(gm.state.started.has('PI-03'));
+    assert.equal(later.slot, 's8'); assert.equal(later.started, true); assert.ok(gm.state.started.has('PI-03'));
     assert.ok(later.files.digest.includes('.slots'), later.files.digest);
     // Ordinary items are still reported as before, with newItems, even when the feed peek read them first.
     gm.reveal({ key: 'CR-05', backlogType: 'CR', title: 'Export', deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
@@ -302,30 +307,43 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('slot s5 is the heavy worker slot; a PI is never placed there', async () => {
+test('1.5.24: a PI never takes an item slot; heavy items are suggested one at a time', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    const r = await h.call('prepare_slots', { count: 5 });
-    assert.equal(r.slots.length, 5);
+    const r = await h.call('prepare_slots', { count: 8 });
+    assert.equal(r.slots.length, 8);
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
     gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
+    gm.reveal({ key: 'CR-12', backlogType: 'CR', title: 'Migrate all archives', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
+    gm.reveal({ key: 'TASK-50', backlogType: 'TASK', title: 'Count', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
     await h.call('refresh_match');
-    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5', force: true }); // earlier tests left deadline items
-    assert.equal(s.slot, 's5'); assert.equal(s.heavy, true);
-    // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
-    const board = await h.call('refresh_match');
-    assert.ok(board.slots.some(x => x.slot === 's5' && x.role === 'heavy-worker' && x.item === 'CR-11'));
-    await h.call('release_slot', { slot: 's5' });
-    for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
+    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's1', force: true }); // earlier tests left deadline items
+    assert.equal(s.slot, 's1'); assert.equal(s.heavy, true);
+    const t = await h.call('start_work', { backlogItemKey: 'TASK-50', slot: 's5', force: true });
+    const done = { status: 'DONE', summary: 'done', doubts: 'check the count', tests: { required: 0, executed: 1, passed: 1, failed: 0 } };
+    writeFileSync(t.doneFile, JSON.stringify(done));
+    const pick = async () => { for (let i = 0; i < 4; i++) { const w = await h.call('wait_for_update', { noWait: i === 0 ? false : false }); const e = w.slotDone?.find(d => d.item === 'TASK-50'); if (e) return e; } return null; };
+    let e = await pick();
+    assert.ok(e, 'SLOT_DONE for the item with doubts');
+    // CR-11 (heavy) runs in s1: the second heavy item is not suggested; a PI agent's slot gets worker pi_agent.
+    assert.notEqual(e.suggestNext?.backlogItemKey, 'CR-12', JSON.stringify(e.suggestNext));
+    if (e.suggestNext) assert.equal(e.suggestNext.worker, 'pi_agent');
+    await h.call('release_slot', { slot: 's1' });
+    writeFileSync(t.doneFile, JSON.stringify({ ...done, summary: 'done again' }));
+    e = await pick();
+    assert.ok(e.suggestNext.why.startsWith('deadline') || e.suggestNext.backlogItemKey === 'CR-12', JSON.stringify(e.suggestNext));
+    // Both PI slots hold earlier PIs; item slots are free, yet a new PI gets no slot rather than an item slot.
+    const st = (await h.call('refresh_match')).slots;
+    assert.ok(st.find(x => x.slot === 's7').item && st.find(x => x.slot === 's8').item, JSON.stringify(st));
     gm.reveal({ ...PI, key: 'PI-05' });
     await new Promise(r => setTimeout(r, 1100));
     let w = await h.call('wait_for_update', {});
-    // Deadline items left by earlier tests can take a free slot: the wave comes first, NEW_PI on the next call.
-    if (w.reason === 'MATCH_UPDATED') w = await h.call('wait_for_update', {});
+    for (let i = 0; i < 3 && w.reason !== 'NEW_PI'; i++) w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI');
-    assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
+    assert.equal(w.incident.slot, null, 'item slots stay for items');
   } finally { h.close(); }
 });
 
@@ -334,7 +352,7 @@ test('answer_item: a value answer filled, validated, committed and submitted in 
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    await h.call('release_slot', { slot: 's1' });
+    await h.call('release_slot', { slot: 's7' });
     gm.reveal({ ...PI, key: 'PI-07' });
     const inc = await h.call('prepare_incident', { backlogItemKey: 'PI-07' });
     assert.equal(inc.started, true, JSON.stringify(inc).slice(0, 300));
@@ -354,6 +372,30 @@ test('answer_item: a value answer filled, validated, committed and submitted in 
       ['DONE', 'rel-1', ['evidence/investigation.json'], 'two invoices', '']);
     const outside = await h.call('answer_item', { backlogItemKey: 'PI-07', evidence: { 'x.json': { from: '/etc/hostname' } } });
     assert.ok(outside.error, 'evidence must come from inside the slot');
+  } finally { h.close(); }
+});
+
+test('1.5.24: a PI agent\'s answer is submitted by the helper at once (AUTO_SUBMITTED), before other finished items', async () => {
+  const h = new Helper({ MTM_AUTO_INTEGRATE: '1', MTM_AUTO_TICK_MS: '300' });
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    await h.call('release_slot', { slot: 's8' });
+    const { submission, ...pi } = PI;
+    gm.reveal({ ...pi, key: 'PI-11' });
+    const inc = await h.call('prepare_incident', { backlogItemKey: 'PI-11' });
+    assert.ok(['s7', 's8'].includes(inc.slot), JSON.stringify(inc).slice(0, 300));
+    const out = join(inc.slotMatchRoot, '.mtm-tmp', 'PI-11', 'investigation.json');
+    writeFileSync(out, JSON.stringify({ result: { rootCauseRelease: 'rel-1' } }));
+    // What the PI agent calls (no integrate: its own helper process holds no key).
+    const r = await h.call('answer_item', { backlogItemKey: 'PI-11', values: { rootCauseRelease: 'rel-1', affectedInvoices: ['A-1'] },
+      record: { impact: 'one invoice' }, evidence: { 'investigation.json': { from: out } } });
+    assert.equal(r.status, 'ANSWERED', JSON.stringify(r).slice(0, 300));
+    let w;
+    for (let i = 0; i < 3; i++) { w = await h.call('wait_for_update', {}); if (w.reason === 'AUTO_SUBMITTED') break; }
+    assert.equal(w.reason, 'AUTO_SUBMITTED', JSON.stringify(w).slice(0, 300));
+    assert.deepEqual(w.autoSubmitted.map(a => [a.item, a.status, a.slot, a.suggestNext]), [['PI-11', 'SUBMITTED', inc.slot, null]]);
+    assert.ok(gm.state.submissions.has('PI-11'));
   } finally { h.close(); }
 });
 
@@ -451,7 +493,7 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
   } finally { h.close(); }
 });
 
-test('1.5.22: deadlineWaiting skips started and unfinishable items; s4 only takes a value TASK; a PI without a slot holds nothing', async () => {
+test('1.5.22: deadlineWaiting skips started and unfinishable items; any item slot serves a deadline item first', async () => {
   const item = (key, type, deadlineMinutes, revealedElapsedSec, descriptionMd = 'Short item.') => ({ key, backlogType: type, title: key,
     deadlineMinutes, revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
   gm.state.backlog = [
@@ -471,14 +513,16 @@ test('1.5.22: deadlineWaiting skips started and unfinishable items; s4 only take
     // CR-43: 5 minutes from minute 10 at minute 18.3 -> closed; never listed. TASK-42 needs a quality gate.
     const w = (await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key);
     assert.deepEqual(w, ['TASK-41', 'TASK-42']);
-    // s4: TASK-44 (no deadline) is refused for TASK-41 (a value TASK) ...
+    // 1.5.24: s4 is an ordinary worker slot: TASK-44 (no deadline) waits while TASK-41 or TASK-42 waits.
     assert.equal((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).error?.code, 'DEADLINE_ITEM_WAITING');
     const t41 = await h.call('start_work', { backlogItemKey: 'TASK-41', slot: 's1' });
-    // ... but not for TASK-42 (a data pack belongs to a worker), so s4 may take TASK-44.
+    assert.equal((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).error?.code, 'DEADLINE_ITEM_WAITING');
+    const t42 = await h.call('start_work', { backlogItemKey: 'TASK-42', slot: 's2' });
+    assert.ok(t42.briefFile);
     assert.ok((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).briefFile);
     // A started deadline item that was released does not come back as "waiting".
     await h.call('release_slot', { slot: 's1' });
-    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key), ['TASK-42']);
+    assert.equal((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting, undefined);
     assert.ok(t41.briefFile);
   } finally { h.close(); }
 });

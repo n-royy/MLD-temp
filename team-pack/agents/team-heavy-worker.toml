@@ -1,5 +1,5 @@
 name = "team_heavy_worker"
-description = "Senior developer and tester for heavy backlog items (effort profile XL from the brief: large data, traps, aggregated answers): completes one hard item in the dedicated slot s5 with quality first (plan, row-by-row verification, self-review), commits on the local slot branch and writes DONE.json. Never pushes, never calls Start Work or Submit."
+description = "Senior developer and tester for heavy backlog items (effort profile XL from the brief: large data, traps, aggregated answers): completes one hard item in a worker slot with quality first (plan, row-by-row verification, self-review), commits on the local slot branch and writes DONE.json. Never pushes, never calls Start Work or Submit."
 # Heavy items are long and hard: more reasoning per step than the team default ("low" in config/codex.toml).
 # MTM Player's model policy may still override this.
 model_reasoning_effort = "high"
