@@ -25,8 +25,10 @@ const TOOLS = [
     description: 'Full JSON of one visible backlog item (brief, acceptance criteria, deadline, points, statuses).',
     inputSchema: obj({ key, refresh: { type: 'boolean' } }, ['key']) },
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
-    description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason SLOT_DONE (slotDone[]: a slot ' +
-      'wrote its DONE.json), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
+    description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason AUTO_SUBMITTED (autoSubmitted[]: ' +
+      'the helper integrated and submitted a clean DONE item itself - status DONE, no doubts, quality gate PASS - each with ' +
+      'suggestNext {backlogItemKey, why, worker} for its free slot; worker "same" = followup_task the same agent), SLOT_DONE (slotDone[]: a slot ' +
+      'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
       'end, a heavy item about 1.5 minutes with heavy: true - integrate its last commit at once; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - s4 ' +
       'first - and collected every log page and the incident rules into incident.dir: digest.md, logs.json, entities.json, kb.md; ' +
       'it outranks every other reason and arrives once per PI), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
