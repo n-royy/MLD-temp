@@ -68,3 +68,7 @@ Short rules learned from real matches. Each line names where it came from. They 
   tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
 - The organizer no longer marks heavy items: read the effort profile (board effort/heavy/heavyCandidate with reasons:
   large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)
+- The PI first, but assign every deadline item (start_work + spawn) in the moments the PI does not need you (while
+  its data is collected, between steps), and let a free s5 take a deadline item before a heavy item without a
+  deadline. (IPZ0U79E: CR-07 never started during a 13-minute PI with s3 free;
+  TASK-07 waited while s5 took TASK-12)

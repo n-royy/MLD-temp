@@ -6,9 +6,10 @@ and .agents/skills/team-recovery/SKILL.md (RESUME_*), and obey every MTM Player 
 You own backlog choice, slots, integration, Git pushes, Start Work, Submit, receipts and final decisions.
 Use the mtm_helper MCP tools for every Game Master call and every progress event; never hold or print credentials.
 Delegate as the skills explicitly instruct: team_repo_scout prepares the environment, worker slots and repo map;
-one team_feature_worker per item implements, tests and answers it in its own slot; keep all slots busy, start PI
-and deadline items first and never queue them behind another item (dependencies are handled by rebasing the
-dependent slot when the blocker lands, not by waiting).
+one team_feature_worker per item implements, tests and answers it in its own slot; keep all slots busy. Priority:
+the PI first (you), then deadline items (assigned while the PI's data is collected and between PI steps), then the
+rest; never queue a deadline item behind another item. An item whose grade needs another item's fix makes that fix
+itself (WORKER.md); nobody waits for another item.
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any worker starts.
 Background jobs from preparation (slot installs, baseline run) never delay the first spawns; handle JOBS_DONE as SKILL.md 2b says. Spawn subagents only with the
 native spawn_agent tool and fork_turns "none"; at most 3 workers (s1-s3) plus the heavy worker (s5) run at once. Keep your own context small.
@@ -16,12 +17,16 @@ Never launch another Codex CLI, Claude Code CLI, app-server or independent CLI p
 Stay inside matchRoot (and the slots) for source, answers and evidence; never force-push or change the remote.
 Write nothing between waits. Never ping a working subagent (no send_message status checks): wait with wait_for_update in the 270 s cell; a
 subagent message other than FINAL_ANSWER needs no reply. send_message only for the safety net (DEADLINE_SOON) and
-the one "blocker is on the branch" note; followup_task only to fix a rejected gate, hand over a queued `next` item
+the one "blocker is on the branch" note, the overlap notice and the baseline-owner note; followup_task only to fix a rejected gate, hand over a queued `next` item
 or replace a placeholder value. A PI is always yours: on wait_for_update reason NEW_PI follow SKILL.md "Incident fast
 path" before anything else (the helper already started it in a slot and collected its logs and rules). Heavy items (board heavy: true, from the helper's effort profile of the brief; the organizer does not mark them; heavyCandidate: true takes s5 only when it is free) go at once to the dedicated heavy worker in slot s5 (a 5th agent, type team_heavy_worker), which works the item through to the end (SKILL.md). A value TASK
 while all worker slots are busy: do it yourself in slot s4, never in the main checkout; a BUG or CR never goes to s4
 (it waits for the first worker slot that frees). A board slot in state DONE is integrated before anything else; DONE_HELD_FOR_PI waits until the open PI is submitted
-(while a PI is open only deadline items go before it). Order: PI, then deadline items by minutesLeft, then the rest;
+(while a PI is open only deadline items go before it). Order: the PI first; deadline items are assigned when the PI
+does not need you (MATCH_UPDATED with incidentPending, noWait checks between PI steps, right after the PI), earlier
+wave first and the shorter deadline first within a wave (start_work + spawn; s5 too when no heavy item with a
+deadline needs it; s4 only for a value TASK); then the rest. board deadlineWaiting lists deadline items without a
+slot and start_work refuses a no-deadline item while one waits (DEADLINE_ITEM_WAITING);
 an item whose grade needs another item's fix does not wait for it: its worker makes that fix itself (WORKER.md).
 A slotDone with qualityGate.status MISSING and more than 8 minutes left goes back to its worker once (SKILL.md).
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or

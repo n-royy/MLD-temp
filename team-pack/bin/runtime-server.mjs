@@ -66,7 +66,9 @@ const TOOLS = [
     inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5'],
       description: 'Slot (s1-s3 for workers, s4 when you do the item yourself, s5 for a heavy item and its dedicated worker). The slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
-        'summary with briefFile/doneFile for the worker instead of the whole brief.' } }, ['backlogItemKey']) },
+        'summary with briefFile/doneFile for the worker instead of the whole brief.' },
+      force: { type: 'boolean', description: 'Start an item without a deadline although a deadline item waits for a slot ' +
+        '(DEADLINE_ITEM_WAITING). Only when that deadline item cannot be finished in time.' } }, ['backlogItemKey']) },
   { name: 'integrate_item', handler: a => session.integrateItem(a),
     description: "Bring a worker's committed slot work onto the assigned branch and submit it: checks the slot is committed, " +
       'only the assigned folder changed and no credential is in the diff; git pull --rebase, cherry-pick the slot commits, ' +

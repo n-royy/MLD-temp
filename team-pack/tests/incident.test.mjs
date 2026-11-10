@@ -312,7 +312,7 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
     gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
     await h.call('refresh_match');
-    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5' });
+    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5', force: true }); // earlier tests left deadline items
     assert.equal(s.slot, 's5'); assert.equal(s.heavy, true);
     // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
     const board = await h.call('refresh_match');
@@ -321,7 +321,9 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
     gm.reveal({ ...PI, key: 'PI-05' });
     await new Promise(r => setTimeout(r, 1100));
-    const w = await h.call('wait_for_update', {});
+    let w = await h.call('wait_for_update', {});
+    // Deadline items left by earlier tests can take a free slot: the wave comes first, NEW_PI on the next call.
+    if (w.reason === 'MATCH_UPDATED') w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI');
     assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
   } finally { h.close(); }
@@ -374,12 +376,24 @@ test('1.5.21: no dependency scheduling; the brief carries every other item in ba
     const by = Object.fromEntries(board.items.map(i => [i.key, i]));
     assert.equal(by['CR-17'].dependsOn, undefined); assert.equal(by['BUG-21'].prerequisiteOf, undefined);
     assert.equal(by['BUG-21'].effectiveMinutesLeft, undefined); assert.equal(by['BUG-21'].minutesLeft, undefined);
+    // 1.5.22: a no-deadline item never takes a slot while a deadline item waits for one.
+    const refused = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
+    assert.equal(refused.error?.code, 'DEADLINE_ITEM_WAITING', JSON.stringify(refused));
+    assert.deepEqual(refused.error.details?.waiting?.map(w => w.key) ?? refused.error.waiting?.map(w => w.key), ['CR-17']);
+    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(w => w.key), ['CR-17']);
+    // Deadline order: earlier wave first, then the shorter deadline within a wave (a later short one does not jump ahead).
+    gm.reveal({ key: 'TASK-31', backlogType: 'TASK', title: 'Late short', deadlineMinutes: 10, revealedElapsedSec: 690, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'x' });
+    gm.reveal({ key: 'TASK-30', backlogType: 'TASK', title: 'Same wave longer', deadlineMinutes: 30, revealedElapsedSec: 600, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'x' });
+    await h.call('refresh_match');
+    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(w => w.key), ['CR-17', 'TASK-30', 'TASK-31']);
+    gm.state.backlog = gm.state.backlog.filter(i => !['TASK-30', 'TASK-31'].includes(i.key));
+    await h.call('refresh_match');
+    const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
     const bug = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
     const task = await h.call('start_work', { backlogItemKey: 'TASK-25', slot: 's2' });
-    const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
     const crBrief = JSON.parse(readFileSync(cr.briefFile, 'utf8'));
     assert.equal(crBrief.dependsOn, undefined);
-    assert.deepEqual(crBrief.otherItems.map(d => [d.key, d.state]), [['BUG-21', 'IN_PROGRESS'], ['TASK-25', 'IN_PROGRESS']]);
+    assert.deepEqual(crBrief.otherItems.map(d => [d.key, d.state]), [['BUG-21', 'NOT_STARTED'], ['TASK-25', 'NOT_STARTED']]);
     assert.match(readFileSync(crBrief.backlogFile, 'utf8'), /## BUG-21[\s\S]*reversed entries/);
     const bugBrief = JSON.parse(readFileSync(bug.briefFile, 'utf8'));
     assert.equal(bugBrief.stopBy && bugBrief.deadlineAt, null, 'a no-deadline item has no deadline of anyone else');
@@ -433,5 +447,37 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     assert.equal(by['TASK-38'].qualityGate.status, 'MISSING'); assert.ok(by['TASK-38'].qualityGate.minutesLeft > 20);
     assert.equal(by['TASK-37'].qualityGate.status, 'PASS');
     assert.equal(by['BUG-37'].qualityGate, undefined);
+  } finally { h.close(); }
+});
+
+test('1.5.22: deadlineWaiting skips started and unfinishable items; s4 only takes a value TASK; a PI without a slot holds nothing', async () => {
+  const item = (key, type, deadlineMinutes, revealedElapsedSec, descriptionMd = 'Short item.') => ({ key, backlogType: type, title: key,
+    deadlineMinutes, revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
+  gm.state.backlog = [
+    item('TASK-41', 'TASK', 15, 1000, 'Answer the value.'),
+    item('TASK-42', 'TASK', 15, 1000, 'Build a statement pack: a manifest with volume, mix and overlap requirements; at most 20 MB.\n## Grading\nEach requirement is checked.'),
+    item('CR-43', 'CR', 5, 600),
+    item('TASK-44', 'TASK', null, 1000)
+  ];
+  gm.state.clock = { elapsedSec: 1100, remainingSec: 1300 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare] });
+    await h.call('prepare_slots', { count: 5 });
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
+    await h.call('refresh_match');
+    // CR-43: 5 minutes from minute 10 at minute 18.3 -> closed; never listed. TASK-42 needs a quality gate.
+    const w = (await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key);
+    assert.deepEqual(w, ['TASK-41', 'TASK-42']);
+    // s4: TASK-44 (no deadline) is refused for TASK-41 (a value TASK) ...
+    assert.equal((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).error?.code, 'DEADLINE_ITEM_WAITING');
+    const t41 = await h.call('start_work', { backlogItemKey: 'TASK-41', slot: 's1' });
+    // ... but not for TASK-42 (a data pack belongs to a worker), so s4 may take TASK-44.
+    assert.ok((await h.call('start_work', { backlogItemKey: 'TASK-44', slot: 's4' })).briefFile);
+    // A started deadline item that was released does not come back as "waiting".
+    await h.call('release_slot', { slot: 's1' });
+    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(d => d.key), ['TASK-42']);
+    assert.ok(t41.briefFile);
   } finally { h.close(); }
 });
