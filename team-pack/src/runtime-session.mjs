@@ -6,7 +6,7 @@ import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep 
 import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
 import { PROXY_FILE, relayCompany, startCompanyProxy } from './company-proxy.mjs';
-import { git, gitOk } from './git.mjs';
+import { clearStaleLock, git, gitOk } from './git.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
@@ -22,13 +22,12 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-8]$/;
-// 1.5.24: the orchestrator only coordinates. s1-s4: the 4 item workers. s5, s6: item slots of the two PI agents (they
-// take items while no PI is open). s7, s8: PI-only slots (no dependency install: a PI is answered from logs), so a PI
-// never waits for a slot and its agent never leaves an item half-done in the slot the PI needs.
-const PI_SLOTS = ['s7', 's8'];
+const SLOT_NAME = /^s[1-6]$/;
+// 1.5.25: the orchestrator only coordinates. s1-s4: the 4 item workers. s5, s6: the two PI agents' own slots - a PI
+// goes there first; while no PI is open the PI agent works ordinary items there. Every slot is installed (a PI may
+// ask for a fix in the source: YH6OAYMZ PI-02 "Then fix the fault in the application source").
 const PI_AGENT_SLOTS = ['s5', 's6'];
-const slotRole = n => PI_SLOTS.includes(n) ? 'pi' : PI_AGENT_SLOTS.includes(n) ? 'pi-agent' : 'worker';
+const slotRole = n => PI_AGENT_SLOTS.includes(n) ? 'pi-agent' : 'worker';
 // Board entries stay small: every wait_for_update result is re-sent with the orchestrator's context.
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
 // DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
@@ -448,7 +447,7 @@ export class MatchSession {
         match: { status: m.status ?? null, ...(left !== null ? { minutesLeft: left } : {}) },
         items: this.#items().map(i => this.#boardItem(i)),
         ...(held => held.length ? { heldForPi: held } : {})(this.#slotSummary().filter(x => x.state === 'DONE_HELD_FOR_PI').map(x => x.item)),
-        // Deadline items with no slot: they take the next free item slot (s1-s6) before anything else.
+        // Deadline items with no slot: they take the next free slot before anything else.
         ...(w => w.length ? { deadlineWaiting: w.map(({ key, minutesLeft, slack }) => ({ key, minutesLeft, slack })) } : {})(this.#hasSlots() ? this.#deadlineWaiting() : []),
         newItems,
         ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
@@ -489,7 +488,7 @@ export class MatchSession {
   }
 
   // ---------- incident fast path ----------
-  /** Starts (once per item) the background preparation of a PI: Start Work in a free PI slot (s7/s8), then every log
+  /** Starts (once per item) the background preparation of a PI: Start Work in a free slot (s5/s6 first), then every log
    *  page and the incident rules collected into <slotMatchRoot>/.mtm-tmp/<ID>/incident/. Never throws. */
   #kickIncident(key, slotWanted = null) {
     const known = this.incidents.get(key);
@@ -504,10 +503,9 @@ export class MatchSession {
       if (!this.#hasSlots()) return null;
       const all = this.#slots();
       const free = n => all[n] && !all[n].item && !this.pendingClaims.has(n) && existsSync(join(all[n].path ?? '', '.git'));
-      // PI slots only; a third PI waits for one (prepare_incident when it frees). Packs prepared without PI slots
-      // (older preparation) fall back to any free slot.
-      if (PI_SLOTS.some(n => all[n])) return PI_SLOTS.find(free) ?? null;
-      return Object.keys(all).sort().find(free) ?? null;
+      // A PI agent's own slot first, then any free worker slot; none free: the PI starts in the first slot that frees
+      // (#retryIncidents).
+      return [...PI_AGENT_SLOTS, ...Object.keys(all).sort()].find(free) ?? null;
     })();
     if (pick) this.pendingClaims.set(pick, key);
     entry.promise = (async () => {
@@ -526,15 +524,27 @@ export class MatchSession {
         let defs = this.companyToolDefs;
         if (!defs) { try { defs = await this.companyTools(); } catch (error) { defs = []; startError ??= `company tools list failed: ${error.code ?? 'ERROR'}`; } }
         const item = this.#items().find(i => i.key === key) ?? {};
-        const summary = await collectIncident({ defs, dir: join(root, SCRATCH, key, 'incident'),
-          brief: { key, title: item.title ?? '', description: typeof item.description === 'string' ? item.description : '' },
-          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }) });
         let brief = null;
         try { brief = start?.briefFile ? JSON.parse(readFileSync(start.briefFile, 'utf8')) : null; } catch { /* optional */ }
-        entry.result = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
+        const base = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
           worktreeRoot: start?.worktreeRoot ?? null, slotMatchRoot: start?.slotMatchRoot ?? null, briefFile: start?.briefFile ?? null,
           answerFile: brief?.answerFile ?? join(root, 'answers', key, 'submit.json'), validateCommand: brief?.validateCommand ?? null,
-          doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item), ...summary };
+          doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item) };
+        // NEW_PI is reported as soon as the rules are in (phase 1); the logs keep being collected and collection.json
+        // appears when they are complete (the PI agent waits for it with wait_incident_data).
+        let ready;
+        const phase1 = new Promise(r => { ready = r; });
+        const finalRun = collectIncident({ defs, dir: join(root, SCRATCH, key, 'incident'),
+          brief: { key, title: item.title ?? '', description: typeof item.description === 'string' ? item.description : '' },
+          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }),
+          onPhase1: p1 => ready({ ...base, ...p1, logsComplete: false,
+            note: 'Logs are still being collected: wait_incident_data({dir}) blocks until collection.json is written.' }) })
+          .then(summary => { entry.result = { ...base, ...summary, logsComplete: true }; entry.final = true;
+            this.#timeline('INCIDENT_LOGS_READY', key, { inSec: Math.round((Date.now() - entry.startedAt) / 1000), entries: summary.logEntries, complete: summary.complete });
+            return entry.result; })
+          .catch(error => { entry.result = { ...base, error: `${error.code ?? 'ERROR'}: ${clip(String(error.message), 200)}` }; return entry.result; });
+        entry.result = await Promise.race([phase1, finalRun]);
+        entry.finalRun = finalRun;
       } catch (error) {
         entry.result = { backlogItemKey: key, slot, started: Boolean(start), error: `${error.code ?? 'ERROR'}: ${clip(String(error.message), 200)}` };
       }
@@ -544,6 +554,30 @@ export class MatchSession {
       return entry.result;
     })();
     return entry;
+  }
+
+  /**
+   * A PI that found no free slot (every slot busy) starts in the first slot that frees, by itself (1.5.25): its data
+   * is collected again into that slot and NEW_PI is reported again with the slot.
+   */
+  #retryIncidents() {
+    if (!INCIDENT_AUTO || this.cfg?.phase !== 'GAME' || !this.#hasSlots()) return;
+    for (const [key, e] of this.incidents) {
+      if (!e.done || e.result?.started || e.retrying) continue;
+      const item = this.#items().find(i => i.key === key);
+      if (!item || item.submission || String(item.status ?? '').toUpperCase() === 'CLOSED') continue;
+      const all = this.#slots();
+      const free = [...PI_AGENT_SLOTS, ...Object.keys(all).sort()].find(n => all[n] && !all[n].item && !this.pendingClaims?.has(n));
+      if (!free) return;
+      this.incidentRetries ??= new Map();
+      const n = this.incidentRetries.get(key) ?? 0;
+      if (n >= 3) continue;
+      this.incidentRetries.set(key, n + 1);
+      e.retrying = true;
+      this.incidents.delete(key);
+      this.#kickIncident(key, free);
+      this.#timeline('INCIDENT_RETRY', key, { slot: free });
+    }
   }
 
   /** Feed check (skipped within 1 s of a read): on a change, a full read discovers new items (and starts a PI's preparation). */
@@ -596,7 +630,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s8');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s6');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -607,8 +641,24 @@ export class MatchSession {
     }
     const entry = this.#kickIncident(backlogItemKey, slot);
     await entry.promise;
+    if (entry.finalRun) await entry.finalRun;
     entry.reported = true;
     return { ...entry.result, preparedInSec: Math.round((entry.readyAt - entry.startedAt) / 1000) };
+  }
+
+  /**
+   * Blocks until the helper has finished collecting a PI's logs (collection.json in the incident folder), up to
+   * 280 s. File-based, so it works from any helper process (the PI agent's helper holds no key). Returns the coverage.
+   */
+  async waitIncidentData({ dir, timeoutMs = 280000 } = {}) {
+    if (typeof dir !== 'string' || !isAbsolute(dir) || !/[\\/]\.mtm-tmp[\\/]/.test(dir)) fail('INVALID_DIR', 'dir is the absolute incident folder (<slotMatchRoot>/.mtm-tmp/<ID>/incident)');
+    const f = join(dir, 'collection.json');
+    const end = Date.now() + Math.min(Math.max(Number(timeoutMs) || 280000, 1000), 280000);
+    while (!existsSync(f) && Date.now() < end) await sleep(1000);
+    if (!existsSync(f)) return { ready: false, note: 'still collecting: call wait_incident_data again' };
+    let j; try { j = JSON.parse(readFileSync(f, 'utf8')); } catch { await sleep(500); j = JSON.parse(readFileSync(f, 'utf8')); }
+    return { ready: true, complete: j.complete, logEntries: j.logEntries, files: j.files, kbArticles: j.kbArticles,
+      coverage: (j.coverage ?? []).filter(c => !c.complete || c.total).slice(0, 20), problems: j.problems };
   }
 
   async refresh() {
@@ -663,6 +713,7 @@ export class MatchSession {
       // The safety net is one call and its minutes cannot wait for a PI's collection.
       const soonFirst = this.#deadlineSoon();
       if (soonFirst.length) { this.soonUntil = Date.now() + 300000; return { changed: true, reason: 'DEADLINE_SOON', deadlineSoon: soonFirst, board: this.#board([]) }; }
+      this.#retryIncidents();
       const pi = await this.#incidentUpdate(this.#piWaitMs(noWait), this.peekFresh ?? []);
       if (pi) { this.peekFresh = []; return pi; }
       if (this.autoResults?.length) {
@@ -815,6 +866,15 @@ export class MatchSession {
     if (!this.projection) await this.#getProjection();
     if (target && target.item !== backlogItemKey && !force) this.#checkDeadlineFirst(backlogItemKey, target.name);
     this.#discover(); // a projection loaded before START_GAME has not been discovered yet
+    let slotHead = null;
+    if (target) {
+      // Hold the slot while its tree is synced, so nobody else is offered it meanwhile.
+      this.pendingClaims ??= new Map();
+      const mine = !this.pendingClaims.has(target.name);
+      if (mine) this.pendingClaims.set(target.name, backlogItemKey);
+      try { slotHead = await this.#syncSlotTree(target, backlogItemKey); }
+      finally { if (mine && this.pendingClaims.get(target.name) === backlogItemKey) this.pendingClaims.delete(target.name); }
+    }
     const url = this.#endpoint('start');
     const body = JSON.stringify({ backlogItemKey });
     let res;
@@ -855,7 +915,7 @@ export class MatchSession {
       writeFileSync(target, typeof content === 'string' ? content : JSON.stringify(content, null, 2));
       saved.push(target);
     }
-    if (target) await this.#resetSlot(target, backlogItemKey);
+    if (target) await this.#resetSlot(target, backlogItemKey, slotHead);
     // Canonical answer location: <folder>/answers/<ID>/submit.json + evidence/ (in the slot when one is used).
     const answerDir = join(target?.matchRoot ?? c.matchRoot, 'answers', backlogItemKey);
     mkdirSync(join(answerDir, 'evidence'), { recursive: true });
@@ -1069,7 +1129,7 @@ export class MatchSession {
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 8) fail('INVALID_SLOT_COUNT', 'count must be 1..8 (s1-s4 for the 4 workers, s5-s6 for the PI agents\' items, s7-s8 for PIs)');
+    if (!Number.isInteger(n) || n < 1 || n > 6) fail('INVALID_SLOT_COUNT', 'count must be 1..6 (s1-s4 for the 4 workers, s5-s6 for the 2 PI agents)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
@@ -1109,7 +1169,7 @@ export class MatchSession {
       out.push({ slot: name, index: i, worktreeRoot: path, matchRoot, copied });
     }
     this.#saveSlots(all);
-    return { slots: out, note: 'Install dependencies and prepare the database once per item slot s1-s6 (see game-preparation); s7/s8 (PI) need no install.' };
+    return { slots: out, note: 'Install dependencies and prepare the database once per slot, one slot at a time (see game-preparation).' };
   }
 
   /**
@@ -1148,9 +1208,9 @@ export class MatchSession {
     return seen && el !== null ? Math.max(0, el - (Date.now() - seen) / 1000) : 0;
   }
 
-  /** PI slots (s7/s8) take only PIs; every other slot takes any item. */
-  #fitsSlot(d, slotName) {
-    return !PI_SLOTS.includes(slotName);
+  /** Every slot takes any item (1.5.25). */
+  #fitsSlot() {
+    return true;
   }
 
   /** A free slot a waiting deadline item could take right now. */
@@ -1172,23 +1232,24 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers), s5-s6 (PI agents\' items) or s7-s8 (PIs)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers) or s5-s6 (PI agents)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
     const claimed = this.pendingClaims?.get(name);
     if (claimed && claimed !== key) fail('SLOT_BUSY', `${name} is being started for ${claimed} (the PI)`);
-    if (PI_SLOTS.includes(name) && s.item !== key) {
-      const item = this.#items().find(i => i.key === key);
-      if (item && !isIncident(item)) fail('PI_SLOT_RESERVED', `${name} is a PI slot; start ${key} in an item slot (s1-s6)`);
-    }
     const other = this.#slotOf(key);
     if (other && other.name !== name) fail('ITEM_IN_OTHER_SLOT', `${key} is already in ${other.name}`);
     return s;
   }
 
-  async #resetSlot(s, key) {
-    if (s.item === key) return; // Start Work replay keeps the worker's state
+  /**
+   * Brings the slot's worktree to the branch head BEFORE Start Work is sent (1.5.25), so a slow or failed checkout
+   * never leaves an item started on Game Master without a slot (YH6OAYMZ: BUG-11 was started four times while s2's
+   * checkout kept timing out). A lock left by a killed git is removed first; the checkout gets 5 minutes and one retry.
+   */
+  async #syncSlotTree(s, key) {
+    if (s.item === key) return null; // Start Work replay keeps the worker's state
     const c = this.cfg;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
     // A reused slot (next item of a group) must not hold commits that never reached the assigned branch.
@@ -1197,8 +1258,18 @@ export class MatchSession {
     if (SHA.test(tip) && tip !== s.integratedTip && (await git(c.checkoutRoot, ['merge-base', '--is-ancestor', tip, head])).code !== 0) {
       fail('SLOT_HAS_UNINTEGRATED_WORK', `${s.name} holds commits that are not on ${c.repository.branch}; integrate them or release_slot first`);
     }
-    await gitOk(s.path, ['checkout', '-f', '-B', s.branch, head]);
-    await gitOk(s.path, ['clean', '-fdq']); // untracked leftovers only; ignored files (deps, env) stay
+    for (let attempt = 1; ; attempt++) {
+      await clearStaleLock(s.path, attempt === 1 ? 90000 : 0);
+      const co = await git(s.path, ['checkout', '-f', '-B', s.branch, head], { timeoutMs: 300000 });
+      if (co.code === 0) break;
+      if (attempt >= 2) fail('SLOT_CHECKOUT_FAILED', `${s.name}: git checkout failed twice: ${clip(co.stderr.trim(), 200)}`);
+    }
+    await gitOk(s.path, ['clean', '-fdq'], { timeoutMs: 300000 }); // untracked leftovers only; ignored files (deps, env) stay
+    return head;
+  }
+
+  async #resetSlot(s, key, head) {
+    if (s.item === key) return;
     const all = this.#slots();
     all[s.name] = { ...all[s.name], item: key, state: 'BUSY', base: head, integratedTip: null, reported: null, startedAt: new Date().toISOString() };
     this.#saveSlots(all);
@@ -1418,14 +1489,15 @@ export class MatchSession {
 
   /**
    * What the freed slot should take next, in the team's priority (1.5.24): deadline items (least slack first; PIs are
-   * started by the helper itself in s7/s8), then a heavy item (one at a time: the machine is shared), then the rest:
+   * started by the helper itself, s5/s6 first), then a heavy item (one at a time: the machine is shared), then the rest:
    * first an item whose fix the finished worker already made (includedFixes: the same worker continues it), then the
    * most points per effort. `worker`: the agent type to spawn, `same` (followup_task the worker of that slot) or
    * `pi_agent` (s5/s6: followup_task that slot's PI agent). Advice only.
    */
   #suggestNext(slotName, includedFixes = []) {
-    if (PI_SLOTS.includes(slotName)) return null;
     const piAgent = PI_AGENT_SLOTS.includes(slotName);
+    // A PI waiting for a slot takes this one (the helper starts it there itself).
+    if ([...(this.incidents?.values() ?? [])].some(e => e.done && !e.result?.started)) return { backlogItemKey: null, why: 'a PI waits for a slot: the helper starts it here', worker: null };
     const who = type => piAgent ? 'pi_agent' : type;
     const waiting = this.#deadlineWaiting().filter(d => this.#fitsSlot(d, slotName));
     if (waiting.length) {

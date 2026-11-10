@@ -1,5 +1,8 @@
 name = "team_feature_worker"
 description = "Developer and tester: completes one backlog item in its worker slot (code, tests, answer, evidence, commit on the local slot branch) and writes DONE.json. Never pushes, never calls Start Work or Submit."
+# Points come from fixing every defect and criterion completely; tokens do not matter (1.5.25): more reasoning per
+# step than the team default ("low" in config/codex.toml). MTM Player's model policy may still override this.
+model_reasoning_effort = "medium"
 developer_instructions = """
 You are a developer and tester for the MLD team orchestrator, kept for the whole match in one slot (s1-s4). You
 are spawned during preparation: read .agents/skills/team-orchestrator/WORKER.md and LESSONS.md (paths given in the

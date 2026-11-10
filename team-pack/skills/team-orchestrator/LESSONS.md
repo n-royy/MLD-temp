@@ -81,5 +81,13 @@ Short rules learned from real matches. Each line names where it came from. They 
   during preparation, in a PI slot of its own, with the data already collected by the helper.
 - Codex counts every agent thread, idle ones too ("agent thread limit reached" with 4 sub-agents, 6QYJQAVJ): keep a
   fixed team and hand items over by follow-up instead of spawning one agent per item.
-- Six installs at once take 13 minutes each where one takes 1.5 (IPZ0U79E): two at a time, hard links for Yarn, and
-  the main install as the scout's first action.
+- Installs beside other work take 10-30 times longer (IPZ0U79E: 13 min each for five at once; YH6OAYMZ: 22 and 34 min
+  two at a time with Yarn hard links). One at a time, no hard links, all before READY; nothing heavy in the game but
+  the items themselves (stop the baseline run at game start).
+- A disk-bound machine makes git slow, not just builds: a slot checkout that timed out left index.lock behind and
+  every later start_work in that slot failed (YH6OAYMZ BUG-11, four tries). The helper now syncs the slot before Start
+  Work and clears stale locks.
+- A PI can ask for a fix in the source (YH6OAYMZ PI-02): PI slots need installed dependencies, and the PI agent
+  reproduces, fixes and tests before answering.
+- A log search capped at 20 with no paging (YH6OAYMZ: 755 rule-engine entries) is swept by the helper with time
+  prefixes; the PI agent made ~600 calls by hand before.

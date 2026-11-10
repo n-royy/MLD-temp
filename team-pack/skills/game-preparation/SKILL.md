@@ -39,11 +39,11 @@ go to one `team_repo_scout` subagent; you keep only its short replies.
    `git -C <checkoutRoot> config user.email "mld-digital-cuder@users.noreply.github.com"`.
    Record `revision = git rev-parse HEAD` (full SHA).
 **Time matters here** (UV8P4HUS 1.5.3: 26 minutes, and the match clock was already running at ENVIRONMENT_READY).
-READY needs: doctor READY, build PASS, match login. **The slot installs belong to preparation** (1.5.20): they
-start as soon as the main install is done, run beside the build two at a time, and READY waits a bounded time for
-s1-s4 (step 7b), so the first wave's workers find their dependencies installed (UA9QF7DU / SC0E8AV2: slots still
-installing at game minutes 4 to 20 slowed every git call and test run). Only the baseline test run and the s5/s6
-installs may continue into the game (`JOBS_DONE`).
+READY needs: doctor READY, build PASS, match login and **all six slots installed** (1.5.25). The slot installs
+start as soon as the main install is done and run one at a time beside the build; READY waits for every one of them
+(step 7b). YH6OAYMZ (1.5.24): installs that ran on into the game (22 and 34 minutes each, with hard links and two at a
+time) made every git call take minutes; nothing was submitted in 32 minutes. Only the baseline test run may still be
+running at READY, and the game stops it at its start.
 **Order for speed** (IPZ0U79E 1.5.21: ~17.5 minutes from the clone to installed slots, 2 m 17 s of it before the
 main install started): the scout is spawned right after the clone and starts the main install as its first action;
 slots and the match team are created while it runs.
@@ -52,32 +52,32 @@ slots and the match team are created while it runs.
    then `spawn_agent` (team_repo_scout, `fork_turns: "none"`):
    ```
    Preparation specialist for match <matchId>. checkoutRoot: <path>. matchRoot: <path>. teamWorkspace: <path>.
-   Slots (worktrees, being created now, ready before the main install ends): item slots s1-s6 at
-   <checkoutRoot>.slots/s1/<folder> .. s6/<folder>; s7, s8 are PI slots (no install).
+   Slots (worktrees, being created now, ready before the main install ends): s1-s6 at
+   <checkoutRoot>.slots/s1/<folder> .. s6/<folder> (all six get the install).
    FIRST start the main install job (ENVIRONMENT.md "0. Speed rules"), then follow "0. Speed rules" and part A
    (environment and build of the main checkout, per-match database names, machine prerequisites from .mtm-local;
-   the slot installs s1-s6 start right after the main install, beside the build, two at a time; long commands only
-   through start_jobs/wait_jobs). Reply in at most 120 words: OK or BLOCKED (+ exact error); build PASS/FAIL;
-   hard-linked Yarn install yes/no; the git-ignored env file(s) relative to matchRoot that hold local values; the
+   the slot installs s1-s6 start right after the main install, beside the build, ONE at a time; no Yarn hard-link
+   options; long commands only through start_jobs/wait_jobs). Reply in at most 120 words: OK or BLOCKED (+ exact
+   error); build PASS/FAIL; the git-ignored env file(s) relative to matchRoot that hold local values; the
    exact database-name and port strings in them.
    ```
-3c. **Slots** - then at once `prepare_slots` with `count: 8` and no `copyFiles` (worktrees only, under a minute).
+3c. **Slots** - then at once `prepare_slots` with `count: 6` and no `copyFiles` (worktrees only, under a minute).
 3d. **Match team** - then spawn the six match agents (all with `fork_turns: "none"`, no model or reasoning effort),
    in one go, each with the preparation message of the team-orchestrator SKILL.md "Sub-agents":
    W1-W4 = `team_feature_worker` for s1-s4 (playbook WORKER.md), PA and PB = `team_incident_worker` for s5 and s6
-   (playbook INCIDENT.md and WORKER.md; PIs in s7/s8). Keep their agent ids for the summary. Do not wait for their
+   (playbook INCIDENT.md and WORKER.md; a PI first, items while no PI is open). Keep their agent ids for the summary. Do not wait for their
    READY (they need no reply). A spawn refused ("agent thread limit"): note which agent is missing in the summary;
    the game spawns it later.
 4. `wait_agent` (the scout) until it answers. `ENVIRONMENT` `COMPLETED` when it says OK (BLOCKED: report `BLOCKED` with its
    one-line error); `BUILD` `COMPLETED` when the build passed and `git -C <checkoutRoot> status --porcelain
    --untracked-files=no` is empty (check it yourself).
-5. **Slot env files** - `prepare_slots` again with `count: 8` (the worktrees of step 3c are kept) and `copyFiles` = the env file(s) from the reply, each with
+5. **Slot env files** - `prepare_slots` again with `count: 6` (the worktrees of step 3c are kept) and `copyFiles` = the env file(s) from the reply, each with
    `replace` turning the TEST database name into `<name>_{slot}` (and the app database too only when the env-require
    README demands one per working copy) and the app port `<p>` into `<p + 10·n>` (write the port as text, e.g.
    `"PORT=3000": "PORT=30{n}0"` style). It does not change tracked files.
 6. **Background jobs, repo map, tools** - `followup_task` to the scout:
    ```
-   Now ENVIRONMENT.md parts B (start the baseline job, do NOT wait for it; the slot installs already run), D, E,
+   Now ENVIRONMENT.md parts B (start the baseline job after the installs, do NOT wait for it; the slot installs already run), D, E,
    and F only if its condition holds. Reply in at most 120 words: jobs started (names), repo map
    written yes/no, serve.mjs/shot.mjs verified yes/no, baseline result if already finished (failing tests by name),
    baseline patch ready yes/no (+ one line), checkout clean yes/no.
@@ -85,15 +85,14 @@ slots and the match team are created while it runs.
    `wait_agent`. The baseline run keeps running; it never blocks READY.
 7. **MATCH_LOGIN** - `login_match`, then `refresh_match`. It must show this match ID and team `teamId`. Do not act on
    any backlog item even if some are visible.
-7b. **Slot installs** - one `wait_jobs` call (`dir` = `<matchRoot>/.mtm-tmp/jobs`, `names`: `install-s1`,
-   `install-s2`, `install-s3`, `install-s4`, `timeoutMs: 240000`). Usually they are done already and it returns at
-   once; `install-s5`/`install-s6` may still run (the PI agents take items only after the first wave). A FAILED one: `start_jobs` with `restartFailed: true` for it, no second wait. Still running
-   after the call: go on to READY anyway (never a second wait: if the match clock runs, the START_GAME frame waits
-   for this turn to end) and name them in the summary; the workers wait for their own slot in the game.
+7b. **Slot installs: all six before READY** - `wait_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, `names`:
+   `install-s1` .. `install-s6`, `timeoutMs: 280000`), again while `done` is false, at most 4 calls. A FAILED one:
+   `start_jobs` with `restartFailed: true` for it (same command, no wait prefix) and wait for it the same way. Only an
+   install still failing after that restart goes into the summary as a risk (its slot is then not used for items).
 8. Append readiness:
    `report_progress {"event":{"type":"ENVIRONMENT_READY","requestId":<descriptor.requestId>,"repository":<descriptor.repository exactly>,"revision":<full SHA from step 3>,"build":"PASS","matchLogin":"PASS"}}`
 9. Finish the turn with a short plain summary (at most 9 lines): build result, slots created and installed (or the
-   installs still running), the match team (W1-W4, PA, PB with their agent ids; any missing), background jobs still running (names; jobs dir `<matchRoot>/.mtm-tmp/jobs`), baseline result if known, baseline patch ready yes/no,
+   installs that failed), the match team (W1-W4, PA, PB with their agent ids; any missing), background jobs still running (names; jobs dir `<matchRoot>/.mtm-tmp/jobs`), baseline result if known, baseline patch ready yes/no,
    known risks. Player validates the log, tells Game Master the team is PREPARED, and later resumes
    this same conversation with `START_GAME_V4`. Do not start backlog work before that frame.
 

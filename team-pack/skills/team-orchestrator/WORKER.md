@@ -249,6 +249,24 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
 - If you need to run the app, use port `<default port> + 10 × slot index` and check it is free first; stop every
   server you started before finishing. Use the slot's own database (its env file already names it).
 
+## Definition of done: every defect fixed, every criterion met (1.5.25)
+Points come per test-case row, per acceptance criterion and per hidden test; tokens do not matter, a missed defect
+does. Before writing `doneFile` with `DONE`:
+1. **Every defect the brief describes is fixed at its root cause**, in every place the same cause shows (same
+   function used by another screen, the sibling code path, the server and the client side). Search for the pattern
+   (`rg`) instead of fixing only the line the scenario hits.
+2. **Every acceptance criterion** is checked one by one against the code and the evidence (write the list in
+   `.mtm-tmp/<ID>/plan.md` and tick it): exact names, values, formats, the current standard's revision.
+3. **Every template row PASSes** on the final code, run the way the MVS says; an existing-tests criterion means the
+   existing suite of the touched modules passes.
+4. **Hidden tests**: when the brief mentions graders, official data or hidden tests, one test of your own per rule
+   boundary (before/on/after, empty, rounding, non-ASCII) in a new test file, passing.
+5. **Regressions**: the existing tests of every module you changed pass; a fix for one row never breaks another.
+6. **Self-review** of the full diff (`git -C <worktreeRoot> diff <base>`): no debug code, no unrelated change, no
+   weakened test, nothing outside the assigned folder.
+Anything not met while time remains is not a reason to stop: fix it, then check again. Only when `stopBy` is near,
+submit what is verified (`PARTIAL`, honest rows) rather than nothing.
+
 ## How to work
 1. Read the brief and any Company Tool files already in your folder, then query what else the item needs yourself
    ("Company Tools" above). For PI and BUG they are mandatory input; their information is authoritative.
@@ -262,7 +280,8 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
    (`qualityGate`, "Quality gate" below): one run per template row (`<ID>-TC-01..n`),
    following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
-   extra pages, viewports or scripts. Max ~3 fix/test rounds.
+   extra pages, viewports or scripts. Keep fixing and re-testing until the "Definition of done" holds or `stopBy` is
+   near; a fourth round that finds a missed case is worth more than an early submission.
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
    Before you report an "existing tests pass" case FAIL because of a known baseline failure, check whether its fix
    (or another item's fix of the same test) already landed: `git -C <worktreeRoot> log --oneline HEAD..<branch>`;

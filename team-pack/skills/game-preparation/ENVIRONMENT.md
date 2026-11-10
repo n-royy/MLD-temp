@@ -20,8 +20,7 @@ only the orchestrator writes progress events.
   the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
   `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
   `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
-  `install-s1`..`install-s6` for the item slots (s7/s8 are PI slots: no install), `baseline` for the baseline test
-  run. Run independent jobs together.
+  `install-s1`..`install-s6` for the six slots, `baseline` for the baseline test run.
 - **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
@@ -29,20 +28,17 @@ only the orchestrator writes progress events.
 - **The main install is your FIRST action** (IPZ0U79E: 2 m 17 s passed between the clone and its start while the
   scout read documents). Before reading any README, detect the package manager from the lockfile in `matchRoot` and
   start job `prep-install` (cwd `matchRoot`):
-  - `.yarn/releases/yarn-*.cjs` + `yarn.lock` (Yarn Berry): `<YARN_ENV> node .yarn/releases/<that file> install --immutable`
+  - `.yarn/releases/yarn-*.cjs` + `yarn.lock` (Yarn Berry): `node .yarn/releases/<that file> install --immutable`
   - `pnpm-lock.yaml`: `pnpm install --frozen-lockfile --prefer-offline`
   - `package-lock.json`: `npm ci --prefer-offline --no-audit --no-fund`
   - anything else: read the README first, then start it.
-  `<YARN_ENV>` (PowerShell) makes Yarn hard-link packages from one store on the same drive instead of copying
-  ~230 MB of files into every working copy, and keeps its cache warm across matches:
-  `$env:YARN_NM_MODE='hardlinks-global'; $env:YARN_ENABLE_GLOBAL_CACHE='true'; $env:YARN_GLOBAL_FOLDER='<teamWorkspace>\.mtm-cache\yarn'; `
-  (`<teamWorkspace>` is on the same drive as the matches). If `prep-install` FAILS with it, run it once more without
-  `<YARN_ENV>` and use no `<YARN_ENV>` for the slots either; say so in your reply.
-- **Slot installs: two at a time, never six at once** (IPZ0U79E: five installs beside the build took 13 m 25 s
-  each; the link step that took 1 m 17 s alone took 12 m 55 s, so preparation needed ~17.5 minutes). Item slots
-  s1-s6 install in two chains started right after the main install, beside the build (part A); the PI slots s7/s8
-  need no install. READY waits (bounded) only for s1-s4; s5/s6 may finish in the first game minutes.
-- **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline`; Yarn with `<YARN_ENV>`.
+  Never set Yarn hard-link options (`YARN_NM_MODE`): on Windows they made every link step 2-5 times slower
+  (YH6OAYMZ: 2 m instead of 1 m 17 s alone, 22-34 minutes per slot beside other work).
+- **Slot installs: one at a time, all six before READY** (IPZ0U79E: five installs at once took 13 m 25 s each, one
+  alone 1 m 17 s; YH6OAYMZ: installs that ran on into the game made every git call and test run take minutes, and
+  the first submission never came). One chain `install-s1` → `install-s2` → ... → `install-s6`, started right after
+  the main install, beside the build (part A). Nothing installs during the game.
+- **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline`.
 - **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
   folder). If `<teamWorkspace>/.mtm-cache/<key>/` exists (same seed as an earlier match), copy its `repo-map.md`,
   `tools/` and `baseline/` into `<matchRoot>/.mtm-tmp/` and only VERIFY them (patch `git apply --check`, one shot,
@@ -67,13 +63,13 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
    - Then in parallel, in ONE `start_jobs` call: job `prep-build` (the documented build, e.g. `prepare-source.ps1`
      or `pnpm run build`), job `prep-db` (the provided migration and seed steps, then the `doctor`/check script) and
      the slot installs `install-s1`..`install-s6` (in each slot's app folder from your task, the same locked install
-     command as `prep-install`, with `<YARN_ENV>` for Yarn), as two chains with the wait prefix of part B:
-     `install-s1` and `install-s2` start at once, `install-s3` waits for `install-s1`, `install-s5` for `install-s3`,
-     `install-s4` for `install-s2`, `install-s6` for `install-s4`.
+     command as `prep-install`), as ONE chain with the wait prefix of part B: `install-s1` starts at once,
+     `install-s2` waits for `install-s1`, ..., `install-s6` for `install-s5`. A failed install does not stop the chain
+     (the next one waits for the exit file, not for success); restart a failed one at the end of the chain.
      The orchestrator creates the slot worktrees while the main install runs; a slot folder still missing when you
-     start the chains: wait for `<slot>\.git` in the same prefix (`Test-Path`), never skip the slot.
+     start the chain: wait for `<slot>\.git` in the same prefix (`Test-Path`), never skip the slot.
      Then one `wait_jobs` for `prep-build` and `prep-db` only: the slot installs keep running while you finish part A
-     and s1-s4 are awaited by the orchestrator before READY.
+     and all six are awaited by the orchestrator before READY.
      The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
      `git status --porcelain` shows no tracked changes.
    - Missing toolchain or service: install it yourself, see "Toolchain installs" below. No human can help
@@ -118,10 +114,11 @@ Rules for installs:
 
 ## B. BACKGROUND JOBS (the baseline run; start it, do not wait)
 The slot installs were started in part A. Start the `baseline` job now (the full test suite in the main checkout,
-output to its log), plus the slot databases of part C when the env-require README needs one per working copy (the
-orchestrator has copied the slot env files by now), and go on with D and E while they run.
-**Two installs at a time.** Installs share the disk: five at once all finished after 12-13 minutes (5FLQMNAA,
-IPZ0U79E). Each chained install (started in part A) first waits, at most 10 minutes, until the job before it in its
+output to its log) with the same wait prefix for `install-s6` so it never competes with the installs, plus the slot
+databases of part C when the env-require README needs one per working copy (the orchestrator has copied the slot env
+files by now), and go on with D and E while they run. The game stops a baseline run that is still going at its start.
+**One install at a time.** Installs share the disk: five at once all finished after 12-13 minutes (5FLQMNAA,
+IPZ0U79E). Each chained install (started in part A) first waits, at most 10 minutes, until the job before it in the
 chain has an exit file, then installs. PowerShell prefix (`<jobsDir>` = the jobs `dir`, `<prev>` = that job's name):
 `$t=0; while (-not (Test-Path "<jobsDir>\<prev>.exit") -and $t -lt 600) { Start-Sleep 3; $t+=3 }; ` The game reads
 their results (`JOBS_DONE`); workers wait for their own slot's install.

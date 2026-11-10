@@ -40,6 +40,6 @@ default_tools_approval_mode = "approve"
 
 # Agent threads: the orchestrator, the guardian and every sub-agent count, and an idle agent keeps its thread
 # (6QYJQAVJ: "collab spawn failed: agent thread limit reached" with 4 sub-agents at the default limit).
-# 1.5.24 runs the scout, 4 workers and 2 PI agents (all kept and reused by follow-up) plus up to 3 heavy workers.
+# 1.5.24+ runs the scout, 4 workers and 2 PI agents (all kept and reused by follow-up) plus up to 3 heavy workers.
 [agents]
 max_threads = 12

@@ -78,6 +78,41 @@ test('a tool that needs a filter is queried per service and a capped page is rep
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('1.5.25: a capped search without paging is swept by time prefixes until every entry is in', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mld-incident-'));
+  try {
+    const logs = [];
+    // 130 rule-engine entries over 4 days (60 on one day, 25 of them in one hour) and 6 deploy entries.
+    const at = (d, h, m, s) => `2025-10-${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.000Z`;
+    let seq = 1;
+    for (let i = 0; i < 25; i++) logs.push({ ts: at(14, 3, i, 7), service: 'rule-engine', message: 'rule.applied', context: { release: '2025.10.1', txnId: `TX-${seq}`, seq: seq++ } });
+    for (let i = 0; i < 35; i++) logs.push({ ts: at(14, 4 + (i % 18), i, 1), service: 'rule-engine', message: 'rule.applied', context: { release: '2025.10.1', txnId: `TX-${seq}`, seq: seq++ } });
+    for (const d of [12, 16, 18]) for (let i = 0; i < 23; i++) logs.push({ ts: at(d, i, 5, 5), service: 'rule-engine', message: 'rule.applied', context: { release: '2025.10.2', txnId: `TX-${seq}`, seq: seq++ } });
+    for (let i = 0; i < 6; i++) logs.push({ ts: at(10 + i, 9, 0, 0), service: 'deploy', message: 'deploy.completed', context: { release: `2025.10.${i}`, seq: seq++ } });
+    let calls = 0;
+    const call = async (name, a) => {
+      calls++;
+      if (name !== 'search_logs') return { text: JSON.stringify({ articles: [] }) };
+      const words = String(a.query ?? '').split(/\s+/).filter(Boolean);
+      const hit = logs.filter(e => (!a.service || e.service === a.service) && words.every(w => JSON.stringify(e).includes(w)))
+        .sort((x, y) => y.ts.localeCompare(x.ts));
+      return { text: JSON.stringify({ total: hit.length, returned: Math.min(20, hit.length), entries: hit.slice(0, 20) }) };
+    };
+    const defs = [TOOLS[0], { name: 'search_logs', description: 'Search production logs (services include api-gateway, rule-engine, deploy). Returns at most 20 per call, with the total.',
+      inputSchema: { type: 'object', properties: { query: { type: 'string' }, service: { type: 'string' } } } }];
+    let phase1 = null;
+    const r = await collectIncident({ call, defs, dir, brief: { key: 'PI-02', title: 'Wrong category', description: 'The rule engine and the deploy pipeline log to production logs.' },
+      onPhase1: p => { phase1 = p; } });
+    assert.ok(phase1 && existsSync(phase1.files.kb), 'phase 1 reported with the rules');
+    const cov = Object.fromEntries(r.coverage.filter(c => c.args.service).map(c => [c.args.service, c]));
+    assert.deepEqual([cov['rule-engine'].total, cov['rule-engine'].collected, cov['rule-engine'].complete], [129, 129, true]);
+    assert.equal(cov.deploy.complete, true);
+    assert.equal(r.logEntries, logs.length);
+    assert.equal(r.complete, true, JSON.stringify(r.coverage));
+    assert.ok(calls < 200, `${calls} calls`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ---------- through the MCP helper ----------
 let gm, tmp, prepare, start, matchRoot;
 class Helper {
@@ -140,13 +175,13 @@ before(async () => {
 
 after(async () => { await gm?.close?.(); rmSync(tmp, { recursive: true, force: true }); });
 
-test('a revealed PI is started in a PI slot (s7) and its data collected before the orchestrator wakes; NEW_PI outranks SLOT_DONE', async () => {
+test('a revealed PI is started in a PI agent slot (s5) and its data collected before the orchestrator wakes; NEW_PI outranks SLOT_DONE', async () => {
   gm.state.backlog = [{ key: 'BUG-07', backlogType: 'BUG', title: 'Layout', deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' }];
   gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    await h.call('prepare_slots', { count: 8 });
+    await h.call('prepare_slots', { count: 6 });
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
     const s1 = await h.call('start_work', { backlogItemKey: 'BUG-07', slot: 's1' });
@@ -159,11 +194,15 @@ test('a revealed PI is started in a PI slot (s7) and its data collected before t
     const w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 400));
     assert.ok(Date.now() - t0 < 20000, `took ${Date.now() - t0} ms`);
-    const inc = w.incident;
-    assert.equal(inc.backlogItemKey, 'PI-01'); assert.equal(inc.slot, 's7'); assert.equal(inc.started, true);
-    assert.deepEqual(w.piAgents.map(a => [a.home, a.item]), [['s5', null], ['s6', null]]);
+    const p1 = w.incident;
+    assert.equal(p1.backlogItemKey, 'PI-01'); assert.equal(p1.slot, 's5'); assert.equal(p1.started, true);
+    assert.deepEqual(w.piAgents.map(a => [a.home, a.item]), [['s5', 'PI-01'], ['s6', null]]);
     assert.ok(gm.state.started.has('PI-01'), 'Start Work sent by the helper');
-    assert.equal(inc.logEntries, fixture.logs.length); assert.equal(inc.complete, true);
+    // 1.5.25: NEW_PI comes with the rules (phase 1); the PI agent waits for the complete logs.
+    assert.ok(existsSync(p1.files.kb));
+    const data = await h.call('wait_incident_data', { dir: p1.dir });
+    assert.equal(data.ready, true); assert.equal(data.logEntries, fixture.logs.length); assert.equal(data.complete, true);
+    const inc = { ...p1, ...data };
     for (const f of Object.values(inc.files)) assert.ok(existsSync(f), f);
     assert.ok(inc.files.digest.startsWith(inc.slotMatchRoot), 'data lives in the slot');
     assert.ok(existsSync(inc.answerFile) && existsSync(inc.briefFile));
@@ -185,9 +224,9 @@ test('a revealed PI is started in a PI slot (s7) and its data collected before t
     // Manual trigger returns the same prepared data without collecting again.
     const before = gm.state.companyCalls;
     const again = await h.call('prepare_incident', { backlogItemKey: 'PI-01' });
-    assert.equal(again.slot, 's7'); assert.equal(gm.state.companyCalls, before);
+    assert.equal(again.slot, 's5'); assert.equal(gm.state.companyCalls, before);
     const fresh = await h.call('prepare_incident', { backlogItemKey: 'PI-01', refresh: true });
-    assert.equal(fresh.slot, 's7'); assert.ok(gm.state.companyCalls > before, 'refresh collects again');
+    assert.equal(fresh.slot, 's5'); assert.ok(gm.state.companyCalls > before, 'refresh collects again');
     // 1.5.9: a large Company Tools answer goes to a file in the item's slot; a small one comes back inline.
     const big = await h.call('company_tool_call', { name: 'export_logs', arguments: {}, backlogId: 'PI-01' });
     assert.ok(big.savedTo && big.savedTo.startsWith(inc.slotMatchRoot), JSON.stringify(big).slice(0, 300));
@@ -202,36 +241,35 @@ test('a revealed PI is started in a PI slot (s7) and its data collected before t
   } finally { h.close(); }
 });
 
-test('with both PI slots busy the PI is not started but its data is still collected (main scratch folder)', async () => {
+test('with every slot busy the PI is not started; it starts by itself in the first slot that frees', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
-    for (const k of ['BUG-08', 'BUG-10']) gm.reveal({ key: k, backlogType: 'BUG', title: k, deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    const keys = ['BUG-08', 'BUG-10', 'BUG-12', 'BUG-13'];
+    for (const k of keys) gm.reveal({ key: k, backlogType: 'BUG', title: k, deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
     await h.call('refresh_match');
-    await h.call('start_work', { backlogItemKey: 'BUG-08', slot: 's2' });
-    await h.call('start_work', { backlogItemKey: 'BUG-10', slot: 's3' });
-    // s7 still holds PI-01; a second PI takes s8; a third one finds no PI slot (item slots stay for items).
-    gm.reveal({ ...PI, key: 'PI-02' });
-    const w0 = await h.call('wait_for_update', {});
-    assert.equal(w0.reason, 'NEW_PI'); assert.equal(w0.incident.slot, 's8');
-    gm.reveal({ ...PI, key: 'PI-03' });
+    // s1 holds BUG-07 and s5 holds PI-01 from the test before; fill the rest.
+    for (const [k, slot] of [['BUG-08', 's2'], ['BUG-10', 's3'], ['BUG-12', 's4'], ['BUG-13', 's6']]) assert.ok((await h.call('start_work', { backlogItemKey: k, slot })).briefFile);
+    const { submission, ...pi } = PI; // the test before marked PI (the same object) submitted
+    gm.reveal({ ...pi, key: 'PI-03' });
     const w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 300));
     assert.equal(w.incident.backlogItemKey, 'PI-03');
     assert.equal(w.incident.slot, null); assert.equal(w.incident.started, false);
     assert.ok(!gm.state.started.has('PI-03'));
-    assert.ok(w.incident.files.digest.startsWith(join(matchRoot, '.mtm-tmp', 'PI-03')), w.incident.files.digest);
-    assert.equal(w.incident.logEntries, fixture.logs.length);
-    // A PI slot frees: prepare_incident now starts the PI there and collects again.
-    await h.call('release_slot', { slot: 's8' });
-    const later = await h.call('prepare_incident', { backlogItemKey: 'PI-03' });
-    assert.equal(later.slot, 's8'); assert.equal(later.started, true); assert.ok(gm.state.started.has('PI-03'));
-    assert.ok(later.files.digest.includes('.slots'), later.files.digest);
+    assert.ok(w.incident.files.kb.startsWith(join(matchRoot, '.mtm-tmp', 'PI-03')), w.incident.files.kb);
+    // A slot frees: the helper starts the PI there by itself and reports NEW_PI again, with the slot.
+    await h.call('release_slot', { slot: 's6' });
+    const again = await h.call('wait_for_update', {});
+    assert.equal(again.reason, 'NEW_PI', JSON.stringify(again).slice(0, 300));
+    assert.equal(again.incident.slot, 's6'); assert.equal(again.incident.started, true); assert.ok(gm.state.started.has('PI-03'));
+    assert.ok(again.incident.files.kb.includes('.slots'), again.incident.files.kb);
     // Ordinary items are still reported as before, with newItems, even when the feed peek read them first.
     gm.reveal({ key: 'CR-05', backlogType: 'CR', title: 'Export', deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
     await new Promise(r => setTimeout(r, 1200));
     const w2 = await h.call('wait_for_update', {});
     assert.equal(w2.reason, 'MATCH_UPDATED'); assert.deepEqual(w2.board.newItems, ['CR-05']);
+    for (const slot of ['s2', 's3', 's4', 's6']) await h.call('release_slot', { slot });
   } finally { h.close(); }
 });
 
@@ -307,12 +345,12 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('1.5.24: a PI never takes an item slot; heavy items are suggested one at a time', async () => {
+test('1.5.24: heavy items are suggested one at a time; a PI agent slot gets worker pi_agent', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    const r = await h.call('prepare_slots', { count: 8 });
-    assert.equal(r.slots.length, 8);
+    const r = await h.call('prepare_slots', { count: 6 });
+    assert.equal(r.slots.length, 6);
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
     for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
@@ -335,15 +373,7 @@ test('1.5.24: a PI never takes an item slot; heavy items are suggested one at a 
     writeFileSync(t.doneFile, JSON.stringify({ ...done, summary: 'done again' }));
     e = await pick();
     assert.ok(e.suggestNext.why.startsWith('deadline') || e.suggestNext.backlogItemKey === 'CR-12', JSON.stringify(e.suggestNext));
-    // Both PI slots hold earlier PIs; item slots are free, yet a new PI gets no slot rather than an item slot.
-    const st = (await h.call('refresh_match')).slots;
-    assert.ok(st.find(x => x.slot === 's7').item && st.find(x => x.slot === 's8').item, JSON.stringify(st));
-    gm.reveal({ ...PI, key: 'PI-05' });
-    await new Promise(r => setTimeout(r, 1100));
-    let w = await h.call('wait_for_update', {});
-    for (let i = 0; i < 3 && w.reason !== 'NEW_PI'; i++) w = await h.call('wait_for_update', {});
-    assert.equal(w.reason, 'NEW_PI');
-    assert.equal(w.incident.slot, null, 'item slots stay for items');
+    await h.call('release_slot', { slot: 's5' });
   } finally { h.close(); }
 });
 
@@ -352,7 +382,7 @@ test('answer_item: a value answer filled, validated, committed and submitted in 
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    await h.call('release_slot', { slot: 's7' });
+    for (const slot of ['s5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
     gm.reveal({ ...PI, key: 'PI-07' });
     const inc = await h.call('prepare_incident', { backlogItemKey: 'PI-07' });
     assert.equal(inc.started, true, JSON.stringify(inc).slice(0, 300));
@@ -380,11 +410,11 @@ test('1.5.24: a PI agent\'s answer is submitted by the helper at once (AUTO_SUBM
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    await h.call('release_slot', { slot: 's8' });
+    for (const slot of ['s5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
     const { submission, ...pi } = PI;
     gm.reveal({ ...pi, key: 'PI-11' });
     const inc = await h.call('prepare_incident', { backlogItemKey: 'PI-11' });
-    assert.ok(['s7', 's8'].includes(inc.slot), JSON.stringify(inc).slice(0, 300));
+    assert.ok(['s5', 's6'].includes(inc.slot), JSON.stringify(inc).slice(0, 300));
     const out = join(inc.slotMatchRoot, '.mtm-tmp', 'PI-11', 'investigation.json');
     writeFileSync(out, JSON.stringify({ result: { rootCauseRelease: 'rel-1' } }));
     // What the PI agent calls (no integrate: its own helper process holds no key).
@@ -394,7 +424,7 @@ test('1.5.24: a PI agent\'s answer is submitted by the helper at once (AUTO_SUBM
     let w;
     for (let i = 0; i < 3; i++) { w = await h.call('wait_for_update', {}); if (w.reason === 'AUTO_SUBMITTED') break; }
     assert.equal(w.reason, 'AUTO_SUBMITTED', JSON.stringify(w).slice(0, 300));
-    assert.deepEqual(w.autoSubmitted.map(a => [a.item, a.status, a.slot, a.suggestNext]), [['PI-11', 'SUBMITTED', inc.slot, null]]);
+    assert.deepEqual(w.autoSubmitted.map(a => [a.item, a.status, a.slot]), [['PI-11', 'SUBMITTED', inc.slot]]);
     assert.ok(gm.state.submissions.has('PI-11'));
   } finally { h.close(); }
 });

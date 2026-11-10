@@ -9,8 +9,8 @@ You are the project manager of team MLD. Score = sum of graded items (max 1000) 
 Ties: earlier last completion and fewer Codex credits win, so be correct first, then fast and frugal.
 
 **This skill explicitly asks for sub-agents.** You coordinate and never work an item yourself (1.5.24): 4 workers
-(`team_feature_worker`, slots s1-s4) and 2 PI agents (`team_incident_worker`, PIs in s7/s8, ordinary items in
-s5/s6 while no PI is open) were spawned during preparation and have read their playbooks; you give each one its
+(`team_feature_worker`, slots s1-s4) and 2 PI agents (`team_incident_worker`, slots s5/s6: every PI first,
+ordinary items while no PI is open) were spawned during preparation and have read their playbooks; you give each one its
 next item by `followup_task`. The helper submits every clean finished item by itself (`AUTO_SUBMITTED`); you decide
 the rest. You do not read product code, briefs or logs and run no product tests. Every call you make re-sends your
 whole context, so your context must stay small.
@@ -22,14 +22,16 @@ whole context, so your context must stay small.
    (the second one carries the team API key; the first one carries the portal login).
 2. `report_progress` `GAME_START_STATUS` stage `BACKLOG_SYNC` `IN_PROGRESS` → `refresh_match` →
    `GAME_START_STATUS` `BACKLOG_SYNC` `COMPLETED`. `refresh_match` already logs `DISCOVERED` for each new item.
-   The board lists `slots` (prepared during preparation: s1-s4 workers, s5-s6 the PI agents' items, s7-s8 PIs). If
+   The board lists `slots` (prepared and installed during preparation: s1-s4 workers, s5-s6 the PI agents). If
    it has none, call `prepare_slots` with the values from your preparation summary, or work single-agent ("No slots").
    Your preparation summary names the six agents (W1-W4 for s1-s4, PA for s5, PB for s6). An agent missing from it
    (spawn failed or refused): spawn it now with the preparation message ("Sub-agents").
-2b. **Background jobs from preparation** (slot installs `install-sN`, the `baseline` test run in
-   `<matchRoot>/.mtm-tmp/jobs`) may still be running: do not wait for them. Hand out items at once; each worker waits
-   for its own slot install (`slotInstallState` in its brief). `wait_for_update` returns `reason: "JOBS_DONE"` with
-   `jobs[]` when they end:
+2b. **Background jobs from preparation**: in the same cell as step 2, `stop_jobs` with `dir` =
+   `<matchRoot>/.mtm-tmp/jobs` and `names: ["baseline"]` when it is still running: a full test run keeps the disk busy
+   for half an hour and slows every git call and test of the game (YH6OAYMZ: 34 minutes, start_work took 2-3 minutes,
+   nothing was submitted in 32 minutes). Its log so far names the failures it found. A slot install still running
+   (preparation should have finished them all): hand out items anyway; each worker waits for its own slot install
+   (`slotInstallState` in its brief). `wait_for_update` returns `reason: "JOBS_DONE"` with `jobs[]` when they end:
    - `install-sN` or `baseline` LOST (killed with the preparation turn), or `install-sN` FAILED: `start_jobs` with
      `restartFailed: true` for that job (same command as in its
      `<name>.cmd.txt`); the worker in that slot keeps waiting.
@@ -46,7 +48,7 @@ whole context, so your context must stay small.
   calls (they are not in the `exec` `tools.*` namespace). Read their tool definitions once for the field names.
 - **The team is fixed and kept for the whole match** (Codex counts every agent thread, idle ones too: 6QYJQAVJ hit
   "agent thread limit reached" with 4 sub-agents): W1-W4 (`team_feature_worker`) own s1-s4, PA and PB
-  (`team_incident_worker`, more reasoning) own s5 and s6 and take every PI in s7/s8. Each new item goes to the
+  (`team_incident_worker`, the most reasoning) own s5 and s6 and take every PI. Each new item goes to the
   slot's own agent by `followup_task`, never to a fresh spawn. Exceptions: a heavy item in s1-s4 gets a fresh
   `team_heavy_worker` (higher reasoning; up to 3 in a match; if the spawn is refused, the slot's own worker does it;
   after the heavy item the slot goes back to its own worker),
@@ -62,8 +64,8 @@ whole context, so your context must stay small.
   Notes: <baseline repaired in <sha> | baseline owner | known failure>, <deadline>, <heavy: WORKER.md "Heavy items">, <blocker note if any>. Finish by writing doneFile.
   ```
 - PI message (`followup_task` to PA or PB, see "PI: hand it to a PI agent"):
-  `PI <ID>. incident.dir <path>. briefFile <path>. answerFile <path>. validateCommand <cmd>. slotMatchRoot <path>.
-  complete <true|false>. <problems>.` - prefixed with `Pause <item ID>, PI first: ` when that agent was interrupted.
+  `PI <ID> in slot <sN>. incident.dir <path>. briefFile <path>. answerFile <path>. validateCommand <cmd>.
+  worktreeRoot <path>. slotMatchRoot <path>. Logs: wait_incident_data first. Playbook INCIDENT.md.` - prefixed with `Pause <item ID>, PI first: ` when that agent was interrupted.
 - Messages to a working agent: only the blocker note and the overlap notice ("Wave planning" step 4), the
   baseline-owner note (2b) and the safety net. `followup_task` only to hand over an item or a PI, to fix a rejected
   gate, or to replace a placeholder value.
@@ -80,7 +82,7 @@ So capacity and order matter as much as quality:
   one call ("PI: hand it to a PI agent").
 - No item may sit unstarted while an item slot is free. From minute 25, start every remaining item that can still be
   finished; skip only what cannot.
-- Keep all six item slots busy from the first wave (s5/s6 too while no PI is open); dependencies never justify an
+- Keep all six slots busy from the first wave (s5/s6 too while no PI is open); dependencies never justify an
   idle slot ("Wave planning"). You never work an item yourself.
 
 ## Wave planning: parallel by default, deadline items never wait
@@ -116,7 +118,7 @@ When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
 2. **Order: PI first, then deadline items, then heavy items, then the rest.**
-   - **PI**: the helper starts it in s7/s8 and collects its data the moment it appears; `NEW_PI` wakes you as soon as
+   - **PI**: the helper starts it (s5/s6 first, else any free slot) and collects its data the moment it appears; `NEW_PI` wakes you as soon as
      the data is ready and you hand it to a PI agent in the same turn ("PI: hand it to a PI agent").
    - **Deadline items**, in the same cell as anything else you do: a wave that brings a PI and a deadline item while
      a slot is free comes back first as `MATCH_UPDATED` with `incidentPending` (the PI's data is still being
@@ -126,20 +128,19 @@ When a wave appears (game start, or `newItems` on the board):
      M 10, L 15, XL 20); ties: earlier wave, then the shorter deadline, then more points. An item with time to spare
      waits for one that is about to become impossible, whatever its wave (IPZ0U79E: TASK-10, deadline 30, done in
      12-15 minutes; TASK-07, deadline 15, waited). `board.deadlineWaiting` is already in this order (`slack` per
-     item). Any item slot s1-s6 takes them (s5/s6 only while its PI agent has no PI).
+     item). Any slot s1-s6 takes them (s5/s6 only while its PI agent has no PI).
    - **Heavy items** next, one at a time (above). **The rest** by points per expected effort (CR/BUG usually before
      TASK). Deadline minutes count from reveal; skip only an item that cannot be finished in time.
    **The helper enforces the deadline part**: `start_work` of an item **without** a deadline answers
    `DEADLINE_ITEM_WAITING` while a waiting deadline item fits that slot: start the waiting item there instead.
    `deadlineWaiting` leaves out items started once before (released after a rejected gate) and items with under 4
    minutes left. `force: true` only for a listed item that cannot be finished in time (say so in your plan line).
-   s7/s8 take only PIs (`PI_SLOT_RESERVED`).
    **An item whose grade needs another item's fix** (its brief says e.g. "right only on source that also contains
    the <ID> fixes") keeps its own place in this order and does not wait for the other item: its worker makes that
    fix itself from the start, in its own commit (WORKER.md "Your item needs another item's changes"; 32PTEO8K /
    6QYJQAVJ / SC0E8AV2: CR-07 waited for BUG-11 and lost 27 to 100 points). Its item note says so: `Your grade
    needs <ID>'s fix: make it yourself first (WORKER.md)`.
-3. **Assign in that order, one item per free item slot (s1-s6), until they are full.** Never leave a slot idle while
+3. **Assign in that order, one item per free slot (s1-s6), until they are full.** Never leave a slot idle while
    an item is open. A deadline item or PI is never queued behind another item. A heavy item's note:
    `Heavy item: WORKER.md "Heavy items" (plan.md and progress.md, rows one by one with a valid answer committed after
    each PASS, self-review, sync with the branch before the final checks; work until done or until stopBy)`. Its
@@ -209,8 +210,9 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    integrate. For each entry refill its slot from `suggestNext` in one cell: `start_work` with that `backlogItemKey`
    and the entry's `slot`, then `followup_task` the slot's own agent with the item message (`worker`
    `team_heavy_worker` in s1-s4: spawn one; `"same"`: add "its fix is already on the branch"; `pi_agent`: the PI
-   agent of s5/s6). A PI entry (slot s7/s8, `suggestNext` null): its PI agent is free again - give it the next item
-   in its own slot s5/s6, or resume the item it paused (it continues by itself). `suggestNext` null or not wanted:
+   agent of s5/s6; `backlogItemKey` null: a PI waits and the helper starts it in this slot itself - leave it free). A
+   PI entry: its PI agent is free again - it resumes the item it paused by itself; otherwise give it the next item in
+   its own slot s5/s6. A PI that ran in a worker slot s1-s4 frees that slot for its own worker. `suggestNext` null or not wanted:
    refill from the board as in step 7. No-deadline items finished during a PI are submitted right after it.
    A DONE.json with `doubts`, a missing or PARTIAL quality gate, PARTIAL/BLOCKED, or a failed auto-submission
    (`autoIntegrateError` on the `slotDone` entry, e.g. `INTEGRATION_CONFLICT`) still comes as `SLOT_DONE`: step 6.
@@ -280,23 +282,26 @@ passing row, so its last commit submits those rows. A rejected gate means no val
 
 ## PI: hand it to a PI agent (every PI, at once)
 A PI is a race: points depend on submission order and a wrong answer scores 0. The helper does the mechanical part
-the moment the PI appears: Start Work in a PI slot (s7/s8) and every log page plus the incident rules into
-`<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"` with `incident` and
-`piAgents` (s5/s6: the PI agents' item, `minutesLeft`, `slack`) before any other reason. In that same turn:
+the moment the PI appears: Start Work in a free slot (a PI agent's s5/s6 first, else any free slot) and the incident
+rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`, then every log entry (swept to the totals) while the PI agent
+already reads. `wait_for_update` returns `reason: "NEW_PI"` with `incident` (`logsComplete: false`: the agent waits
+for the logs with `wait_incident_data`) and `piAgents` (s5/s6: the PI agents' item, `minutesLeft`, `slack`) before any
+other reason. In that same turn:
 1. Pick the agent: a PI agent without a PI and without an item first (its item slot free in `piAgents`). Else
    the PI agent whose item has the most slack (an item without a deadline counts as the most): `interrupt_agent` it,
    then `followup_task` with `Pause <item ID>, PI first: ` + the PI message. Its item stays in its slot (no release,
-   no commit needed: the PI uses s7/s8) and it continues the item after the PI. Both PI agents already busy with a
-   PI: the new PI waits for the first one that finishes (its `AUTO_SUBMITTED`), then hand it over.
-2. `followup_task` the agent with the PI message (fields from `incident`: `dir`, `briefFile`, `answerFile`,
-   `validateCommand`, `slotMatchRoot`, `complete`, `problems`). It works per INCIDENT.md with more reasoning and
+   no commit needed: the PI runs in the slot `incident.slot` names) and it continues the item after the PI. Both PI
+   agents already busy with a PI: the new PI waits for the first one that finishes (its `AUTO_SUBMITTED`), then hand
+   it over.
+2. `followup_task` the agent with the PI message (fields from `incident`: `slot`, `dir`, `briefFile`, `answerFile`,
+   `validateCommand`, `slotMatchRoot`, `worktreeRoot`). It works per INCIDENT.md with more reasoning and
    answers with `answer_item`; the helper submits the PI within seconds (`AUTO_SUBMITTED`, PIs before anything else).
 3. Then go on with the deadline items in free slots (same turn) and keep waiting. While a PI is open, finished items
    without a deadline are held (`DONE_HELD_FOR_PI`) so the PI's submission never queues behind them; deadline items
    are submitted at once.
 A PI DONE.json with `doubts` or an invalid answer comes as `SLOT_DONE`: `followup_task` its PI agent with the problem
-(never answer it yourself). `incident.slot` null (both PI slots busy): when a PI slot frees, `prepare_incident` starts
-the PI there and collects again within seconds. A helper restarted after the PI appeared does not prepare it by
+(never answer it yourself). `incident.slot` null (every slot busy): the helper starts the PI by itself in the first
+slot that frees and reports `NEW_PI` again with that slot; hand it over then (a PI agent paused for it if needed). A helper restarted after the PI appeared does not prepare it by
 itself: call `prepare_incident` for any open PI on the board that is not in `board.incidents`.
 
 ## No slots (preparation could not create them)

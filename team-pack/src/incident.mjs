@@ -33,7 +33,10 @@ export function pickTools(defs = []) {
   const offsetKey = OFFSET_KEYS.find(k => k in p) ?? null;
   const limitKey = LIMIT_KEYS.find(k => k in p) ?? null;
   const limitMax = limitKey ? Number(p[limitKey]?.maximum) || null : null;
-  return { logTool, kbTool, offsetKey, limitKey, limitMax,
+  // Services named in the tool's own description ("services include a, b, c").
+  const listed = String(logTool?.description ?? '').match(/services?\s+(?:include|are|:)\s*([a-z0-9][a-z0-9 ,/-]+)/i)?.[1] ?? '';
+  const services = listed.split(/[,/]|\band\b/).map(x => x.trim()).filter(x => /^[a-z0-9][a-z0-9-]*$/.test(x));
+  return { logTool, kbTool, offsetKey, limitKey, limitMax, services,
     serviceKey: ['service', 'services', 'component', 'source'].find(k => k in p) ?? null,
     queryKey: ['query', 'q', 'text', 'search'].find(k => k in p) ?? null,
     kbQueryKey: ['query', 'q', 'text', 'search'].find(k => k in props(kbTool)) ?? null,
@@ -63,7 +66,7 @@ const tsOf = e => String(e?.ts ?? e?.timestamp ?? e?.time ?? e?.at ?? '');
  * Pages one log query to the end. Stops when the total is reached, a page adds nothing new, or the budget ends.
  * @returns {{args:object, total:number|null, returned:number, complete:boolean, error?:string}}
  */
-async function pageAll(call, t, baseArgs, seen, budget) {
+async function pageAll(call, t, baseArgs, seen, budget, { noSweep = false } = {}) {
   const limit = t.limitKey ? (t.limitMax ?? 20) : null;
   const out = { args: baseArgs, total: null, returned: 0, complete: false };
   let offset = t.offsetKey === 'page' ? 1 : 0, cursor = null;
@@ -89,6 +92,15 @@ async function pageAll(call, t, baseArgs, seen, budget) {
     cursor = nextCursorOf(j);
     offset = t.offsetKey === 'page' ? offset + 1 : offset + list.length;
     if (out.total !== null && out.returned >= out.total) { out.complete = true; return out; }
+    if (!noSweep && !t.offsetKey && out.total !== null && out.returned < out.total && t.queryKey
+      && ((t.serviceKey && baseArgs[t.serviceKey]) || String(baseArgs[t.queryKey] ?? '').trim())) {
+      // Capped answer, no paging: narrow by time (only for a filtered query; the unfiltered dump is swept per service).
+      const s = await sweep(call, t, baseArgs, Object.assign([...list], { total: out.total }), seen, budget);
+      out.returned = s.collected;
+      out.complete = !s.error;
+      if (s.error) out.error = s.error;
+      return out;
+    }
     if (list.length === 0 || added === 0 || !t.offsetKey) {
       // Without a total, an empty or repeated page (or a tool without paging) means the end; with one, it is a gap.
       out.complete = out.total === null;
@@ -97,6 +109,73 @@ async function pageAll(call, t, baseArgs, seen, budget) {
     }
   }
   return out;
+}
+
+/** Runs tasks with at most n at a time; stops starting new ones once stop() is true. */
+async function pool(items, n, fn, stop = () => false) {
+  let i = 0;
+  const worker = async () => { while (i < items.length && !stop()) { const k = i++; await fn(items[k], k); } };
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
+}
+
+const pad = n => String(n).padStart(2, '0');
+/** Time prefixes one level finer than p (day -> hours -> 10 minutes -> minutes -> 10 seconds -> seconds). */
+function finer(p) {
+  if (p.length === 10) return Array.from({ length: 24 }, (_, h) => `${p}T${pad(h)}`);
+  if (p.length === 13) return Array.from({ length: 6 }, (_, m) => `${p}:${m}`);
+  if (p.length === 15 || p.length === 18) return Array.from({ length: 10 }, (_, d) => `${p}${d}`);
+  if (p.length === 16) return Array.from({ length: 6 }, (_, m) => `${p}:${m}`);
+  return [];
+}
+
+/**
+ * A log query capped at N entries with no paging (YH6OAYMZ: search_logs returns the newest 20 and the total, 755
+ * rule-engine entries; the PI agent then made ~600 calls by hand). Narrows the query with time prefixes, which the
+ * search matches as words of the entry: days walked back from the newest entry until the day totals add up to the
+ * total, each crowded day split into hours, ten minutes, minutes. Verified on the way: a prefix query must return
+ * only entries with that prefix, otherwise the time is not searchable and the sweep stops (reported incomplete).
+ */
+async function sweep(call, t, baseArgs, first, seen, budget) {
+  const q0 = String(baseArgs[t.queryKey] ?? '').trim();
+  const mine = new Set(first.map(sig));
+  const ask = async word => {
+    if (budget.calls <= 0 || Date.now() > budget.until) return null;
+    budget.calls--;
+    let r;
+    try { r = await call(t.logTool.name, { ...baseArgs, [t.queryKey]: q0 ? `${q0} ${word}` : word }); } catch { return null; }
+    const j = parse(r?.text); const list = entriesOf(j);
+    if (r?.isError || !list) return null;
+    for (const e of list) { const k = sig(e); mine.add(k); if (!seen.has(k)) seen.set(k, e); }
+    return { total: totalOf(j) ?? list.length, list };
+  };
+  const newest = first.map(tsOf).filter(Boolean).sort().at(-1);
+  if (!newest || newest.length < 10) return { collected: mine.size, error: 'no timestamps to narrow by' };
+  const probe = await ask(newest.slice(0, 10));
+  if (!probe || probe.total === 0 || !probe.list.every(e => tsOf(e).startsWith(newest.slice(0, 10)))) {
+    return { collected: mine.size, error: 'time is not searchable: narrow by hand' };
+  }
+  const split = async (prefix, total) => {
+    let sum = 0;
+    await pool(finer(prefix), 4, async p => {
+      const r = await ask(p);
+      if (!r) return;
+      sum += r.total;
+      if (r.total > r.list.length && r.list.every(e => tsOf(e).startsWith(p))) await split(p, r.total);
+    }, () => sum >= total || budget.calls <= 0);
+  };
+  const want = first.total;
+  let day = new Date(`${newest.slice(0, 10)}T00:00:00Z`);
+  let sum = 0, quiet = 0;
+  for (let i = 0; i < 400 && sum < want && quiet < 90 && budget.calls > 0 && Date.now() < budget.until; i++) {
+    const d = day.toISOString().slice(0, 10);
+    const r = i === 0 ? probe : await ask(d);
+    day = new Date(day.getTime() - 86400000);
+    if (!r) break;
+    sum += r.total;
+    quiet = r.total ? 0 : quiet + 1;
+    if (r.total > r.list.length) await split(d, r.total);
+  }
+  return { collected: mine.size, ...(mine.size < want ? { error: `swept ${mine.size} of ${want}` } : {}) };
 }
 
 function compact(e) {
@@ -163,7 +242,7 @@ function articlesOf(j) {
  * @param {{call:(name:string,args:object)=>Promise<{isError?:boolean,text?:string}>, defs:object[], dir:string,
  *          brief?:{key?:string,title?:string,description?:string}, maxCalls?:number, budgetMs?:number}} o
  */
-export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 80, budgetMs = 75000 }) {
+export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 600, budgetMs = 240000, onPhase1 = null }) {
   const started = Date.now();
   const budget = { calls: maxCalls, until: started + budgetMs };
   const t = pickTools(defs);
@@ -198,6 +277,10 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
       } catch (e) { problems.push(`kb "${q}": ${e.code ?? 'ERROR'}`); }
     }
   }
+  // Phase 1 (1.5.25): the rules are ready within seconds; the PI agent reads the brief, the rules and the code while
+  // the logs are still being collected, then waits for collection.json (wait_incident_data).
+  writeFileSync(join(dir, 'kb.md'), [...articles.values()].map(a => `## ${a.id ?? ''} ${a.title ?? ''}\n\n${a.body ?? a.content ?? JSON.stringify(a)}\n`).join('\n'));
+  if (onPhase1) { try { onPhase1({ dir, files: { kb: join(dir, 'kb.md'), collection: join(dir, 'collection.json') }, kbArticles: [...articles.values()].map(a => a.id ?? a.title) }); } catch { /* the caller's problem */ } }
   if (!t.logTool) problems.push('no log search tool in the Company Tools list');
   else {
     // 1. Everything at once (no filter). 2. If the tool needs a filter: an empty query. 3. One query per service.
@@ -212,15 +295,27 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
     }
     // Per-service queries as well when the unfiltered dump is incomplete, failed, or capped by a default window.
     if (!all || !all.complete) {
-      const named = new Set();
+      // The unfiltered attempts are replaced by the per-service queries below (their totals add up to the whole log).
+      for (const c of coverage) c.superseded = true;
+      const named = new Set(t.services);
       for (const e of seen.values()) if (e?.service) named.add(e.service);
-      const text = `${brief.description ?? ''} ${[...articles.values()].map(a => a.body ?? a.content ?? '').join(' ')}`;
+      const text = `${brief.title ?? ''} ${brief.description ?? ''} ${[...articles.values()].map(a => a.body ?? a.content ?? '').join(' ')}`;
       for (const m of text.matchAll(/\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b/g)) if (m[0].length < 32) named.add(m[0]);
-      for (const g of GENERIC_SERVICES) named.add(g);
-      for (const svc of named) {
+      if (!t.services.length) for (const g of GENERIC_SERVICES) named.add(g);
+      // Services the brief or the rules name ("the rule engine" -> rule-engine) are collected first and in full.
+      const plain = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+      const named2 = (n) => plain.includes(` ${n.toLowerCase().replace(/-/g, ' ')} `) || plain.includes(` ${n.toLowerCase()} `);
+      const ordered = [...named].sort((a, b) => Number(named2(b)) - Number(named2(a)));
+      const anyNamed = ordered.some(named2);
+      for (const svc of ordered) {
         const a = t.serviceKey ? { [t.serviceKey]: svc } : t.queryKey ? { [t.queryKey]: svc } : null;
         if (!a) break;
-        coverage.push(await pageAll(call, t, a, seen, budget));
+        // A service neither the brief nor the rules name: its newest page only (it rarely decides a PI; the agent can
+        // sweep it with company_tool_call). Optional for completeness.
+        const optional = anyNamed && !named2(svc);
+        const c = await pageAll(call, t, a, seen, budget, { noSweep: optional });
+        if (optional) c.optional = true;
+        coverage.push(c);
       }
     }
     for (const c of coverage) if (!c.complete && !c.error) c.error = 'not paged to its total';
@@ -251,10 +346,11 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
     "console.log(JSON.stringify({ result, proof }, null, 2));",
     "writeFileSync(join(here, '..', 'investigation.json'), JSON.stringify({ result, proof }, null, 2));",
     "export { logs, entities, kb, by, service, firstOf, before };", ''].join('\n'));
-  const complete = coverage.length > 0 && coverage.some(c => c.complete) && !coverage.some(c => c.error && c.returned > 0 && !c.complete);
+  const counted = coverage.filter(c => !c.superseded && !c.optional);
+  const complete = counted.length > 0 && counted.some(c => c.complete) && !counted.some(c => c.error && c.returned > 0 && !c.complete);
   const summary = { dir, files: { digest: join(dir, 'digest.md'), logs: join(dir, 'logs.json'), entities: join(dir, 'entities.json'), kb: join(dir, 'kb.md') },
     logEntries: d.logs.length, kbArticles: kb.map(a => a.id ?? a.title), complete, calls: maxCalls - budget.calls,
-    ms: Date.now() - started, coverage: coverage.map(c => ({ args: c.args, total: c.total, collected: c.returned, complete: c.complete, ...(c.error ? { error: c.error } : {}) })),
+    ms: Date.now() - started, coverage: coverage.map(c => ({ args: c.args, total: c.total, collected: c.returned, complete: c.complete, ...(c.error ? { error: c.error } : {}), ...(c.superseded ? { superseded: true } : {}), ...(c.optional ? { optional: true } : {}) })),
     problems };
   writeFileSync(join(dir, 'collection.json'), JSON.stringify(summary, null, 2));
   return summary;

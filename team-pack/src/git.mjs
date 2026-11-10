@@ -15,3 +15,21 @@ export async function gitOk(cwd, args, opts) {
   if (r.code !== 0) throw Object.assign(new Error(`git ${args[0]} failed: ${r.stderr.trim().slice(0, 300)}`), { code: 'GIT_FAILED' });
   return r.stdout;
 }
+
+/**
+ * Removes an index.lock that a killed git left behind (YH6OAYMZ: a slot checkout timed out under disk load, the
+ * orphaned lock then failed every later start_work in that slot). Only a lock older than maxAgeMs is removed: a
+ * younger one may belong to a git that is still running.
+ */
+export async function clearStaleLock(cwd, maxAgeMs = 90000) {
+  const { existsSync, statSync, rmSync } = await import('node:fs');
+  const { isAbsolute, join } = await import('node:path');
+  const r = await git(cwd, ['rev-parse', '--git-dir'], { timeoutMs: 30000 });
+  if (r.code !== 0) return false;
+  const dir = r.stdout.trim();
+  const lock = join(isAbsolute(dir) ? dir : join(cwd, dir), 'index.lock');
+  try {
+    if (existsSync(lock) && Date.now() - statSync(lock).mtimeMs > maxAgeMs) { rmSync(lock, { force: true }); return true; }
+  } catch { /* still in use */ }
+  return false;
+}
