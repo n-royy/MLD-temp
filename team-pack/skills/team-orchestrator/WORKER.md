@@ -55,30 +55,36 @@ your server and retake only the rows that still lack evidence.
 Your rows are scored only when their verification runs (organizer scripts, MVS scenarios, required evidence). When
 a defect outside your change stops it (a page that never settles, a crash, a screen that does not load), decide
 who owns the defect:
-- **Owned by another item**: an item in the brief's `otherItems` (or the orchestrator's note) describes it. Do not fix
-  it; work around it by a foundation path above, or wait for its fix on the branch ("When another item blocks your
-  evidence"). Exception: your grade is computed on your own source with that fix in it, and it will not land in
-  time ("Your item needs another item's changes" below).
+- **Owned by another item**: an item in the brief's `otherItems` (described in `backlogFile`) describes it. When
+  your grade is computed on your own source with that fix in it, or your rows cannot pass without it, fix it
+  yourself now ("Your item needs another item's changes" below). When it only spoils a screenshot, work around it
+  by a foundation path above ("When another item blocks your evidence").
 - **Owned by nobody** (no item describes it): it is part of your item. Make the smallest change that lets your
   verification run as written, in its own commit, run the existing tests again, and name it in the engineering
   record (defect, cause, fix). Never change the organizer scripts or their reports instead.
 A row is never FAIL or NOT_RUN only because such a blocker exists while time remains: fix it or work around it,
 then run the verification.
 
-### Your item needs another item's changes (brief `dependsOn`)
-The brief lists in `dependsOn` the items your brief names, with their state (`NOT_STARTED`, `IN_PROGRESS`,
-`SUBMITTED`). Read what your brief says about them. When your grade is computed on **your own submitted source**
-with those changes in it (e.g. "right only on source that also contains the <ID> fixes", "loads the official data
-with your submission"), the other item's changes must be in your commit:
-- `SUBMITTED`: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) before your final checks.
-- Not submitted and it may not land before your `stopBy` minus ~5 minutes: make the smallest change that item needs
-  for **your** grade yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and
-  name it in the engineering record (the other item's worker may make the same change; identical changes integrate
-  cleanly). Rebase again if it lands before you finish.
-- Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
-  include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
-Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
-your deadline (your `stopBy` already uses it), and commit the part they need first.
+### Your item needs another item's changes (fix it yourself)
+Your brief may name another item whose changes your grade needs ("right only on source that also contains the <ID>
+fixes", "loads the official data with your submission", a scenario that fails on a defect another item describes).
+Nobody schedules that item for you (1.5.21): **make its fix yourself, from the start, and never wait for it.** Your
+grade is computed on your own submitted source, so the fix must be in your commit (32PTEO8K / 6QYJQAVJ / SC0E8AV2:
+CR-07 waited for BUG-11 three times and scored 73, 0 and 0).
+1. **First ~5 minutes:** read the other item in `backlogFile` (its description, scenarios, expected values) and your
+   own scenarios; list what of its defect your rows touch. `otherItems` gives its state.
+2. `SUBMITTED` already: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) and go on.
+3. Otherwise **fix it completely for the cases your grade uses**, not only enough to unblock one row: reproduce the
+   defect with the other item's own scenario, fix the cause, add a test for it, run the existing tests. One commit
+   named `<your ID>: include <other ID> fix for <what>`, before your own feature commits, so it can be read on its
+   own. Name it in the engineering record (defect, cause, fix, test).
+4. Build and check your own item **on the fixed behaviour**: your rows, expected values and evidence assume the other
+   item is fixed, never the defect.
+5. If the other item lands while you work, rebase: keep its version where both changed the same lines (its worker
+   proved it with its own scenarios), rerun your checks. If your fix and its fix differ in a way that changes your
+   values, say so in one line in DONE.json.
+6. Never submit FAIL, NOT_RUN or a value "computed elsewhere" because the other item has not landed (32PTEO8K: CR-07
+   reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
 
 ## An item of a kind no section here names
 The brief's `grading` is the organizer's scoring text. Plan from it whatever the item is: list what is scored (each
@@ -96,7 +102,7 @@ minute 12 of 40 with a planted bug undetected, 84/100; TASK-07 35/50). When the 
 rows pass and are committed, run the gate for its `kind`, write the result to `qualityGate.reportFile` (a table:
 check, result, what you changed), fix what it finds, commit, and put
 `"qualityGate":{"kind":"<kind>","status":"PASS|PARTIAL","summary":"one line"}` in DONE.json.
-Time: the gate is worth its time whenever `stopBy` (or `effectiveDeadlineAt`) is more than ~8 minutes away. Stop it
+Time: the gate is worth its time whenever `stopBy` is more than ~8 minutes away. Stop it
 at `stopBy` minus ~5 minutes, commit what holds, and report `PARTIAL` with what was not checked. Never leave a
 mutant, a temporary source restore or a debug edit in the tree: `git status --porcelain` must be empty before DONE.
 - **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on):
@@ -118,7 +124,7 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      `git checkout <issuedRevision> -- <files>`, run the replay, then `git checkout HEAD -- <files>`. Every number in
      the manifest must match the replay exactly.
 - **`OFFICIAL_DATA`** (hidden tests, the official test data loaded with your submitted source):
-  1. Load the official test data with your own branch (rebased on everything your brief `dependsOn` needs, see
+  1. Load the official test data with your own branch (including every other item's fix your grade needs, see
      "Your item needs another item's changes") and compare every reported figure with values computed independently
      from the brief and the current standards; they must agree.
   2. Hidden tests check the rule in more cases than the MVS: one test of your own per rule boundary the brief or

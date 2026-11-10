@@ -355,12 +355,12 @@ test('answer_item: a value answer filled, validated, committed and submitted in 
   } finally { h.close(); }
 });
 
-test('1.5.10: dependencies from the briefs; a prerequisite of a deadline item is urgent; an open PI holds only non-urgent results', async () => {
+test('1.5.21: no dependency scheduling; the brief carries every other item in backlogFile; an open PI holds items without a deadline', async () => {
   const item = (key, type, deadlineMinutes, descriptionMd) => ({ key, backlogType: type, title: key, deadlineMinutes, revealedElapsedSec: 600,
     revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
   gm.state.backlog = [
     item('CR-17', 'CR', 20, 'The official test data is right only on source that also contains the BUG-21 fixes.'),
-    item('BUG-21', 'BUG', null, 'A customer\'s books do not match.'),
+    item('BUG-21', 'BUG', null, 'A customer\'s books do not match: reconciliation drops reversed entries.'),
     item('TASK-25', 'TASK', null, 'Budget month range.')
   ];
   gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
@@ -372,21 +372,19 @@ test('1.5.10: dependencies from the briefs; a prerequisite of a deadline item is
     for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
     const board = (await h.call('wait_for_update', { noWait: true })).board;
     const by = Object.fromEntries(board.items.map(i => [i.key, i]));
-    assert.deepEqual(by['CR-17'].dependsOn, ['BUG-21']);
-    assert.deepEqual(by['BUG-21'].prerequisiteOf, ['CR-17']);
-    assert.ok(by['BUG-21'].effectiveMinutesLeft > 17 && by['BUG-21'].effectiveMinutesLeft <= by['CR-17'].minutesLeft,
-      'the prerequisite is due when CR-17 is');
-    assert.equal(by['TASK-25'].effectiveMinutesLeft, undefined); assert.equal(by['TASK-25'].dependsOn, undefined);
+    assert.equal(by['CR-17'].dependsOn, undefined); assert.equal(by['BUG-21'].prerequisiteOf, undefined);
+    assert.equal(by['BUG-21'].effectiveMinutesLeft, undefined); assert.equal(by['BUG-21'].minutesLeft, undefined);
     const bug = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
     const task = await h.call('start_work', { backlogItemKey: 'TASK-25', slot: 's2' });
     const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
     const crBrief = JSON.parse(readFileSync(cr.briefFile, 'utf8'));
-    assert.deepEqual(crBrief.dependsOn.map(d => [d.key, d.state]), [['BUG-21', 'IN_PROGRESS']]);
+    assert.equal(crBrief.dependsOn, undefined);
+    assert.deepEqual(crBrief.otherItems.map(d => [d.key, d.state]), [['BUG-21', 'IN_PROGRESS'], ['TASK-25', 'IN_PROGRESS']]);
+    assert.match(readFileSync(crBrief.backlogFile, 'utf8'), /## BUG-21[\s\S]*reversed entries/);
     const bugBrief = JSON.parse(readFileSync(bug.briefFile, 'utf8'));
-    assert.deepEqual(bugBrief.prerequisiteOf.map(d => [d.key, d.deadlineMinutes]), [['CR-17', 20]]);
-    assert.ok(bugBrief.effectiveDeadlineAt && bugBrief.stopBy, 'the prerequisite gets a stopBy from CR-17');
-    // Both finish while a PI is open: only the prerequisite of the deadline item interrupts the PI.
-    for (const s of [bug, task]) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: 'done' }));
+    assert.equal(bugBrief.stopBy && bugBrief.deadlineAt, null, 'a no-deadline item has no deadline of anyone else');
+    // Everything finishes while a PI is open: only the deadline item goes before the PI.
+    for (const s of [bug, task, cr]) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: 'done' }));
     const { submission, ...pi } = PI;
     gm.reveal({ ...pi, key: 'PI-09' });
     await new Promise(r => setTimeout(r, 1100));
@@ -394,14 +392,12 @@ test('1.5.10: dependencies from the briefs; a prerequisite of a deadline item is
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 300));
     const w2 = await h.call('wait_for_update', {});
     assert.equal(w2.reason, 'SLOT_DONE');
-    assert.deepEqual(w2.slotDone.map(d => d.item), ['BUG-21']);
-    assert.deepEqual(w2.board.heldForPi, ['TASK-25']);
-    assert.equal(w2.board.slots.find(x => x.slot === 's2').state, 'DONE_HELD_FOR_PI');
-    // After the PI is submitted the held result is reported.
+    assert.deepEqual(w2.slotDone.map(d => d.item), ['CR-17']);
+    assert.deepEqual([...w2.board.heldForPi].sort(), ['BUG-21', 'TASK-25']);
     gm.state.backlog.find(i => i.key === 'PI-09').submission = { attemptNo: 1 };
     await h.call('refresh_match');
     const w3 = await h.call('wait_for_update', {});
-    assert.equal(w3.reason, 'SLOT_DONE'); assert.deepEqual(w3.slotDone.map(d => d.item), ['TASK-25']);
+    assert.equal(w3.reason, 'SLOT_DONE'); assert.deepEqual(w3.slotDone.map(d => d.item).sort(), ['BUG-21', 'TASK-25']);
   } finally { h.close(); }
 });
 
