@@ -210,30 +210,12 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
       coverage.push(r);
       if (!r.error && r.returned > 0) { all = r; break; }
     }
-    // Services the brief names ("the rule engine and the deploy pipeline log to ...") that the unfiltered dump did
-    // not contain: query them too, even when that dump looked complete (6QYJQAVJ PI-02: the unfiltered dump held no
-    // `rule-engine` entries, so the orchestrator searched by hand for 7 minutes).
-    const phrase = /\b([a-z][a-z0-9]+)[ -](engine|service|pipeline|worker|scheduler|api|gateway|server|queue|job|sync|importer|exporter|processor)s?\b/gi;
-    const present = new Set([...seen.values()].map(e => e?.service).filter(Boolean));
-    const fromBrief = new Set();
-    for (const m of String(brief.description ?? '').matchAll(phrase)) {
-      const a1 = m[1].toLowerCase(), b1 = m[2].toLowerCase();
-      if (['the', 'a', 'an', 'our', 'their', 'its', 'this', 'that', 'each', 'every'].includes(a1)) continue;
-      for (const n of [`${a1}-${b1}`, `${a1}s-${b1}`]) if (!present.has(n)) fromBrief.add(n);
-    }
-    if (all && all.complete && t.serviceKey) {
-      for (const svc of fromBrief) {
-        const r = await pageAll(call, t, { [t.serviceKey]: svc }, seen, budget);
-        if (r.returned > 0 || r.error) coverage.push(r);
-      }
-    }
     // Per-service queries as well when the unfiltered dump is incomplete, failed, or capped by a default window.
     if (!all || !all.complete) {
       const named = new Set();
       for (const e of seen.values()) if (e?.service) named.add(e.service);
       const text = `${brief.description ?? ''} ${[...articles.values()].map(a => a.body ?? a.content ?? '').join(' ')}`;
       for (const m of text.matchAll(/\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b/g)) if (m[0].length < 32) named.add(m[0]);
-      for (const n of fromBrief) named.add(n);
       for (const g of GENERIC_SERVICES) named.add(g);
       for (const svc of named) {
         const a = t.serviceKey ? { [t.serviceKey]: svc } : t.queryKey ? { [t.queryKey]: svc } : null;

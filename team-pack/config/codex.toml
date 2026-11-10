@@ -37,9 +37,3 @@ default_tools_approval_mode = "approve"
 
 # Codex >= 0.164 rejects an [mcp_servers.<name>] table without command/url ("invalid transport") and then
 # ignores this whole file. Personal MCP servers are not declared in the user config, so no stubs are needed.
-
-# Agent threads: the orchestrator, the guardian and every sub-agent count, and an idle agent keeps its thread.
-# 6QYJQAVJ: "collab spawn failed: agent thread limit reached" with 4 sub-agents (default limit). MTM Player's policy
-# can still cap it; the orchestrator reuses idle agents either way (SKILL.md "Sub-agents").
-[agents]
-max_threads = 10
