@@ -20,18 +20,11 @@ only the orchestrator writes progress events.
   the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
   `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
   `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
-  `install-s1`..`install-s6` for slots, `baseline` for the baseline test run. Run independent jobs together.
+  `install-s1`..`install-s5` for slots, `baseline` for the baseline test run. Run independent jobs together.
 - **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
   in your reply. BLOCKED is only for a real environment failure (database, install, build).
-- **Free the machine first** (UA9QF7DU: two Next.js servers of an earlier match, JTYYBXTL, still ran during the
-  game while six installs, two production builds and the baseline fought for the disk; git calls timed out and a
-  PI took 20 minutes). Before the first install, stop every process left by an earlier match: `node`, `pnpm`,
-  `yarn`, `vite`, `next`, `vitest`, `playwright` and browser processes whose command line contains
-  `<teamWorkspace>\matches\` but NOT this match ID (PowerShell: `Get-CimInstance Win32_Process` filtered on
-  `CommandLine`, then `Stop-Process -Id <pid> -Force`). Never stop anything outside `<teamWorkspace>\matches\`.
-  One line in your reply: how many you stopped.
 - **Stay off the critical path.** READY needs only doctor READY and build PASS. Slot installs and the baseline run
   are started as jobs and NOT awaited: they finish during the first minutes of the game.
 - **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline` (also in slots, in parallel).
@@ -54,13 +47,8 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
      the checkout's git-ignored env file (e.g. `..._<matchId>` and `..._<matchId>_test`); the application role has
      CREATEDB. Before baseline tests, confirm the database's recorded migrations equal the checkout's migration
      folder; if the tool warns about migrations missing from the folder, you are on a stale database: switch names.
-   - **First command, as soon as you know the package manager** (README / `packageManager` / lockfile; at most a
-     minute of reading): ONE `start_jobs` with, in this order, `prep-install` (the locked install in the main
-     checkout: `pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...) and `install-s1`, `install-s2`,
-     `install-s4`, `install-s3`, `install-s6`, `install-s5` (the same install in each slot's app folder, from the
-     slot list in your task). The job runner runs installs one at a time, in that order (SC0E8AV2: alone ~40 s,
-     three at once 6 minutes), so they all finish within a few minutes, mostly before the game starts. Then
-     `wait_jobs` for `prep-install` only and go on; the slot installs keep running (the game reads `JOBS_DONE`).
+   - Job `prep-install`: the locked install (`pnpm install --frozen-lockfile --prefer-offline`, `npm ci`, ...);
+     `wait_jobs`.
    - Then in parallel: job `prep-build` (the documented build, e.g. `prepare-source.ps1` or `pnpm run build`) and job
      `prep-db` (the provided migration and seed steps, then the `doctor`/check script). One `wait_jobs` for both.
      The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
@@ -105,12 +93,16 @@ Rules for installs:
 - Keep installer output short (`| Select-Object -Last 5`), and time-box each install to ~10 minutes.
 - If every non-admin route fails, report `BLOCKED` with the exact package and error.
 
-## B. BACKGROUND JOBS (start them, do not wait)
-The slot installs were queued in part A. Start the `baseline` job now (the full test suite in the main checkout,
-output to its log) and go on with D and E while it runs. **The job runner queues heavy jobs itself**: installs run
-one at a time in their start order; installs, builds and full test runs of every slot and worker share one
-machine-wide queue of at most 3 at a time, and the baseline waits behind later jobs. Do not add wait loops to the
-commands. The game reads the results (`JOBS_DONE`); workers wait for their own slot's install.
+## B. BACKGROUND JOBS (after the orchestrator ran `prepare_slots`; start them, do not wait)
+With one `start_jobs` call: `install-s1`..`install-s5` (in each slot app folder, the same locked install plus
+`--prefer-offline`) and `baseline` (the full test suite in the main checkout, output to its log). Then go on with D
+and E while they run.
+**Worker slots first.** The first wave's workers need s1-s3 at game minute 0; s4 (PI and value TASKs) and s5 (heavy
+items) are needed later or not at all. Five installs at once share the disk and all finish late (5FLQMNAA: about 12
+minutes, so a worker waited ~4 minutes into the game). So `install-s4` and `install-s5` first wait, at most 10
+minutes, until `install-s1`..`install-s3` have an exit file, then install. PowerShell prefix for those two commands
+(`<jobsDir>` = the jobs `dir`):
+`$t=0; while ((@('install-s1','install-s2','install-s3') | Where-Object { -not (Test-Path "<jobsDir>\$_.exit") }) -and $t -lt 600) { Start-Sleep 5; $t+=5 }; ` The game reads their results (`JOBS_DONE`); workers wait for their own slot's install.
 If the `baseline` job has finished when you reply, note every failing baseline test by name with a one-line cause
 guess from the design documents.
 Do not change tracked files.

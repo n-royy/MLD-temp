@@ -22,12 +22,9 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-6]$/;
+const SLOT_NAME = /^s[1-5]$/;
 // s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
 const HEAVY_SLOT = 's5';
-// Worker slots for ordinary items (BUG, CR, TASK): s1-s3, plus s6, the 4th worker (1.5.13: items waited 7-18
-// minutes for a worker slot in 5FLQMNAA and 32PTEO8K while quality gates keep slots longer).
-const WORKER_SLOTS = ['s1', 's2', 's3', 's6'];
 // s1..s3 are worker slots; s4 is the orchestrator's own slot (PI or short TASK when every worker is busy), so its
 // work never dirties the main checkout that integrate_item needs clean.
 const OWN_SLOT = 's4';
@@ -72,23 +69,6 @@ export function effortOf(item, peers = [], sizes = {}) {
   if (numbered >= 6) add(1, `${numbered} requirements`);
   // Only a hint about the item itself ("heavy task", "expensive item"), never "a heavy library" (Solova CR-01).
   if (/\b(heavy|expensive|token[- ]intensive|long[- ]running|time[- ]consuming)\s+(task|item|backlog item|job|audit|analysis|computation|processing)\b/i.test(text)) add(2, 'organizer hint');
-  // Code work (1.5.13): how much of the application one item must change and prove. Weighted on 32PTEO8K and the
-  // Solova practice briefs so that the largest code items (CR-07 server + screen + official data, BUG-11 several
-  // causes, Solova CR-01 export) reach L, a heavy candidate, and ordinary BUG/CR stay below.
-  const parts = new Set((req.match(/\*\*[A-Z][\w /-]{2,24}\.\*\*/g) ?? []).map(x => x.toLowerCase())).size;
-  if (parts >= 2) add(1, `${parts} parts (server, screen...)`);
-  const touch = new Set([
-    ...(text.match(/`(?:packages|src|apps|app|lib|server|client)\/[^`\s]+`/g) ?? []),
-    ...(text.match(/`\/[a-z][\w/-]*`/g) ?? []),
-    ...(text.match(/data-testid=\\?"[^"\\]+/g) ?? [])]).size;
-  if (touch >= 6) add(2, `${touch} code touchpoints (files, routes, test ids)`);
-  else if (touch >= 4) add(1, `${touch} code touchpoints`);
-  if (/\b(more than one cause|several (causes|defects|ways)|multiple (causes|defects|root causes))\b/i.test(text)) add(1, 'several causes');
-  const criteria = ((text.match(/##\s*Acceptance criteria[\s\S]*?(?=\n##\s|$)/i) ?? [''])[0].match(/^\s*\d+\.\s/gm) ?? []).length;
-  if (criteria >= 5) add(1, `${criteria} acceptance criteria`);
-  const scenarios = new Set(text.match(/\bTC-\d{2}\b/g) ?? []).size;
-  if (scenarios >= 5) add(1, `${scenarios} test scenarios`);
-  if (/hidden tests?[^.]{0,80}\b(many more|more cases|other data|whole pipeline)/i.test(text)) add(1, 'hidden tests beyond the scenarios');
   const type = String(item?.backlogType ?? item?.type ?? '').toUpperCase();
   const same = peers.filter(i => String(i.backlogType ?? i.type ?? '').toUpperCase() === type);
   if (same.length >= 3) {
@@ -414,49 +394,10 @@ export class MatchSession {
 
   #isHeavy(item) { return this.#effort(item).heavy; }
 
-  /** The answer must be read from an image or a drawing (6QYJQAVJ TASK-11: a digit misread by the orchestrator). */
-  #needsVision(item) {
-    const text = String(item?.descriptionMd ?? item?.description ?? '');
-    return /\.(png|jpe?g|gif|webp|bmp|tiff?)\b/i.test(text) || /\b(image|screenshot|scanned|photo|drawing|diagram|chart)\b/i.test(text);
-  }
-
   /** True when the item's finished result waits for the open PI (see #piHold). */
   #heldForPi(key, hold = this.#piHold(), deps = null) {
     if (!hold.length || hold.includes(key)) return false;
     return !this.#urgent(this.#items().find(i => i.key === key), deps ?? this.#dependencies());
-  }
-
-  /**
-   * Prerequisite fixes ready for their dependents (1.5.16). The worker of an item that another open item depends on
-   * commits its fix first and writes the sha to `.mtm-tmp/<ID>/FIX_COMMIT`; the dependent's worker cherry-picks it
-   * at once instead of waiting for the prerequisite's submission (32PTEO8K / 6QYJQAVJ / UA9QF7DU: CR-07 graded
-   * without BUG-11's fixes, or never started). Every slot is a worktree of one repository, so the commit is visible
-   * in all of them. Each sha is reported once.
-   */
-  #prereqFixes() {
-    if (this.cfg?.phase !== 'GAME' || !this.#hasSlots()) return [];
-    const slots = Object.values(this.#slots());
-    const deps = this.#dependencies();
-    this.fixSeen ??= new Map();
-    const out = [];
-    for (const sl of slots) {
-      if (!sl.item) continue;
-      const waiting = (deps.get(sl.item)?.prerequisiteOf ?? []).map(k => this.#items().find(i => i.key === k))
-        .filter(d => d && !d.submission && String(d.status ?? '').toUpperCase() !== 'CLOSED');
-      if (!waiting.length) continue;
-      let sha = null;
-      try {
-        const lines = readFileSync(join(sl.matchRoot, SCRATCH, sl.item, 'FIX_COMMIT'), 'utf8').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        sha = lines.at(-1)?.match(/^[0-9a-f]{7,40}$/i)?.[0] ?? null;
-      } catch { /* not yet */ }
-      if (!sha || this.fixSeen.get(sl.item) === sha) continue;
-      this.fixSeen.set(sl.item, sha);
-      this.#timeline('PREREQ_FIX_READY', sl.item, { slot: sl.name, commit: sha });
-      out.push({ backlogItemKey: sl.item, slot: sl.name, branch: sl.branch, commit: sha,
-        dependents: waiting.map(d => { const ds = this.#slotOf(d.key); return { backlogItemKey: d.key, slot: ds?.name ?? null, worktreeRoot: ds?.path ?? null }; }),
-        note: 'send_message each dependent worker with a slot: cherry-pick this commit now. A dependent without a slot: start it, then send the note.' });
-    }
-    return out;
   }
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
@@ -586,7 +527,7 @@ export class MatchSession {
       try {
         const all = this.#slots();
         const free = n => all[n] && !all[n].item && existsSync(join(all[n].path ?? '', '.git'));
-        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : [...WORKER_SLOTS, HEAVY_SLOT].find(free) ?? null);
+        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null);
         if (slot && c.apiKey) {
           try { start = await this.startWork({ backlogItemKey: key, slot }); }
           catch (error) { startError = `${error.code ?? 'START_WORK_FAILED'}: ${clip(String(error.message), 160)}`; slot = null; }
@@ -597,7 +538,7 @@ export class MatchSession {
         const item = this.#items().find(i => i.key === key) ?? {};
         const summary = await collectIncident({ defs, dir: join(root, SCRATCH, key, 'incident'),
           brief: { key, title: item.title ?? '', description: typeof item.description === 'string' ? item.description : '' },
-          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }, { priority: true }) });
+          call: (name, args) => this.companyCall({ name, arguments: args, backlogId: key }) });
         let brief = null;
         try { brief = start?.briefFile ? JSON.parse(readFileSync(start.briefFile, 'utf8')) : null; } catch { /* optional */ }
         entry.result = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
@@ -635,12 +576,6 @@ export class MatchSession {
     } catch { return 'error'; } // the regular loop below retries
   }
 
-  /** How long a still-collecting PI may hold back the news: not at all when a deadline item just appeared. */
-  #piWaitMs(fresh = []) {
-    const urgent = fresh.some(k => { const i = this.#items().find(x => x.key === k); return i && !isIncident(i) && i.deadlineMinutes; });
-    return urgent ? 0 : 20000;
-  }
-
   /** NEW_PI result for the first prepared, unreported incident; waits up to waitMs for one still being prepared. */
   async #incidentUpdate(waitMs, fresh = []) {
     const open = [...this.incidents.values()].filter(e => !e.reported);
@@ -660,7 +595,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s6');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s5');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -702,28 +637,7 @@ export class MatchSession {
     return item;
   }
 
-  /**
-   * Discovers revealed items while the orchestrator is busy in its own cells (SC0E8AV2: wave 3 with PI-03 was
-   * published at 08:25:48 and discovered at 08:31:30, so the PI's data collection started 6 minutes late). Every
-   * 10 s outside wait_for_update, one feed read; a new PI starts its collection at once.
-   */
-  #watchFeed() {
-    if (this.feedTimer || process.env.MTM_FEED_WATCH === '0') return;
-    this.feedTimer = setInterval(async () => {
-      if (this.inWait || this.feedBusy || this.cfg?.phase !== 'GAME') return;
-      this.feedBusy = true;
-      try { await this.#peekFeed(); } catch { /* the next tick retries */ } finally { this.feedBusy = false; }
-    }, 10000);
-    this.feedTimer.unref?.();
-  }
-
-  async waitForUpdate(args = {}) {
-    this.#watchFeed();
-    this.inWait = true;
-    try { return await this.#waitForUpdate(args); } finally { this.inWait = false; }
-  }
-
-  async #waitForUpdate({ timeoutMs = 240000, noWait = false } = {}) {
+  async waitForUpdate({ timeoutMs = 240000, noWait = false } = {}) {
     const c = this.#need();
     // The loop returns within ~5 s of any change (new item, status, SLOT_DONE), so a shorter wait only adds idle model
     // turns that re-send the whole context (7GAZA14X: a 60 s wait plus a status line every minute while workers ran).
@@ -744,9 +658,7 @@ export class MatchSession {
       // A PI outranks everything else (race for 100/90/75/60 %): its data is ready before the orchestrator wakes.
       // Before reporting anything, a cheap feed check discovers an item revealed since the last read.
       const peek = await this.#peekFeed();
-      // Never hold back other news for a PI still being collected (SC0E8AV2: a 90 s wait, twice, kept CR-07 (deadline
-      // 20) and BUG-11 off the board for 2.3 minutes). New items first; NEW_PI follows on the next call.
-      const pi = await this.#incidentUpdate(this.#piWaitMs(this.peekFresh ?? []), this.peekFresh ?? []);
+      const pi = await this.#incidentUpdate(90000, this.peekFresh ?? []);
       if (pi) { this.peekFresh = []; return pi; }
       const done = this.#newSlotResults();
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
@@ -762,7 +674,7 @@ export class MatchSession {
       try {
         const feed = this.projection?.api?.feedEndpoint;
         // A change the peek above already read is compared below; a quiet peek replaces this iteration's feed request.
-        let full = peek === 'changed' || (this.peekFresh?.length ?? 0) > 0 || Date.now() - lastFull > 30000 || !feed;
+        let full = peek === 'changed' || Date.now() - lastFull > 30000 || !feed;
         if (!full && peek !== 'same') {
           const url = new URL(feed, c.gmOrigin);
           url.searchParams.set('afterSequence', String(this.projection?.match?.currentSequence ?? 0));
@@ -784,15 +696,11 @@ export class MatchSession {
             fresh.push(...this.lastFresh);
             const now = this.projection?.match?.status;
             const reason = now && now !== status && !['IN_PROGRESS', 'PREPARING', 'PREPARED', 'READY'].includes(now) ? `MATCH_${now}` : 'MATCH_UPDATED';
-            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(this.#piWaitMs(fresh), fresh); if (pi) return pi; }
-            const pending = [...this.incidents.values()].filter(e => !e.done).map(e => e.key);
-            return { changed: true, reason, board: this.#board(fresh),
-              ...(pending.length ? { incidentPending: pending, note: 'PI data is being collected; NEW_PI follows. Start the deadline items first.' } : {}) };
+            if (reason === 'MATCH_UPDATED') { const pi = await this.#incidentUpdate(90000, fresh); if (pi) return pi; }
+            return { changed: true, reason, board: this.#board(fresh) };
           }
         }
       } catch { wait = 10000; }
-      const fixes = this.#prereqFixes();
-      if (fixes.length) return { changed: true, reason: 'PREREQ_FIX_READY', prereqFix: fixes, board: this.#board([]) };
       const left = deadline - Date.now();
       if (left <= 0) break;
       // Slot results are checked every 5 s even while Game Master is quiet.
@@ -828,21 +736,6 @@ export class MatchSession {
       appendFileSync(join(this.#stateDir(), 'timeline.ndjson'),
         JSON.stringify({ at: new Date().toISOString(), event, ...(key ? { key } : {}), ...extra }) + '\n');
     } catch { /* telemetry only */ }
-  }
-
-  /** Values of every submitted answer (meta fields left out), for cross-item checks by later workers. */
-  #indexAnswer(key, answer) {
-    try {
-      const f = join(this.#stateDir(), 'answers-index.json');
-      const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {};
-      const values = {};
-      for (const [k, v] of Object.entries(answer ?? {})) {
-        if (['schemaVersion', 'backlogId', 'status', 'evidenceFiles', 'gitRevision', 'testResults', 'engineeringRecord', 'cases'].includes(k) || /Record$/.test(k)) continue;
-        values[k] = v;
-      }
-      all[key] = values;
-      writeFileSync(f, JSON.stringify(all, null, 1));
-    } catch { /* index only */ }
   }
 
   #stateDir() {
@@ -1125,7 +1018,6 @@ export class MatchSession {
       let board = null;
       try { await this.#getProjection(); this.signature = this.#signature(); board = this.#board(this.lastFresh); } catch { /* next wait_for_update refreshes */ }
       this.#timeline('SUBMITTED', backlogItemKey, { receipt: receipt.status ?? null });
-      this.#indexAnswer(backlogItemKey, answer);
       // Compact on purpose: this result stays in the orchestrator's context for the rest of the match.
       return { status: 'SUBMITTED', receipt: { id: receipt.id, status: receipt.status, scoreStatus: receipt.scoreStatus },
         gitRevision: full, evidenceFiles: evidence.length, schemaChecked, ...(changedTests.length ? { changedTests } : {}),
@@ -1164,16 +1056,10 @@ export class MatchSession {
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 6) fail('INVALID_SLOT_COUNT', 'count must be 1..6 (s1-s3 and s6 for the 4 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
+    if (!Number.isInteger(n) || n < 1 || n > 5) fail('INVALID_SLOT_COUNT', 'count must be 1..5 (s1-s3 for the 3 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
-    // Six worktrees of one large repository on one disk (UA9QF7DU: checkout and commit timed out with empty errors
-    // while installs and builds ran). Local repository settings only (shared by every worktree): cache untracked
-    // files and the file system, read the index in parallel, never start an automatic gc in the middle of a game.
-    for (const [k, v] of [['core.untrackedCache', 'true'], ['core.fscache', 'true'], ['core.preloadIndex', 'true'], ['gc.auto', '0'], ['maintenance.auto', 'false']]) {
-      await git(c.checkoutRoot, ['config', '--local', k, v]);
-    }
     await git(c.checkoutRoot, ['worktree', 'prune']);
     this.#excludeScratch();
     const all = this.#slots();
@@ -1221,20 +1107,18 @@ export class MatchSession {
   #checkOwnSlot(key) {
     const item = this.#items().find(i => i.key === key);
     const type = String(item?.backlogType ?? item?.type ?? key.split('-')[0]).toUpperCase();
-    // An answer read from an image goes to a worker: careful reading needs its own context (6QYJQAVJ TASK-11).
-    const vision = this.#needsVision(item);
-    if ((!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) && !vision) return;
+    if (!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) return;
     const workers = Object.values(this.#slots()).filter(s => s.name !== OWN_SLOT && s.name !== HEAVY_SLOT);
     if (!workers.length) return; // single-agent fallback: no worker slot exists
     const free = workers.find(s => !s.item);
     fail('OWN_SLOT_RESERVED', free
-      ? `${key} is a ${vision ? 'item read from an image' : type}: start it in the free worker slot ${free.name} and spawn a worker`
-      : `${key} is a ${vision ? 'item read from an image' : type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
+      ? `${key} is a ${type}: start it in the free worker slot ${free.name} and spawn a worker`
+      : `${key} is a ${type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
         '(integrate_item with next) and keep integrating.', { freeWorkerSlot: free?.name ?? null });
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3, s6 (workers), s4 (orchestrator) or s5 (heavy worker)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3 (workers), s4 (orchestrator) or s5 (heavy worker)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
@@ -1253,7 +1137,7 @@ export class MatchSession {
     if (SHA.test(tip) && tip !== s.integratedTip && (await git(c.checkoutRoot, ['merge-base', '--is-ancestor', tip, head])).code !== 0) {
       fail('SLOT_HAS_UNINTEGRATED_WORK', `${s.name} holds commits that are not on ${c.repository.branch}; integrate them or release_slot first`);
     }
-    await gitOk(s.path, ['checkout', '-f', '-B', s.branch, head], { timeoutMs: 300000 });
+    await gitOk(s.path, ['checkout', '-f', '-B', s.branch, head]);
     await gitOk(s.path, ['clean', '-fdq']); // untracked leftovers only; ignored files (deps, env) stay
     const all = this.#slots();
     all[s.name] = { ...all[s.name], item: key, state: 'BUSY', base: head, integratedTip: null, reported: null, startedAt: new Date().toISOString() };
@@ -1311,17 +1195,12 @@ export class MatchSession {
           return { key: k, title: i?.title ?? null, state: i?.submission ? 'SUBMITTED' : sl ? 'IN_PROGRESS' : 'NOT_STARTED', deadlineMinutes: i?.deadlineMinutes ?? null }; };
         const eff = this.#effectiveMinutesLeft(item, deps);
         return { dependsOn: d.dependsOn.map(state), prerequisiteOf: d.prerequisiteOf.map(state),
-          // A prerequisite's worker writes its fix commit here; the dependent worker gets it by cherry-pick.
-          ...(d.prerequisiteOf.length ? { fixCommitFile: join(dir, 'FIX_COMMIT') } : {}),
           ...(eff !== null && this.#minutesLeft(item) === null ? { effectiveDeadlineAt: new Date(Date.now() + eff * 60000).toISOString() } : {}) };
       })(this.#dependencies()),
       // Grading that rewards more than the rows (detection, requirements, official data): the worker runs the
       // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
       ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
       issuedRevision: c.environmentRevision ?? null,
-      ...(this.#needsVision(item) ? { needsVision: true } : {}),
-      // Every submitted answer of the team, so a value that comes from another item is checked against it.
-      teamAnswersFile: join(this.#stateDir(), 'answers-index.json'),
       // How the organizer scores this item, word for word: the worker plans from it, whatever kind of item it is.
       grading: (m => m ? clip(m[1].trim().replace(/\s+/g, ' '), 1500) : null)(String(item?.descriptionMd ?? item?.description ?? '').match(/#+\s*(?:Grading|Score|Scoring)\b([\s\S]*?)(?=\n#+\s|$)/i)),
       jobsDir: this.#jobsDir(), slotInstallJob: `install-${s.name}`, slotInstallState: this.#jobsDir() ? jobState(this.#jobsDir(), `install-${s.name}`).state : null };
@@ -1461,7 +1340,7 @@ export class MatchSession {
     if (check.problems.length) return { status: 'INVALID', answerFile: submitPath, problems: check.problems.slice(0, 20) };
     await gitOk(s.path, ['add', '--', answerDir]);
     const staged = (await gitOk(s.path, ['diff', '--cached', '--name-only'])).trim();
-    if (staged) await gitOk(s.path, ['commit', '-q', '--no-verify', '-m', `${key}: answer`], { timeoutMs: 180000 });
+    if (staged) await gitOk(s.path, ['commit', '-q', '-m', `${key}: answer`]);
     const rows = Array.isArray(answer.testResults) ? answer.testResults : [];
     const tests = rows.length
       ? { required: rows.length, executed: rows.filter(r => r.result !== 'NOT_RUN').length, passed: rows.filter(r => r.result === 'PASS').length,
@@ -1491,14 +1370,6 @@ export class MatchSession {
       fail('SLOT_UNCOMMITTED', `${s.name} has uncommitted changes; the worker must commit them (or pass allowUncommitted at the safety net)`,
         { files: dirty.split(/\r?\n/).slice(0, 10) });
     }
-    if (dirty && allowUncommitted) {
-      // Safety net (SC0E8AV2 CR-07: 7 minutes of work, no commit, NOTHING_TO_INTEGRATE at the deadline, 0 points):
-      // what the worker has is committed as it is (scratch stays ignored) so a partial answer can still be graded.
-      await git(s.path, ['add', '-A', '--', c.repository.folder]);
-      await git(s.path, ['reset', '-q', '--', `${c.repository.folder}/${SCRATCH}`]);
-      await git(s.path, ['-c', 'core.safecrlf=false', 'commit', '-q', '--no-verify', '-m', `${backlogItemKey}: work in progress (safety net)`], { timeoutMs: 180000 });
-      this.#timeline('SAFETY_NET_COMMIT', backlogItemKey, { slot: s.name });
-    }
     const cur = (await gitOk(c.checkoutRoot, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
     if (cur !== c.repository.branch) fail('BRANCH_MISMATCH', `checkoutRoot is on ${cur}, not ${c.repository.branch}`);
     const mainDirty = (await gitOk(c.checkoutRoot, ['status', '--porcelain', '--untracked-files=no'])).trim();
@@ -1509,22 +1380,15 @@ export class MatchSession {
     let base = null;
     if (s.integratedTip && (await git(c.checkoutRoot, ['merge-base', '--is-ancestor', s.integratedTip, tip])).code === 0) base = s.integratedTip;
     else base = (await gitOk(c.checkoutRoot, ['merge-base', 'HEAD', tip])).trim();
-    let commits = (await gitOk(c.checkoutRoot, ['rev-list', '--reverse', '--no-merges', `${base}..${tip}`])).split(/\r?\n/).filter(Boolean);
+    const commits = (await gitOk(c.checkoutRoot, ['rev-list', '--reverse', '--no-merges', `${base}..${tip}`])).split(/\r?\n/).filter(Boolean);
     if (!commits.length && !s.integratedTip) fail('NOTHING_TO_INTEGRATE', `${s.name} has no commits for ${backlogItemKey}`);
-    if (commits.length) {
-      // A prerequisite's fix taken by cherry-pick (PREREQ_FIX_READY) is already on the branch when its own item was
-      // integrated first: picking it again would stop the cherry-pick as empty. `git cherry` marks such commits "-".
-      const same = new Set((await git(c.checkoutRoot, ['cherry', 'HEAD', tip, base])).stdout.split(/\r?\n/)
-        .filter(l => l.startsWith('- ')).map(l => l.slice(2).trim()));
-      commits = commits.filter(x => !same.has(x));
-    }
     if (commits.length) {
       const names = (await gitOk(c.checkoutRoot, ['diff', '--name-only', base, tip])).split(/\r?\n/).filter(Boolean);
       const outside = names.filter(p => !p.startsWith(`${c.repository.folder}/`));
       if (outside.length) fail('OUTSIDE_FOLDER', 'the slot commits touch files outside the assigned folder', { files: outside.slice(0, 10) });
       const diff = (await gitOk(c.checkoutRoot, ['diff', base, tip])) ?? '';
       if ([c.password, c.apiKey].some(v => v && v.length >= 4 && diff.includes(v))) fail('SECRET_IN_DIFF', 'the slot commits contain a credential value');
-      const pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', '--allow-empty', '--keep-redundant-commits', ...commits], { timeoutMs: 120000 });
+      const pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', ...commits], { timeoutMs: 120000 });
       if (pick.code !== 0) {
         const conflicts = (await git(c.checkoutRoot, ['diff', '--name-only', '--diff-filter=U'])).stdout.split(/\r?\n/).filter(Boolean);
         await git(c.checkoutRoot, ['cherry-pick', '--abort']);
@@ -1591,7 +1455,7 @@ export class MatchSession {
     const applied = await git(c.checkoutRoot, ['apply', '--index', '--whitespace=nowarn', patch]);
     if (applied.code !== 0) fail('BASELINE_PATCH_DOES_NOT_APPLY', clip(applied.stderr, 300));
     const msg = `${backlogItemKey}: baseline repair${summary ? ` - ${clip(String(summary).replace(/[\r\n]+/g, ' '), 120)}` : ''}`;
-    const commit = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'commit', '-q', '--no-verify', '-m', msg], { timeoutMs: 180000 });
+    const commit = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'commit', '-q', '-m', msg]);
     if (commit.code !== 0) { await git(c.checkoutRoot, ['reset', '-q', '--hard', 'HEAD']); fail('GIT_COMMIT_FAILED', clip(commit.stderr, 300)); }
     let push = await git(c.checkoutRoot, ['push', 'origin', `HEAD:refs/heads/${c.repository.branch}`], { timeoutMs: 180000 });
     if (push.code !== 0) {
@@ -1692,35 +1556,7 @@ export class MatchSession {
       note: 'Large answer saved to a file: extract what you need with a script; do not print it whole.' };
   }
 
-  /**
-   * One Company Tools call at a time (the match README: "Call them one at a time"): every caller (incident
-   * collection, the orchestrator, relayed worker calls) waits for the previous call to finish.
-   */
-  async companyCall(a = {}, { priority = false } = {}) {
-    // A queue served one at a time; incident collection (a PI race) goes before waiting ordinary calls.
-    this.companyQueue ??= [];
-    if (this.companyBusy) await new Promise(r => (priority ? this.companyQueue.unshift(r) : this.companyQueue.push(r)));
-    this.companyBusy = true;
-    try {
-      // SC0E8AV2 PI-02: 18 calls answered RATE_LIMITED, the log set stayed incomplete and two answer fields were
-      // wrong (76/120 although first). Back off and retry instead of returning a gap.
-      for (let attempt = 0; ; attempt++) {
-        try {
-          const r = await this.#companyCallNow(a);
-          if (r?.isError && /rate.?limit|too many requests|429/i.test(String(r.text ?? r.head ?? '')) && attempt < 4) { await sleep(1500 * 2 ** attempt); continue; }
-          return r;
-        } catch (e) {
-          if (/RATE_LIMIT|429/i.test(`${e.code ?? ''} ${e.message ?? ''}`) && attempt < 4) { await sleep(1500 * 2 ** attempt); continue; }
-          throw e;
-        }
-      }
-    } finally {
-      const next = this.companyQueue.shift();
-      if (next) next(); else this.companyBusy = false;
-    }
-  }
-
-  async #companyCallNow({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
+  async companyCall({ name, arguments: args = {}, backlogId = null, saveToSlot = false, slotMatchRoot = null }) {
     if (!this.cfg?.apiKey && slotMatchRoot) {
       // Worker helper: relay through the orchestrator helper; long answers go to a file the worker reads in slices.
       const r = await relayCompany(slotMatchRoot, { op: 'call', name, arguments: args, backlogId });

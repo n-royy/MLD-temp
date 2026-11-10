@@ -302,12 +302,12 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI takes s5 when it is the only free slot', async () => {
+test('slot s5 is the heavy worker slot; a PI is never placed there', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    const r = await h.call('prepare_slots', { count: 6 });
-    assert.equal(r.slots.length, 6); assert.equal(r.slots[5].slot, 's6');
+    const r = await h.call('prepare_slots', { count: 5 });
+    assert.equal(r.slots.length, 5);
     await h.call('configure_session', { descriptors: [prepare, start] });
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
     gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
@@ -317,15 +317,13 @@ test('slot s5 is the heavy worker slot, s6 the 4th worker; a PI takes s5 when it
     // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
     const board = await h.call('refresh_match');
     assert.ok(board.slots.some(x => x.slot === 's5' && x.role === 'heavy-worker' && x.item === 'CR-11'));
-    assert.ok(board.slots.some(x => x.slot === 's6' && x.role === 'worker'), JSON.stringify(board.slots));
     await h.call('release_slot', { slot: 's5' });
     for (const x of board.slots.filter(x => x.slot !== 's5' && x.state === 'FREE')) await h.call('start_work', { backlogItemKey: 'TASK-09', slot: x.slot }).catch(() => null);
     gm.reveal({ ...PI, key: 'PI-05' });
     await new Promise(r => setTimeout(r, 1100));
     const w = await h.call('wait_for_update', {});
     assert.equal(w.reason, 'NEW_PI');
-    // 1.5.15: a PI takes any free slot, s5 included (6YOBNM4Z: PI-03 waited 10 minutes with no slot).
-    assert.equal(w.incident.slot, 's5', 'the PI takes the only free slot');
+    assert.notEqual(w.incident.slot, 's5', 'the heavy slot stays free for heavy items');
   } finally { h.close(); }
 });
 
@@ -440,57 +438,4 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     assert.equal(by['TASK-37'].qualityGate.status, 'PASS');
     assert.equal(by['BUG-37'].qualityGate, undefined);
   } finally { h.close(); }
-});
-
-test('1.5.16: no preemption events; image items never go to s4', async () => {
-  const item = (key, type, deadlineMinutes, descriptionMd, revealedElapsedSec = 600) => ({ key, backlogType: type, title: key, deadlineMinutes,
-    revealedElapsedSec, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd });
-  gm.state.backlog = [
-    item('TASK-48', 'TASK', null, 'Long integration suite.'),
-    item('CR-47', 'CR', 20, 'Audit page; right only with the BUG-41 fixes.', 600),
-    item('BUG-41', 'BUG', null, 'Customer books.'),
-    item('TASK-51', 'TASK', null, 'Read the voucher image `data/voucher.png` and report its figures.')
-  ];
-  gm.state.clock = { elapsedSec: 600 + 12 * 60, remainingSec: 1500 };
-  const h = new Helper();
-  try {
-    await h.call('configure_session', { descriptors: [prepare] });
-    await h.call('prepare_slots', { count: 6 });
-    await h.call('configure_session', { descriptors: [prepare, start] });
-    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
-    await h.call('refresh_match');
-    await h.call('start_work', { backlogItemKey: 'TASK-48', slot: 's1' });
-    // 1.5.15's DEADLINE_AT_RISK / WRAP_UP is gone: an unstarted deadline item is the orchestrator's ordering, not an event.
-    const w = await h.call('wait_for_update', { noWait: true });
-    assert.notEqual(w.reason, 'DEADLINE_AT_RISK');
-    const own = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's4' });
-    assert.equal(own.error?.code, 'OWN_SLOT_RESERVED', JSON.stringify(own));
-    const s = await h.call('start_work', { backlogItemKey: 'TASK-51', slot: 's6' });
-    const brief = JSON.parse(readFileSync(s.briefFile, 'utf8'));
-    assert.equal(brief.needsVision, true); assert.equal(brief.gateBudgetMinutes, undefined);
-    assert.ok(brief.teamAnswersFile.endsWith('answers-index.json'));
-  } finally { h.close(); }
-});
-
-test('1.5.14: services the brief names are queried even when the unfiltered dump looked complete', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'mtm-inc-'));
-  try {
-    const logs = [
-      { ts: '2025-10-15T10:00:00Z', service: 'deploy', message: 'release 2025.10.2', context: { release: '2025.10.2' } },
-      { ts: '2025-10-15T10:05:00Z', service: 'rule-engine', message: 'rule.applied', context: { tx: 'TX-1' } },
-      { ts: '2025-10-15T10:06:00Z', service: 'rule-engine', message: 'rule.applied', context: { tx: 'TX-2' } }
-    ];
-    // The server's unfiltered search hides one service (a default window), yet reports itself complete.
-    const call = async (name, a) => {
-      if (name === 'search_logs') {
-        const hit = a.service ? logs.filter(e => e.service === a.service) : logs.filter(e => e.service !== 'rule-engine');
-        return { text: JSON.stringify({ total: hit.length, entries: hit.slice(a.offset ?? 0, (a.offset ?? 0) + 20) }) };
-      }
-      return { text: JSON.stringify({ articles: [] }) };
-    };
-    const brief = { key: 'PI-09', description: 'The rule engine and the deploy pipeline log to the production logs.' };
-    await collectIncident({ call, defs: TOOLS, dir, brief });
-    const got = JSON.parse(readFileSync(join(dir, 'logs.json'), 'utf8'));
-    assert.equal(got.filter(e => e.service === 'rule-engine').length, 2, JSON.stringify(got.map(e => e.service)));
-  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

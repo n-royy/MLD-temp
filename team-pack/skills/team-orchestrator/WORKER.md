@@ -37,11 +37,6 @@ T5QSM1E2 lost 3/4 rows of BUG-02 (sidebar of BUG-01 intercepted the Accounting t
   your verification" below): briefs list "unrelated UI changes" as out of scope.
 - Every shorter path used goes into that row's `note`, e.g. "opened Accounting by URL with the keyboard because the
   desktop sidebar (BUG-01) covers the tab; invoice entered and issued through the form".
-- Be efficient, not quick to give up (6QYJQAVJ BUG-09: 20 minutes on a home-made Playwright script; 6YOBNM4Z: the
-  same rows left NOT_RUN scored 15/80). Start from `shot.mjs` and the slot's tools; write your own script only for the
-  steps they cannot do. When it fails twice the same way, change the approach (a foundation shortcut above, a URL,
-  the keyboard), not the target: every MVS row is run and proved while `stopBy` allows; a row is NOT_RUN only when
-  time is out.
 
 ## Check the evidence path first (UI items)
 Before changing code, open each screen your evidence rows need once (`shot.mjs` or one browser step) and confirm the
@@ -76,30 +71,14 @@ The brief lists in `dependsOn` the items your brief names, with their state (`NO
 with those changes in it (e.g. "right only on source that also contains the <ID> fixes", "loads the official data
 with your submission"), the other item's changes must be in your commit:
 - `SUBMITTED`: rebase on the branch (`git -C <worktreeRoot> rebase <branch>`) before your final checks.
-- **Your item has a deadline and the other is not submitted: work as if it were already fixed** (1.5.17; SC0E8AV2:
-  CR-07 waited for BUG-11, whose fix came 16 minutes after reveal, and missed its 20-minute deadline). Write your
-  feature and your checks against the correct behaviour from the first minute. Within your first ~5 minutes, list
-  what of the other item's fix your rows need (read its brief in `dependsOn`, its scenarios, the code), make that
-  smallest change yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and name
-  it in the engineering record. Never wait for the other worker.
-- No deadline on your item: the same smallest change when the other item may not land before your `stopBy` minus
-  ~5 minutes. Rebase again if it lands before you finish.
+- Not submitted and it may not land before your `stopBy` minus ~5 minutes: make the smallest change that item needs
+  for **your** grade yourself, in its own commit named `<your ID>: include <other ID> fix needed for <what>`, and
+  name it in the engineering record (the other item's worker may make the same change; identical changes integrate
+  cleanly). Rebase again if it lands before you finish.
 - Never submit FAIL or a computed-elsewhere value only because the other item has not landed while you can still
   include its change (32PTEO8K: CR-07 reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
-- **The prerequisite's fix may also arrive by cherry-pick**: the orchestrator sends you `<other ID> fix is commit
-  <sha> ...: git -C <worktreeRoot> cherry-pick <sha>`. If your own version already makes your rows pass, skip it
-  (`git cherry-pick --abort` on a conflict) and say so in one line; otherwise take it (a conflict with your own
-  change of the same lines: keep the other item's version, which its own tests prove), rerun, go on.
-- **Deadline items commit early**: after every row that passes, commit (source, tests, the answer filled honestly
-  with PARTIAL and the rows not yet run as NOT_RUN). At the deadline the orchestrator submits your last commit as it
-  is, so an uncommitted half-feature is worth 0 and a committed passing row is worth its points.
 Your brief lists in `prerequisiteOf` the deadline items that need yours, and `effectiveDeadlineAt`: treat it as
-your deadline (your `stopBy` already uses it). **Commit the fix they need first, alone**: as soon as the code change
-works (your reproduction passes), before evidence, answer or quality gate, commit only the source change (no
-`answers/`, no tests of yours) as `<your ID>: fix <what>`, then write its full sha to
-`<slotMatchRoot>/.mtm-tmp/<your ID>/FIX_COMMIT` (one line). The helper hands it to the dependent worker, so its
-deadline item no longer waits for your submission. Later corrections of the fix go in new commits (never amend or
-rebase that commit) and get a new FIX_COMMIT line only when the dependent needs them.
+your deadline (your `stopBy` already uses it), and commit the part they need first.
 
 ## An item of a kind no section here names
 The brief's `grading` is the organizer's scoring text. Plan from it whatever the item is: list what is scored (each
@@ -129,44 +108,6 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      (`git -C <worktreeRoot> checkout -- <file>`). A rule no case catches gets a new case. The application fixes you
      made stay; the mutants never.
   3. Never assert what the specification does not state: a case that fails on a correct build never counts.
-  4. The organizer's broken builds are the defects the issued source shipped with, not only the ones you imagine
-     (6QYJQAVJ TASK-08: 36 of 37 own mutants caught, 80/100). Run your suite on the issued behaviour: restore every
-     product file that differs from `issuedRevision` in the specification's modules (fixes by any item, the branch
-     included: `git -C <worktreeRoot> diff --name-only <issuedRevision> HEAD -- <modules>`), run, record which cases
-     fail, restore HEAD. Every fix in those modules must turn at least one case red; a fix none catches gets a case.
-  5. Any rule about text (equal ignoring case, title case, trimming, parsing amounts) gets non-ASCII variants:
-     accented and Vietnamese letters in both cases (`Phở`/`PHỞ`, `Đà Nẵng`/`đà nẵng`), and Unicode signs (`−` minus).
-  6. **Every quantifier of a rule is a dimension of the matrix** (32PTEO8K / 6QYJQAVJ TASK-08: the misses were an
-     update-path payee defect and non-ASCII names, both in words of the spec). Underline the words `either`,
-     `both`, `each`, `every`, `any number`, `however`, `in any account`, `included`, `only`, `otherwise`, `never`,
-     `at most`, `before or after`; each one lists the values a broken build may handle wrongly. Write one case per
-     value: "either side" → change the first side AND the second side; "however the payee was set" → each listed
-     path; "any number of lines" → at least 3 lines in one call, with the rule on the 2nd or 3rd line, not only the
-     first; "at most 7 days before or after" → 7 and 8 days, before and after; "otherwise" → both branches; "never"
-     → the case that would tempt the code. A broken build usually breaks one value of one dimension.
-     Three shapes the quantifier list misses (SC0E8AV2 TASK-08 audit: the suite covered every rule id and still
-     scored 80; these were its open cells):
-     - **`or` lists alternatives**: each alternative gets its own case ("a date or recurrence" → a one-off AND a
-       recurring schedule; the code had a separate branch for recurring ones that no case reached).
-     - **A move or replace is checked on both ends**: the new place has the result AND the old place no longer
-       has it (a counterpart moved to another account: present there, gone from the first account, total count
-       unchanged).
-     - **A rule about "every change" is checked after each kind of change the specification lists**: add, edit,
-       delete, import, merge, schedule posting, transfer creation and removal (B1 "every change shows in the
-       activity at once" → read the activity after each of them, not only after adds and edits).
-  7. **Mutants by script, not by hand, every rule id first.** (SC0E8AV2 TASK-08: 10 mutants, all on T and A rules,
-     the I0 one interrupted; the I, R, S, M and B rules - half of the specification - were never mutated, 80/100
-     for the third match in a row.) Order the list rule-first: one mutant for EVERY rule id of the specification
-     (T1..T6, A1, A2, B1, I0..I5, R1..R3, S1, S2, M1..M3 in that example: 25 runs of ~20 s, ~9 minutes) before any
-     second mutant of a rule; then the quantifier values of step 6. Mutate each section as soon as its cases are
-     written, not all at the end. Write `.mtm-tmp/<ID>/mutants.mjs`: a list of `{file, find, replace, rule}`
-     (aim for 30+), and for each: apply it, run only your suite files
-     (`vitest run <files>` or the project's equivalent, not the whole suite), record KILLED/SURVIVED, restore the
-     file in a `finally`. Run it as one job (`start_jobs`/`wait_jobs`), print only the survivors. Every survivor
-     gets a case or a stated reason (equivalent mutant). The table goes into `qualityGate.reportFile`.
-  8. **No false alarm on a correct build:** run your suite files 3 times on HEAD (all three green; a flaky case is
-     fixed or removed), with generous timeouts for Windows (no 5-second budget-load timeouts), each test on its own
-     fresh data (no order dependence), and no assertion on ids, timestamps or order the spec leaves open.
 - **`DATA_REQUIREMENTS`** (a pack, dataset or manifest checked against requirements):
   1. Requirement table: every quantity, ratio, mix, overlap, recurrence, special case and size limit of the
      specification, the value you reached and the margin. Where a requirement is a bound or range, stay clearly
@@ -176,33 +117,12 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      differs (`git -C <worktreeRoot> diff --name-only <issuedRevision> HEAD -- <app source dir>`, tests excluded) with
      `git checkout <issuedRevision> -- <files>`, run the replay, then `git checkout HEAD -- <files>`. Every number in
      the manifest must match the replay exactly.
-  3. **The manifest is the parser's output, never your prediction** (SC0E8AV2 TASK-07, 35/50 for the third time: the
-     generator wrote what it intended and submitted with "parser/import replay pending"). The generator script
-     writes the files, then runs the issued parser and import itself (the same functions the grader calls, with
-     the stated settings, in a fresh test database) and writes the manifest from what they return: parsed rows,
-     added per file, final count and balance. One script, one run: the manifest cannot disagree with the replay.
-     Do this from the first version, even under a deadline; a hand-predicted manifest is the slow path.
 - **`OFFICIAL_DATA`** (hidden tests, the official test data loaded with your submitted source):
   1. Load the official test data with your own branch (rebased on everything your brief `dependsOn` needs, see
      "Your item needs another item's changes") and compare every reported figure with values computed independently
      from the brief and the current standards; they must agree.
   2. Hidden tests check the rule in more cases than the MVS: one test of your own per rule boundary the brief or
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
-
-## Reading values from an image or a drawing (brief `needsVision`)
-A misread digit costs the field (6QYJQAVJ TASK-11: `255230227` read as `252320227`, 16 points). For every number,
-id and code you take from an image:
-1. Read it twice, independently: the whole image once, then a crop or zoom of just that region (write the crop
-   with a short script: sharp/Playwright/`magick`, whatever the slot has), and compare digit by digit, counting the
-   digits. Different readings: read a third, larger crop.
-2. A value the image or brief says comes from elsewhere ("TASK-10 baseline", "the balance of …") is checked against
-   that source: the team's submitted answers in `teamAnswersFile` (JSON by item key), the data, or the app. A
-   mismatch means a misread until proven otherwise.
-3. Write each value with the region it came from in your evidence.
-
-## Values that come from another item
-Whenever an input refers to another item's figure, compare it with `teamAnswersFile` (every submitted answer of
-the team) before you use it, and name the source in the record.
 
 ## Heavy items (brief `heavy: true`)
 The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. You usually work it in the dedicated slot s5 and have this item only:
@@ -305,8 +225,6 @@ Your helper process has no team key, so pass your slot: `company_tools_list({ sl
 `company_tool_call({ name, arguments, backlogId: "<ID>", slotMatchRoot })`. The call is relayed through the
 orchestrator's helper. Answers over 6000 characters are saved to a file in your slot and you get its path: read it
 in slices. Use them for every standard, QA data set, log and ticket the item needs; do not guess a format.
-One call per tool call: never call Company Tools from a loop or a script in an exec cell (the match README: "Call
-them one at a time, never from a script or loop"); the helper queues calls one at a time.
 
 ## Boundaries
 - Edit only inside `slotMatchRoot`. Never touch the main checkout, other slots or other items' answers.
@@ -415,9 +333,7 @@ assigned branch. The baseline owner:
 ## Status of an answer
 `status` follows the item's own acceptance criteria exactly: `DONE` when every criterion holds, `PARTIAL` when one
 is not met (say which one and why in the engineering record), `BLOCKED` when the work could not proceed. Do not mark
-an item PARTIAL for a problem outside its criteria: an existing test that fails or times out on this machine without
-your change (6QYJQAVJ TASK-08: a 5-second budget-load timeout on Windows) is recorded as pre-existing, not a reason
-for PARTIAL.
+an item PARTIAL for a problem outside its criteria.
 
 ## Scratch scripts
 Organizer scripts (seed, report, run-checks; copies are in `organizerFiles`) and your own check or reproduction
@@ -429,12 +345,6 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
 `.agents/skills/game-preparation/ENVIRONMENT.md` (user scope, no admin), then continue.
 
 ## Speed (from BCYRV9M9: 23-60 one-second polls and up to 14 reruns of a home-made screenshot script per item)
-- **The machine is shared by six slots** (UA9QF7DU: two 1 GB production builds, three installs and the baseline at
-  once; test runs took 4 minutes, git timed out, nothing was submitted in 25 minutes). Run the narrowest command
-  that proves your point: the test files you touched, not the whole suite; the dev server, not a production build,
-  unless your evidence needs the build. Builds, installs and full test runs go through `start_jobs`: the job runner
-  queues them machine-wide (at most 3 at once), so a job may wait before it starts; its log says so. Stop your
-  servers and watchers (`serve.mjs --stop`) when your item is done.
 - Long commands (install, build, full test runs, typecheck, prisma): an exec call returns after about 30 s whatever
   `yield_time_ms` it asks for (UV8P4HUS), so anything longer goes through `start_jobs` (dir
   `<slotMatchRoot>/.mtm-tmp/jobs`) and ONE blocking `wait_jobs`. Never poll a running command with `write_stdin` or

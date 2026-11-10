@@ -177,9 +177,6 @@ test('full match flow', async () => {
   assert.equal(sub.evidence, undefined); assert.equal(typeof sub.evidenceFiles, 'number');
   assert.equal(sub.board.endpoints, undefined);
   assert.ok(JSON.stringify(sub).length < 2000, `submit result ${JSON.stringify(sub).length} chars`);
-  // 1.5.14: every submitted answer lands in the team answers index (values only) for cross-item checks.
-  const idx = JSON.parse(readFileSync(join(checkoutRoot, '.git', 'mtm', 'answers-index.json'), 'utf8'));
-  assert.ok(idx['TASK-01'] && !('schemaVersion' in idx['TASK-01']) && !('status' in idx['TASK-01']), JSON.stringify(idx));
   assert.ok(logEvents().some(e => e.type === 'BACKLOG_TESTS' && e.backlogId === 'TASK-01' && e.status === 'PASSED' && e.executed === 1));
   const sent = gm.state.submissions.get('TASK-01');
   assert.equal(sent.body.gitRevision, g(checkoutRoot, 'rev-parse', 'HEAD'));
