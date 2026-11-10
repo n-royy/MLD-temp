@@ -296,7 +296,9 @@ work the PI, call `wait_for_update` with `noWait: true` between steps and, when 
 empty and a slot is free, `start_work` + spawn it at once (one cell) before the next PI step. The helper
 enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for those; any other finished slot shows
 `DONE_HELD_FOR_PI` (listed in `board.heldForPi`) and is reported right after the PI is submitted (no hold while the PI
-has no slot yet, or while a deadline item waits and no slot is free: then the finished slot is reported at once; at most 8 minutes
+has no slot yet; and while a deadline item waits with no free slot, the earliest finished slot is reported at once,
+one per waiting item: `integrate_item` with `next` = the first `board.deadlineWaiting` item, spawn its worker, back
+to the PI; at most 8 minutes
 after the PI appeared).
 1. No worker, no WORKER.md. Read `incident.files.digest` (coverage, services, releases, flags, entities, KB list),
    `incident.files.kb` in full (naming and scope rules decide the answer) and the brief (`incident.briefFile`,

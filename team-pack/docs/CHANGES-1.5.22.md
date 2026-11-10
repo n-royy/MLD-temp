@@ -27,6 +27,10 @@ items are assigned in the moments the PI does not need the orchestrator, so they
 - s4 takes a deadline item only when it is a value TASK (no quality gate, effort S/M); a test suite, data pack, heavy
   item or BUG/CR goes to a worker.
 - `integrate_item` with `next` returns a fresh board.
+- Second review: the PI's slot is claimed the moment the PI is discovered (no deadline item is offered a slot the PI
+  is about to take); a waiting deadline item un-holds only one finished slot per waiting item (oldest first); items
+  already started are recognised after a helper restart (progress log); a PI whose data becomes ready wakes
+  `wait_for_update` at once instead of after its 5-second poll.
 - A heavy item with a deadline while s5 holds a heavy item without one takes the next free worker slot.
 - Stale text removed: the orchestrator agent file's "dependencies are handled by rebasing", "PI and deadline items
   first"; SKILL.md's "syncing the dependent slot", the slot list without s5, a garbled sentence, and the list of

@@ -367,8 +367,17 @@ export class MatchSession {
     // A PI without a slot needs a finished slot to start in: nothing is held for it (a hold would park the very slot
     // the PI waits for, up to 8 minutes). A deadline item waiting with no free slot: the finished slot is its way in.
     if (!hold.some(k => this.#slotOf(k))) return false;
-    if (!this.#freeSlotForDeadline() && this.#deadlineWaiting().length) return false;
-    return !this.#urgent(this.#items().find(i => i.key === key));
+    if (this.#urgent(this.#items().find(i => i.key === key))) return false;
+    // A deadline item waiting with no free slot gets the earliest finished slot(s), one per waiting item; the
+    // others stay held so the PI is not interrupted by integrations nobody needs yet.
+    const waiting = this.#deadlineWaiting();
+    if (waiting.length && !this.#freeSlotForDeadline(waiting)) {
+      const finished = Object.values(this.#slots()).filter(sl => sl.item && !this.#urgent(this.#items().find(i => i.key === sl.item)))
+        .map(sl => { try { return { key: sl.item, at: statSync(join(sl.matchRoot, SCRATCH, sl.item, 'DONE.json')).mtimeMs }; } catch { return null; } })
+        .filter(Boolean).sort((a, b) => a.at - b.at).slice(0, waiting.length).map(x => x.key);
+      if (finished.includes(key)) return false;
+    }
+    return true;
   }
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
@@ -481,19 +490,29 @@ export class MatchSession {
     if (known) return known;
     const entry = { key, startedAt: Date.now(), done: false, reported: false, result: null };
     this.incidents.set(key, entry);
+    // The slot is chosen and claimed now, synchronously: until Start Work returns, nobody else may take it (the board
+    // would otherwise still show it free to a deadline item).
+    this.pendingClaims ??= new Map();
+    const pick = (() => {
+      if (slotWanted) return slotWanted;
+      if (!this.#hasSlots()) return null;
+      const all = this.#slots();
+      const free = n => all[n] && !all[n].item && !this.pendingClaims.has(n) && existsSync(join(all[n].path ?? '', '.git'));
+      return free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null;
+    })();
+    if (pick) this.pendingClaims.set(pick, key);
     entry.promise = (async () => {
       // Let the #discover pass that found the PI finish first (start_work runs its own discovery).
       await new Promise(r => setImmediate(r));
       const c = this.cfg;
       let slot = null, start = null, startError = null;
       try {
-        const all = this.#slots();
-        const free = n => all[n] && !all[n].item && existsSync(join(all[n].path ?? '', '.git'));
-        slot = slotWanted ?? (free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null);
+        slot = pick;
         if (slot && c.apiKey) {
           try { start = await this.startWork({ backlogItemKey: key, slot }); }
           catch (error) { startError = `${error.code ?? 'START_WORK_FAILED'}: ${clip(String(error.message), 160)}`; slot = null; }
-        }
+          finally { if (pick && this.pendingClaims.get(pick) === key) this.pendingClaims.delete(pick); }
+        } else if (pick && this.pendingClaims.get(pick) === key) this.pendingClaims.delete(pick);
         const root = start?.slotMatchRoot ?? c.matchRoot;
         let defs = this.companyToolDefs;
         if (!defs) { try { defs = await this.companyTools(); } catch (error) { defs = []; startError ??= `company tools list failed: ${error.code ?? 'ERROR'}`; } }
@@ -681,7 +700,9 @@ export class MatchSession {
       const left = deadline - Date.now();
       if (left <= 0) break;
       // Slot results are checked every 5 s even while Game Master is quiet.
-      await sleep(Math.min(this.#hasBusySlot() ? Math.min(wait, 5000) : wait, left));
+      // A PI still being collected wakes the loop the moment its data is ready (the race counts seconds).
+      const collecting = [...this.incidents.values()].filter(e => !e.done && !e.reported).map(e => e.promise);
+      await Promise.race([sleep(Math.min(this.#hasBusySlot() ? Math.min(wait, 5000) : wait, left)), ...collecting]);
     }
     return { changed: false, reason: 'TIMEOUT', board: this.#board([]) };
   }
@@ -1110,7 +1131,9 @@ export class MatchSession {
     // call, not a slot to fill), and one with less than WAITING_FLOOR_MINUTES left (it cannot be finished; it would
     // only block every other start until force).
     return this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
-      && !this.#slotOf(i.key) && !this.startedKeys.has(i.key) && (this.#minutesLeft(i) ?? 0) >= WAITING_FLOOR_MINUTES)
+      && !this.#slotOf(i.key) && !this.startedKeys.has(i.key)
+      && !['IN_PROGRESS', 'BLOCKED', 'FAILED', 'COMPLETED', 'SUBMITTED'].includes(String(this.log?.backlog?.get(i.key)?.status ?? '').toUpperCase())
+      && (this.#minutesLeft(i) ?? 0) >= WAITING_FLOOR_MINUTES)
       .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i),
         heavy: this.#isHeavy(i), effort: this.#effort(i).level, gradingKind: this.#gradingKind(i),
         wave: this.#revealSec(i), deadline: Number(i.deadlineMinutes ?? 0), points: Number(i.points ?? 0) }))
@@ -1139,7 +1162,7 @@ export class MatchSession {
   /** A free slot a waiting deadline item could take right now. */
   #freeSlotForDeadline(waiting = this.#deadlineWaiting()) {
     if (!waiting.length || !this.#hasSlots()) return null;
-    const free = Object.values(this.#slots()).filter(sl => !sl.item && existsSync(join(sl.path ?? '', '.git')));
+    const free = Object.values(this.#slots()).filter(sl => !sl.item && !this.pendingClaims?.has(sl.name) && existsSync(join(sl.path ?? '', '.git')));
     return free.find(sl => waiting.some(d => this.#fitsSlot(d, sl.name)))?.name ?? null;
   }
 
@@ -1159,6 +1182,8 @@ export class MatchSession {
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
+    const claimed = this.pendingClaims?.get(name);
+    if (claimed && claimed !== key) fail('SLOT_BUSY', `${name} is being started for ${claimed} (the PI)`);
     const other = this.#slotOf(key);
     if (other && other.name !== name) fail('ITEM_IN_OTHER_SLOT', `${key} is already in ${other.name}`);
     return s;
