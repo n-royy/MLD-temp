@@ -19,6 +19,10 @@ Helper:
 - `start_work` refuses an item without a deadline with `DEADLINE_ITEM_WAITING` while a deadline item waits that fits
   the slot (s4: no BUG/CR); `force: true` overrides (deadline item that cannot be finished). The same check applies to
   `integrate_item` `next` (reported as `nextError`, the slot is left free for the deadline item).
+Deadline order (helper `deadlineWaiting`, SKILL.md): earlier wave first; within a wave the shorter deadline first,
+then more points. A later wave's item never jumps ahead of an unstarted item of an earlier wave, even with a shorter
+deadline (TASK-10, deadline 30 at minute 7, takes 12-15 minutes; TASK-07, deadline 15 at minute 20, comes after it).
+
 Orchestrator (SKILL.md, agent file):
 - A wave's deadline items are assigned first (start_work + spawn, seconds), then the PI.
 - s5 takes a deadline item (with a `team_feature_worker`) before a heavy item without a deadline; a heavy item with a
@@ -26,4 +30,4 @@ Orchestrator (SKILL.md, agent file):
 - While working a PI: `wait_for_update` `noWait` between steps; a waiting deadline item and a free slot means start
   it at once.
 
-Tests: incident test checks `DEADLINE_ITEM_WAITING` and `deadlineWaiting`; all 7 test files pass.
+Tests: incident test checks `DEADLINE_ITEM_WAITING`, `deadlineWaiting` and its order; all 7 test files pass.

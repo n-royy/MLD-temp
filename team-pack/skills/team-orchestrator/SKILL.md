@@ -90,7 +90,7 @@ data-cleaning traps, aggregated answers, points above the same type, a long mult
 `SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
 scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
 items: the profile is the signal. Decide with it in this order, for every item:
-1. **Urgency**: PI (by you), then deadline items, nearest deadline first, then the rest. Deadline items are
+1. **Urgency**: PI (by you), then deadline items in deadline order (below), then the rest. Deadline items are
    *assigned* before you start working the PI (seconds), see "Order" below. An item named by a deadline
    item is not scheduled earlier for that: the deadline item's worker makes the fix it needs itself (WORKER.md
    "Your item needs another item's changes").
@@ -103,8 +103,11 @@ items: the profile is the signal. Decide with it in this order, for every item:
 When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
-2. **Order:** in the first cell of the wave, `start_work` + `spawn_agent` for **every deadline item** (nearest
-   deadline first) in the free slots: worker slots s1-s3, and **s5 too when no heavy item with a deadline needs it**.
+2. **Order:** in the first cell of the wave, `start_work` + `spawn_agent` for **every deadline item** in
+   **deadline order**: earlier wave first; within a wave the shorter deadline first (20 before 30), then more points.
+   A later wave's item never jumps ahead of an unstarted item of an earlier wave, even with a shorter deadline
+   (a 15-minute item revealed at minute 20 comes after a 30-minute item revealed at minute 7, which may take
+   12-15 minutes; IPZ0U79E TASK-10 / TASK-07). `board.deadlineWaiting` is already in this order in the free slots: worker slots s1-s3, and **s5 too when no heavy item with a deadline needs it**.
    Then **the PI, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0): the helper is already collecting
    its data, so assigning first costs seconds, while a deadline item left unassigned during a PI is lost (IPZ0U79E:
    CR-07, deadline 20, never started although s3 stood free for the 13 minutes of PI-02; 0/100). Then the rest by
@@ -143,7 +146,7 @@ When a wave appears (game start, or `newItems` on the board):
      take that slot instead (same spawn note).
    - **s5 serves deadline items before a heavy item without a deadline** (IPZ0U79E: when TASK-10 was submitted, s5
      took TASK-12, heavy, no deadline, while TASK-07, deadline 15, waited; 0/50). When s5 frees (or is free) and
-     `deadlineWaiting` is not empty, the nearest deadline item takes s5: `integrate_item` with `next` = that item
+     `deadlineWaiting` is not empty, its first item (deadline order) takes s5: `integrate_item` with `next` = that item
      (or `start_work` with `slot: "s5"`), and spawn a **`team_feature_worker`** for it (the heavy worker type is for
      heavy items). The heavy item without a deadline waits for the next free slot. A heavy item **with** a deadline
      keeps its claim on s5.

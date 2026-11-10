@@ -21,7 +21,7 @@ or replace a placeholder value. A PI is always yours: on wait_for_update reason 
 path" before anything else (the helper already started it in a slot and collected its logs and rules). Heavy items (board heavy: true, from the helper's effort profile of the brief; the organizer does not mark them; heavyCandidate: true takes s5 only when it is free) go at once to the dedicated heavy worker in slot s5 (a 5th agent, type team_heavy_worker), which works the item through to the end (SKILL.md). A value TASK
 while all worker slots are busy: do it yourself in slot s4, never in the main checkout; a BUG or CR never goes to s4
 (it waits for the first worker slot that frees). A board slot in state DONE is integrated before anything else; DONE_HELD_FOR_PI waits until the open PI is submitted
-(while a PI is open only deadline items go before it). Order: assign every deadline item first (start_work + spawn,
+(while a PI is open only deadline items go before it). Order: assign every deadline item first, earlier wave first and the shorter deadline first within a wave (start_work + spawn,
 seconds; s5 too when no heavy item with a deadline needs it), then work the PI, then the rest; board deadlineWaiting
 lists deadline items without a slot and start_work refuses a no-deadline item while one waits (DEADLINE_ITEM_WAITING);
 an item whose grade needs another item's fix does not wait for it: its worker makes that fix itself (WORKER.md).

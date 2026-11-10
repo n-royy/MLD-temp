@@ -1074,7 +1074,10 @@ export class MatchSession {
   }
 
   /**
-   * Open deadline items that no slot works on yet (PIs excluded: the helper starts those itself), nearest first.
+   * Open deadline items that no slot works on yet (PIs excluded: the helper starts those itself), in deadline order:
+   * earlier wave first, then the shorter deadline within a wave, then more points. A later wave's short deadline does
+   * not jump ahead of an earlier wave's item (IPZ0U79E: TASK-10, deadline 30 at minute 7, took 12-15 minutes; TASK-07,
+   * deadline 15 at minute 20, comes after it).
    * IPZ0U79E (1.5.21): CR-07 (deadline 20) was never started while s3 stood free during the PI; when the heavy slot
    * freed, a heavy item without a deadline took it while TASK-07 (deadline 15) waited, and the orchestrator did
    * TASK-06 (no deadline) itself in s4.
@@ -1082,8 +1085,9 @@ export class MatchSession {
   #deadlineWaiting() {
     return this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
       && !this.#slotOf(i.key) && (this.#minutesLeft(i) ?? 0) > 0)
-      .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i), heavy: this.#isHeavy(i) }))
-      .sort((a, b) => a.minutesLeft - b.minutesLeft);
+      .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i),
+        heavy: this.#isHeavy(i), wave: Number(i.revealedElapsedSec ?? 0), deadline: Number(i.deadlineMinutes ?? 0), points: Number(i.points ?? 0) }))
+      .sort((a, b) => a.wave - b.wave || a.deadline - b.deadline || b.points - a.points);
   }
 
   /** A slot never takes an item without a deadline while a deadline item that fits that slot waits (force: true overrides). */
