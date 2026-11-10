@@ -22,12 +22,13 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-5]$/;
-// s5: the dedicated heavy-item worker (a 5th agent), so heavy work never takes a slot from the other items.
-const HEAVY_SLOT = 's5';
-// s1..s3 are worker slots; s4 is the orchestrator's own slot (PI or short TASK when every worker is busy), so its
-// work never dirties the main checkout that integrate_item needs clean.
-const OWN_SLOT = 's4';
+const SLOT_NAME = /^s[1-8]$/;
+// 1.5.24: the orchestrator only coordinates. s1-s4: the 4 item workers. s5, s6: item slots of the two PI agents (they
+// take items while no PI is open). s7, s8: PI-only slots (no dependency install: a PI is answered from logs), so a PI
+// never waits for a slot and its agent never leaves an item half-done in the slot the PI needs.
+const PI_SLOTS = ['s7', 's8'];
+const PI_AGENT_SLOTS = ['s5', 's6'];
+const slotRole = n => PI_SLOTS.includes(n) ? 'pi' : PI_AGENT_SLOTS.includes(n) ? 'pi-agent' : 'worker';
 // Board entries stay small: every wait_for_update result is re-sent with the orchestrator's context.
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
 // DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
@@ -88,7 +89,7 @@ const WAITING_FLOOR_MINUTES = 4;
 const NEED_MINUTES = { S: 6, M: 10, L: 15, XL: 20 };
 // The helper integrates and submits clean finished worker items by itself (MTM_AUTO_INTEGRATE=0 turns it off).
 const AUTO_INTEGRATE = process.env.MTM_AUTO_INTEGRATE !== '0';
-const AUTO_TICK_MS = Number(process.env.MTM_AUTO_TICK_MS) || 5000;
+const AUTO_TICK_MS = Number(process.env.MTM_AUTO_TICK_MS) || 2000;
 const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
@@ -447,7 +448,7 @@ export class MatchSession {
         match: { status: m.status ?? null, ...(left !== null ? { minutesLeft: left } : {}) },
         items: this.#items().map(i => this.#boardItem(i)),
         ...(held => held.length ? { heldForPi: held } : {})(this.#slotSummary().filter(x => x.state === 'DONE_HELD_FOR_PI').map(x => x.item)),
-        // Deadline items with no slot: they take the next free slot (any of s1-s3, s5; s4 for a TASK) before anything else.
+        // Deadline items with no slot: they take the next free item slot (s1-s6) before anything else.
         ...(w => w.length ? { deadlineWaiting: w.map(({ key, minutesLeft, slack }) => ({ key, minutesLeft, slack })) } : {})(this.#hasSlots() ? this.#deadlineWaiting() : []),
         newItems,
         ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
@@ -488,7 +489,7 @@ export class MatchSession {
   }
 
   // ---------- incident fast path ----------
-  /** Starts (once per item) the background preparation of a PI: Start Work in a free slot (s4 first), then every log
+  /** Starts (once per item) the background preparation of a PI: Start Work in a free PI slot (s7/s8), then every log
    *  page and the incident rules collected into <slotMatchRoot>/.mtm-tmp/<ID>/incident/. Never throws. */
   #kickIncident(key, slotWanted = null) {
     const known = this.incidents.get(key);
@@ -503,7 +504,10 @@ export class MatchSession {
       if (!this.#hasSlots()) return null;
       const all = this.#slots();
       const free = n => all[n] && !all[n].item && !this.pendingClaims.has(n) && existsSync(join(all[n].path ?? '', '.git'));
-      return free(OWN_SLOT) ? OWN_SLOT : ['s1', 's2', 's3'].find(free) ?? null;
+      // PI slots only; a third PI waits for one (prepare_incident when it frees). Packs prepared without PI slots
+      // (older preparation) fall back to any free slot.
+      if (PI_SLOTS.some(n => all[n])) return PI_SLOTS.find(free) ?? null;
+      return Object.keys(all).sort().find(free) ?? null;
     })();
     if (pick) this.pendingClaims.set(pick, key);
     entry.promise = (async () => {
@@ -583,7 +587,8 @@ export class MatchSession {
     }
     if (!ready) return null;
     ready.reported = true;
-    return { changed: true, reason: 'NEW_PI', incident: { ...ready.result, preparedInSec: Math.round((ready.readyAt - ready.startedAt) / 1000) }, board: this.#board(fresh) };
+    return { changed: true, reason: 'NEW_PI', incident: { ...ready.result, preparedInSec: Math.round((ready.readyAt - ready.startedAt) / 1000) },
+      ...(this.#hasSlots() ? { piAgents: this.#piAgents() } : {}), board: this.#board(fresh) };
   }
 
   /** Manual trigger (helper restarted after the PI was discovered, or a re-collection with refresh). */
@@ -591,7 +596,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s5');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s8');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -643,7 +648,7 @@ export class MatchSession {
     // ~60 s for the worker's DONE.json and still integrate before the deadline.
     const t = Number(timeoutMs);
     const ms = Date.now() < (this.soonUntil ?? 0) && Number.isFinite(t) ? Math.min(Math.max(t, 5000), 240000) : 240000;
-    // noWait: one pass without sleeping (the orchestrator checks for events between steps of its own item in s4).
+    // noWait: one pass without sleeping.
     const deadline = noWait ? Date.now() : Date.now() + ms;
     this.#watchSlots();
     if (!this.projection) await this.#getProjection();
@@ -808,7 +813,6 @@ export class MatchSession {
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
     const target = slot ? this.#claimSlot(slot, backlogItemKey) : null; // checked before Start Work is sent
     if (!this.projection) await this.#getProjection();
-    if (target?.name === OWN_SLOT && target.item !== backlogItemKey) this.#checkOwnSlot(backlogItemKey);
     if (target && target.item !== backlogItemKey && !force) this.#checkDeadlineFirst(backlogItemKey, target.name);
     this.#discover(); // a projection loaded before START_GAME has not been discovered yet
     const url = this.#endpoint('start');
@@ -1057,7 +1061,7 @@ export class MatchSession {
     // A DONE.json written while the orchestrator was busy shows as DONE at once, so it integrates before anything else.
     const done = s => s.item && s.state !== 'DONE' && existsSync(join(s.matchRoot, SCRATCH, s.item, 'DONE.json'));
     const hold = this.#piHold();
-    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: s.name === OWN_SLOT ? 'orchestrator' : s.name === HEAVY_SLOT ? 'heavy-worker' : 'worker', item: s.item ?? null,
+    return Object.values(this.#slots()).map(s => ({ slot: s.name, role: slotRole(s.name), item: s.item ?? null,
       state: s.item ? (done(s) ? (this.#heldForPi(s.item, hold) ? 'DONE_HELD_FOR_PI' : 'DONE') : s.state) : 'FREE' }));
   }
   #slotOf(key) { return Object.values(this.#slots()).find(s => s.item === key) ?? null; }
@@ -1065,7 +1069,7 @@ export class MatchSession {
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 5) fail('INVALID_SLOT_COUNT', 'count must be 1..5 (s1-s3 for the 3 workers, s4 for the orchestrator itself, s5 for the heavy worker)');
+    if (!Number.isInteger(n) || n < 1 || n > 8) fail('INVALID_SLOT_COUNT', 'count must be 1..8 (s1-s4 for the 4 workers, s5-s6 for the PI agents\' items, s7-s8 for PIs)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
@@ -1105,25 +1109,7 @@ export class MatchSession {
       out.push({ slot: name, index: i, worktreeRoot: path, matchRoot, copied });
     }
     this.#saveSlots(all);
-    return { slots: out, note: 'Install dependencies and prepare the database once per slot (see game-preparation).' };
-  }
-
-  /**
-   * s4 is the orchestrator's own slot: PI and value answers (TASK), plus a heavy item when s5 cannot take it. A code
-   * item (BUG/CR) there blocks every integration while the orchestrator codes (5FLQMNAA: BUG-04 in s4 held a finished
-   * BUG-01 for ~4 minutes and grew the orchestrator's context to 191k tokens); it waits for the first free worker slot.
-   */
-  #checkOwnSlot(key) {
-    const item = this.#items().find(i => i.key === key);
-    const type = String(item?.backlogType ?? item?.type ?? key.split('-')[0]).toUpperCase();
-    if (!['BUG', 'CR'].includes(type) || this.#isHeavy(item)) return;
-    const workers = Object.values(this.#slots()).filter(s => s.name !== OWN_SLOT && s.name !== HEAVY_SLOT);
-    if (!workers.length) return; // single-agent fallback: no worker slot exists
-    const free = workers.find(s => !s.item);
-    fail('OWN_SLOT_RESERVED', free
-      ? `${key} is a ${type}: start it in the free worker slot ${free.name} and spawn a worker`
-      : `${key} is a ${type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
-        '(integrate_item with next) and keep integrating.', { freeWorkerSlot: free?.name ?? null });
+    return { slots: out, note: 'Install dependencies and prepare the database once per item slot s1-s6 (see game-preparation); s7/s8 (PI) need no install.' };
   }
 
   /**
@@ -1133,7 +1119,7 @@ export class MatchSession {
    * deadline 15 at minute 20, comes after it).
    * IPZ0U79E (1.5.21): CR-07 (deadline 20) was never started while s3 stood free during the PI; when the heavy slot
    * freed, a heavy item without a deadline took it while TASK-07 (deadline 15) waited, and the orchestrator did
-   * TASK-06 (no deadline) itself in s4.
+   * TASK-06 (no deadline) itself.
    */
   #deadlineWaiting() {
     this.startedKeys ??= new Set();
@@ -1162,14 +1148,9 @@ export class MatchSession {
     return seen && el !== null ? Math.max(0, el - (Date.now() - seen) / 1000) : 0;
   }
 
-  /**
-   * Slot s4 is the orchestrator's: it takes a deadline item only when that is a value answer the orchestrator can
-   * compute in minutes (a TASK without a quality gate, effort S or M). A test suite, a data pack or any BUG/CR goes to
-   * a worker (LESSONS: the orchestrator integrates, it does not code).
-   */
+  /** PI slots (s7/s8) take only PIs; every other slot takes any item. */
   #fitsSlot(d, slotName) {
-    if (slotName !== OWN_SLOT) return true;
-    return d.type === 'TASK' && !d.gradingKind && !d.heavy && ['S', 'M'].includes(d.effort);
+    return !PI_SLOTS.includes(slotName);
   }
 
   /** A free slot a waiting deadline item could take right now. */
@@ -1191,12 +1172,16 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1, s2, s3 (workers), s4 (orchestrator) or s5 (heavy worker)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers), s5-s6 (PI agents\' items) or s7-s8 (PIs)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
     const claimed = this.pendingClaims?.get(name);
     if (claimed && claimed !== key) fail('SLOT_BUSY', `${name} is being started for ${claimed} (the PI)`);
+    if (PI_SLOTS.includes(name) && s.item !== key) {
+      const item = this.#items().find(i => i.key === key);
+      if (item && !isIncident(item)) fail('PI_SLOT_RESERVED', `${name} is a PI slot; start ${key} in an item slot (s1-s6)`);
+    }
     const other = this.#slotOf(key);
     if (other && other.name !== name) fail('ITEM_IN_OTHER_SLOT', `${key} is already in ${other.name}`);
     return s;
@@ -1375,13 +1360,14 @@ export class MatchSession {
 
   /**
    * A finished worker item the helper may submit by itself (1.5.23): DONE, no doubts, its quality gate PASS when one
-   * applies, not a PI and not the orchestrator's own slot s4. Anything else is reported as SLOT_DONE for a decision.
+   * applies (1.5.24: a PI too, submitted the moment its agent's answer_item wrote DONE.json - it is a race).
+   * Anything else is reported as SLOT_DONE for a decision.
    * IPZ0U79E / SC0E8AV2: finished items waited minutes for an orchestrator busy with a PI.
    */
   #autoEligible(slot, d) {
-    if (!AUTO_INTEGRATE || slot.name === OWN_SLOT || !d || typeof d !== 'object') return false;
+    if (!AUTO_INTEGRATE || !d || typeof d !== 'object') return false;
     const item = this.#items().find(i => i.key === slot.item);
-    if (!item || isIncident(item) || item.submission) return false;
+    if (!item || item.submission) return false;
     if (String(d.status ?? '').toUpperCase() !== 'DONE' || (d.doubts && String(d.doubts).trim())) return false;
     if (this.#gradingKind(item) && String(d.qualityGate?.status ?? '').toUpperCase() !== 'PASS') return false;
     return true;
@@ -1399,8 +1385,10 @@ export class MatchSession {
     this.autoBusy = true;
     try {
       const hold = this.#piHold();
-      for (const sl of Object.values(this.#slots())) {
-        if (!sl.item) continue;
+      // PIs first (a race), then deadline items, then the rest.
+      const items = this.#items();
+      const rank = sl => { const it = items.find(i => i.key === sl.item); return isIncident(it) ? 0 : this.#urgent(it) ? 1 : 2; };
+      for (const sl of Object.values(this.#slots()).filter(x => x.item).sort((a, b) => rank(a) - rank(b))) {
         const f = join(sl.matchRoot, SCRATCH, sl.item, 'DONE.json');
         if (!existsSync(f)) continue;
         let raw, d;
@@ -1429,25 +1417,44 @@ export class MatchSession {
   }
 
   /**
-   * What the freed slot should take next, in the team's priority: deadline items (least slack first; PIs are started
-   * by the helper itself), then for s5 a heavy item, then an item whose fix the finished worker already made
-   * (includedFixes: the same worker continues it), then the most points per effort. Advice only.
+   * What the freed slot should take next, in the team's priority (1.5.24): deadline items (least slack first; PIs are
+   * started by the helper itself in s7/s8), then a heavy item (one at a time: the machine is shared), then the rest:
+   * first an item whose fix the finished worker already made (includedFixes: the same worker continues it), then the
+   * most points per effort. `worker`: the agent type to spawn, `same` (followup_task the worker of that slot) or
+   * `pi_agent` (s5/s6: followup_task that slot's PI agent). Advice only.
    */
   #suggestNext(slotName, includedFixes = []) {
+    if (PI_SLOTS.includes(slotName)) return null;
+    const piAgent = PI_AGENT_SLOTS.includes(slotName);
+    const who = type => piAgent ? 'pi_agent' : type;
     const waiting = this.#deadlineWaiting().filter(d => this.#fitsSlot(d, slotName));
-    if (waiting.length) return { backlogItemKey: waiting[0].key, why: `deadline, ${waiting[0].minutesLeft} min left`, worker: 'team_feature_worker' };
-    if (slotName === OWN_SLOT) return null;
+    if (waiting.length) {
+      const d = waiting[0];
+      return { backlogItemKey: d.key, why: `deadline, ${d.minutesLeft} min left`, worker: who(d.heavy ? 'team_heavy_worker' : 'team_feature_worker') };
+    }
     const open = this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
       && !this.#slotOf(i.key) && !(this.startedKeys?.has(i.key)) && this.#minutesLeft(i) === null);
-    if (slotName === HEAVY_SLOT) {
+    const heavyBusy = Object.values(this.#slots()).some(sl => sl.item && sl.name !== slotName && this.#isHeavy(this.#items().find(i => i.key === sl.item)));
+    if (!heavyBusy) {
       const heavy = open.find(i => this.#isHeavy(i));
-      if (heavy) return { backlogItemKey: heavy.key, why: 'heavy item', worker: 'team_heavy_worker' };
+      if (heavy) return { backlogItemKey: heavy.key, why: 'heavy item (one at a time)', worker: who('team_heavy_worker') };
     }
     const chain = open.find(i => includedFixes.includes(i.key) && !this.#isHeavy(i));
-    if (chain) return { backlogItemKey: chain.key, why: 'its fix is already on the branch from the finished item: followup_task to the same worker', worker: 'same' };
+    if (chain) return { backlogItemKey: chain.key, why: 'its fix is already on the branch from the finished item: followup_task to the same worker', worker: piAgent ? 'pi_agent' : 'same' };
     const rank = i => Number(i.points ?? 0) / ({ S: 1, M: 1.5, L: 2.5, XL: 4 }[this.#effort(i).level] ?? 2);
-    const best = open.filter(i => !this.#isHeavy(i) || slotName === HEAVY_SLOT).sort((a, b) => rank(b) - rank(a))[0];
-    return best ? { backlogItemKey: best.key, why: 'most points per effort', worker: 'team_feature_worker' } : null;
+    const best = open.filter(i => !this.#isHeavy(i)).sort((a, b) => rank(b) - rank(a))[0];
+    return best ? { backlogItemKey: best.key, why: 'most points per effort', worker: who('team_feature_worker') } : null;
+  }
+
+  /** NEW_PI hint: the PI agents' item slots, so the orchestrator knows which agent is free or the cheapest to pause. */
+  #piAgents() {
+    const all = this.#slots();
+    return PI_AGENT_SLOTS.filter(n => all[n]).map(n => {
+      const item = this.#items().find(i => i.key === all[n].item);
+      const left = item ? this.#minutesLeft(item) : null;
+      return { home: n, item: all[n].item ?? null, ...(left !== null ? { minutesLeft: left } : {}),
+        ...(item ? { slack: left === null ? null : Math.round((left - (NEED_MINUTES[this.#effort(item).level] ?? 10)) * 10) / 10 } : {}) };
+    });
   }
 
   /**

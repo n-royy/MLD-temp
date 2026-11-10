@@ -101,7 +101,7 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   await h.call('configure_session', { descriptors: [prepare] });
   // Preparation: slots with per-slot database names; tracked files cannot be copied.
   assert.equal((await h.call('prepare_slots', { count: 2, copyFiles: ['src/app.txt'] })).error.code, 'COPY_FILE_TRACKED');
-  assert.equal((await h.call('prepare_slots', { count: 6 })).error.code, 'INVALID_SLOT_COUNT');
+  assert.equal((await h.call('prepare_slots', { count: 9 })).error.code, 'INVALID_SLOT_COUNT');
   const prep = await h.call('prepare_slots', { count: 2, copyFiles: [{ path: 'src/.env', replace: { solova_SLOT0001: 'solova_SLOT0001_{slot}', 'PORT=3000': 'PORT=30{n}0' } }] });
   assert.equal(prep.slots.length, 2);
   const env1 = readFileSync(join(prep.slots[0].matchRoot, 'src', '.env'), 'utf8');

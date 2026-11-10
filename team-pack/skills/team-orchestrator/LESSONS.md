@@ -56,8 +56,9 @@ Short rules learned from real matches. Each line names where it came from. They 
 - Whatever enters a context is paid again on every later turn. Short waits (1-60 s yields, `sleep`) and big tool
   results (images, whole logs and files, full boards) made 5FLQMNAA cost ~33M tokens for 10 items; one long wait per
   cell, compact results and script extracts keep the same work much cheaper. (5FLQMNAA)
-- The orchestrator integrates; it does not code. A BUG done in its own slot held a finished item ~4 minutes and
-  doubled its context. (5FLQMNAA BUG-04)
+- The orchestrator coordinates; it does not code and does not answer items, not even a PI. A BUG done in its own slot
+  held a finished item ~4 minutes and doubled its context (5FLQMNAA BUG-04); a 13.5-minute PI-02 kept CR-07 from
+  ever starting (IPZ0U79E).
 - When the dev server does not show a change after one restart, verify on a production build and look at the source,
   not at compiled bundles. (5FLQMNAA BUG-01: ~10 minutes)
 - A brief that names another item ("right only on source that also contains the <ID> fixes"): the dependent's worker
@@ -68,11 +69,17 @@ Short rules learned from real matches. Each line names where it came from. They 
   tests): with time left, run the quality gate before submitting. (32PTEO8K TASK-08 84/100 at minute 12, TASK-07 35/50)
 - The organizer no longer marks heavy items: read the effort profile (board effort/heavy/heavyCandidate with reasons:
   large or compressed data, stated volume, cleaning traps, aggregated answers). (32PTEO8K TASK-10/12 profile XL)
-- The PI first, but assign every deadline item (start_work + spawn) in the moments the PI does not need you (while
-  its data is collected, between steps), and let a free s5 take a deadline item before a heavy item without a
-  deadline. (IPZ0U79E: CR-07 never started during a 13-minute PI with s3 free;
-  TASK-07 waited while s5 took TASK-12)
+- The PI first, but every deadline item is assigned in the same turn (a PI is handed over in one call), and a free
+  slot takes a deadline item before a heavy item without a deadline. (IPZ0U79E: CR-07 never started during a
+  13-minute PI with s3 free; TASK-07 waited while s5 took TASK-12)
 - Deadline items by least slack (minutes left minus the minutes the effort needs), not by wave: a 30-minute item
   done in 12-15 minutes can wait for a 15-minute one. (IPZ0U79E TASK-10 / TASK-07)
 - A clean finished item does not need the orchestrator: the helper submits it (AUTO_SUBMITTED) and suggests the next
   item for the slot, so a busy orchestrator (a PI) no longer delays submissions or refills.
+- A PI given to a freshly spawned worker took 20 minutes (6YOBNM4Z, 1.5.14: data collection queued behind other
+  calls, a new agent reading from scratch, no slot for the next PI). A PI goes to a PI agent that read INCIDENT.md
+  during preparation, in a PI slot of its own, with the data already collected by the helper.
+- Codex counts every agent thread, idle ones too ("agent thread limit reached" with 4 sub-agents, 6QYJQAVJ): keep a
+  fixed team and hand items over by follow-up instead of spawning one agent per item.
+- Six installs at once take 13 minutes each where one takes 1.5 (IPZ0U79E): two at a time, hard links for Yarn, and
+  the main install as the scout's first action.

@@ -31,10 +31,12 @@ MTM Player started a replacement orchestrator with fresh access. The previous se
 - Queued items live only in the previous orchestrator's context: re-plan the remaining items ("Wave planning") after
   handling the busy slots below. `<checkoutRoot>/.git/mtm/baseline.json` tells whether the baseline repair is in.
 - Slots: the board's `slots` (from `<checkoutRoot>/.git/mtm/slots.json`) survive the restart, workers do not.
+  First spawn the match team again (`fork_turns: "none"`): W1-W4 `team_feature_worker` for s1-s4, PA and PB
+  `team_incident_worker` for s5/s6 and the PI slots s7/s8 (team-orchestrator SKILL.md "Sub-agents").
   For each slot with an item: if `<slotMatchRoot>/.mtm-tmp/<ID>/DONE.json` exists and the slot is committed, call
-  `integrate_item`; otherwise `start_work` with the same `slot` (a replay that keeps the slot's work) and spawn a fresh
-  `team_feature_worker` (`fork_turns: "none"`) whose message adds: "Resume: inspect `git -C <worktreeRoot> log` and
-  `status`, keep valid work, finish the item." Never reset a slot that holds unintegrated work.
-  Slot s4 (role orchestrator) gets no worker: finish its item yourself ("Doing an item yourself") or integrate it.
+  `integrate_item`; otherwise `start_work` with the same `slot` (a replay that keeps the slot's work) and give it to
+  that slot's agent (a PI in s7/s8: PA or PB, with the PI message after `prepare_incident`) with a message that adds:
+  "Resume: inspect `git -C <worktreeRoot> log` and `status`, keep valid work, finish the item." Never reset a slot
+  that holds unintegrated work. You never work an item yourself.
 - Then continue with `.agents/skills/team-orchestrator/SKILL.md` (the loop). Do not end the turn while the match is
   IN_PROGRESS.
