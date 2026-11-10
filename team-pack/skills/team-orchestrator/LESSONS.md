@@ -91,3 +91,12 @@ Short rules learned from real matches. Each line names where it came from. They 
   reproduces, fixes and tests before answering.
 - A log search capped at 20 with no paging (YH6OAYMZ: 755 rule-engine entries) is swept by the helper with time
   prefixes; the PI agent made ~600 calls by hand before.
+- Parallel by default: queuing a deadline item behind a related item left two slots idle and the deadline item would
+  have closed before it started (TDAY8RSF BUG-02 behind BUG-01). A dependent item makes the fix it needs itself.
+- Status pings to working agents cost both sides a turn and slowed the items (BCYRV9M9: 20+ pings); a status line
+  between waits costs a full turn each (7GAZA14X); short wait yields cost ~41 % of all tokens (5FLQMNAA: 168 turns).
+- The official format so far: ~10 items, ~1000 points, ~40 minutes, 4-5 waves; deadline items close 8-30 minutes
+  after their reveal and accept nothing afterwards; the PI is ranked by submission time (100/90/75/60 %).
+- Each item is submitted once and graded per criterion, and an early non-PI submission earns nothing: items
+  submitted with defects left lost most of their points (32PTEO8K TASK-08/TASK-07: 31 points). Since 1.5.26 the
+  brief is a checklist and the helper submits by itself only when every box is ticked.

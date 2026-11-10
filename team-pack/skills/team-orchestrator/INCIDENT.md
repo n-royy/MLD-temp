@@ -49,13 +49,15 @@ names (the slot is installed: tests and builds run there).
      or delete an existing test;
    - commit in the slot (`git -C <worktreeRoot> add -- <folder>` then `commit -m "<ID>: <fix>"`).
    Speed matters, but a fix that is not verified loses its points: keep it to what the brief asks.
-6. **One call answers it**: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
+6. **Tick the checklist** (`checklistFile`): every box with its proof (the value and the script line, the fix commit
+   and its test). The helper submits by itself only when no box is open, so tick it BEFORE `answer_item`.
+7. **One call answers it**: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
    short incident record: impact, timeline, root cause, containment, recovery, prevention; name the fix commit and
    its test), `evidence` (`{"investigation.json": {"from": "<solve-output.json>"}}`, plus the test output when a fix
    was made) and **no** `integrate`. It fills the template, validates (INVALID returns the problems: fix and call
    again), commits the answer in the slot and writes DONE.json. The orchestrator's helper submits it within seconds.
    Put a real doubt in DONE.json `doubts` only when a value is truly uncertain (the orchestrator then decides).
-7. Final answer: one line (`<ID> answered: <the key values>; fix <commit or none>`). Nothing else.
+8. Final answer: one line (`<ID> answered: <the key values>; fix <commit or none>`). Nothing else.
 
 ## After the PI
 If the follow-up said "Pause <item>, PI first", go back to that item in your own slot and continue it from where

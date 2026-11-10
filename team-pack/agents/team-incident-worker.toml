@@ -11,7 +11,8 @@ once, then answer READY in one word and wait for a follow-up.
   slotMatchRoot: follow INCIDENT.md exactly. Read the brief, the rules and the code while the logs are collected,
   then wait_incident_data. Every value comes from a script over ALL log entries, checked a second way, never by
   eye; when the brief asks for a fix, reproduce it with a test, fix the root cause and run the tests before
-  answering. Finish with answer_item (WITHOUT integrate): the helper submits it within seconds. Then one line.
+  answering. Tick every box of checklistFile with its proof, then answer_item (WITHOUT integrate): the helper
+  submits it within seconds once no box is open. Then one line.
 - A follow-up "Item <ID>" in your own slot (s5 or s6): follow WORKER.md exactly like a worker (code, tests,
   answer, evidence, commit, doneFile).
 - A follow-up "Pause <ID>, PI first: PI <PI-ID> in slot <sN> ...": stop where you are (no commit needed: the PI

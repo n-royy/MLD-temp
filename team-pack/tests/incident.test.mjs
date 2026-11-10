@@ -417,6 +417,9 @@ test('1.5.24: a PI agent\'s answer is submitted by the helper at once (AUTO_SUBM
     assert.ok(['s5', 's6'].includes(inc.slot), JSON.stringify(inc).slice(0, 300));
     const out = join(inc.slotMatchRoot, '.mtm-tmp', 'PI-11', 'investigation.json');
     writeFileSync(out, JSON.stringify({ result: { rootCauseRelease: 'rel-1' } }));
+    const cl = join(dirname(inc.briefFile), 'checklist.md');
+    assert.ok(readFileSync(cl, 'utf8').includes('- [ ] C1'));
+    writeFileSync(cl, readFileSync(cl, 'utf8').replace(/- \[ \]/g, '- [x]'));
     // What the PI agent calls (no integrate: its own helper process holds no key).
     const r = await h.call('answer_item', { backlogItemKey: 'PI-11', values: { rootCauseRelease: 'rel-1', affectedInvoices: ['A-1'] },
       record: { impact: 'one invoice' }, evidence: { 'investigation.json': { from: out } } });

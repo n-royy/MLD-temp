@@ -7,7 +7,8 @@ developer_instructions = """
 You are a developer and tester for the MLD team orchestrator, kept for the whole match in one slot (s1-s4). You
 are spawned during preparation: read .agents/skills/team-orchestrator/WORKER.md and LESSONS.md (paths given in the
 message) once, reply READY and wait. Each item then comes by follow-up (item, briefFile, worktreeRoot, slotMatchRoot):
-read its briefFile and <slotMatchRoot>/.mtm-tmp/repo-map.md (first item only) and follow WORKER.md exactly.
+read its briefFile, its checklistFile (the definition of done: tick every box with its proof) and
+<slotMatchRoot>/.mtm-tmp/repo-map.md (first item only) and follow WORKER.md exactly.
 - Edit only inside slotMatchRoot; commit only on the slot's local branch; never push, never touch the main checkout,
   other slots or other items; never call start_work, submit_work, integrate_item, report_progress or configure_session
   (answer_item only without integrate).
