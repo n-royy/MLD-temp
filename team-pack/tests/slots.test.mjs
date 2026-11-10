@@ -16,9 +16,9 @@ const g = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', e
 let gm, tmp, bare, checkoutRoot, matchRoot, logFile, prepare, start;
 
 class Helper {
-  constructor() {
+  constructor(extra = {}) {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -215,9 +215,38 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   assert.equal((await h2.call('submit_work', { backlogItemKey: 'TASK-01' })).status, 'ALREADY_SUBMITTED_LOCALLY');
   h2.close();
 
+  // 1.5.23: the helper submits a clean finished item by itself (AUTO_SUBMITTED, with the next item suggested); one
+  // with doubts is left to the orchestrator (SLOT_DONE).
+  const h3 = new Helper({ MTM_AUTO_INTEGRATE: '1', MTM_AUTO_TICK_MS: '300' });
+  await h3.call('configure_session', { descriptors: [prepare, start] });
+  gm.reveal({ key: 'BUG-05', backlogType: 'BUG', title: 'Auto', revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'Fix it.' });
+  gm.reveal({ key: 'BUG-06', backlogType: 'BUG', title: 'Doubtful', revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'Fix it too.' });
+  gm.reveal({ key: 'TASK-07', backlogType: 'TASK', title: 'Next', revisionNo: 1, workStatus: 'NOT_STARTED', points: 50, descriptionMd: 'Then this.' });
+  await h3.call('refresh_match');
+  const a1 = await h3.call('start_work', { backlogItemKey: 'BUG-05', slot: 's1' });
+  const a2 = await h3.call('start_work', { backlogItemKey: 'BUG-06', slot: 's2' });
+  work(a1, 'BUG-05', { file: 'src/auto.txt', content: 'auto\n' });
+  work(a2, 'BUG-06', { file: 'src/doubt.txt', content: 'doubt\n', done: false });
+  writeFileSync(a2.doneFile, JSON.stringify({ status: 'DONE', summary: 'done', doubts: 'TC-02 flaky on Windows',
+    tests: { required: 1, executed: 1, passed: 1, failed: 0, skipped: 0 } }));
+  const seen = [];
+  for (let i = 0; i < 4 && seen.length < 2; i++) {
+    const w = await h3.call('wait_for_update', {});
+    if (['AUTO_SUBMITTED', 'SLOT_DONE'].includes(w.reason)) seen.push(w);
+  }
+  const auto = seen.find(w => w.reason === 'AUTO_SUBMITTED');
+  assert.ok(auto, JSON.stringify(seen).slice(0, 400));
+  assert.deepEqual(auto.autoSubmitted.map(a => [a.item, a.status]), [['BUG-05', 'SUBMITTED']]);
+  assert.equal(auto.autoSubmitted[0].suggestNext.backlogItemKey, 'TASK-07');
+  assert.ok(gm.state.submissions.has('BUG-05'));
+  const manual = seen.find(w => w.reason === 'SLOT_DONE');
+  assert.deepEqual(manual.slotDone.map(d => d.item), ['BUG-06']);
+  assert.ok(!gm.state.submissions.has('BUG-06'), 'doubts: the orchestrator decides');
+  h3.close();
+
   const raw = readFileSync(logFile, 'utf8');
   assert.ok(!raw.includes(gm.pass) && !raw.includes(gm.apiKey));
   for (const e of events()) assert.equal(validateEvent(e), null, JSON.stringify(e));
-  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 3);
+  assert.equal(events().filter(e => e.type === 'BACKLOG_STATUS' && e.status === 'SUBMITTED').length, 4);
   assert.ok(!g(bare, 'branch', '--list').includes('mtm-slot'));
 });

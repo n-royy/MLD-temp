@@ -72,3 +72,7 @@ Short rules learned from real matches. Each line names where it came from. They 
   its data is collected, between steps), and let a free s5 take a deadline item before a heavy item without a
   deadline. (IPZ0U79E: CR-07 never started during a 13-minute PI with s3 free;
   TASK-07 waited while s5 took TASK-12)
+- Deadline items by least slack (minutes left minus the minutes the effort needs), not by wave: a 30-minute item
+  done in 12-15 minutes can wait for a 15-minute one. (IPZ0U79E TASK-10 / TASK-07)
+- A clean finished item does not need the orchestrator: the helper submits it (AUTO_SUBMITTED) and suggests the next
+  item for the slot, so a busy orchestrator (a PI) no longer delays submissions or refills.

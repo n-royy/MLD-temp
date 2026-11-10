@@ -84,6 +84,11 @@ export function effortOf(item, peers = [], sizes = {}) {
 }
 // A deadline item with less time left than this is not offered as "waiting" (it cannot be finished).
 const WAITING_FLOOR_MINUTES = 4;
+// Minutes an item of each effort level needs from start to submission (least-slack ordering of deadline items).
+const NEED_MINUTES = { S: 6, M: 10, L: 15, XL: 20 };
+// The helper integrates and submits clean finished worker items by itself (MTM_AUTO_INTEGRATE=0 turns it off).
+const AUTO_INTEGRATE = process.env.MTM_AUTO_INTEGRATE !== '0';
+const AUTO_TICK_MS = Number(process.env.MTM_AUTO_TICK_MS) || 5000;
 const isIncident = item => (item?.backlogType ?? item?.type) === 'PI' || /^PI-/.test(item?.key ?? '');
 const SCHEMA_MODULE = join(dirname(fileURLToPath(import.meta.url)), 'schema.mjs');
 
@@ -443,7 +448,7 @@ export class MatchSession {
         items: this.#items().map(i => this.#boardItem(i)),
         ...(held => held.length ? { heldForPi: held } : {})(this.#slotSummary().filter(x => x.state === 'DONE_HELD_FOR_PI').map(x => x.item)),
         // Deadline items with no slot: they take the next free slot (any of s1-s3, s5; s4 for a TASK) before anything else.
-        ...(w => w.length ? { deadlineWaiting: w.map(({ key, minutesLeft }) => ({ key, minutesLeft })) } : {})(this.#hasSlots() ? this.#deadlineWaiting() : []),
+        ...(w => w.length ? { deadlineWaiting: w.map(({ key, minutesLeft, slack }) => ({ key, minutesLeft, slack })) } : {})(this.#hasSlots() ? this.#deadlineWaiting() : []),
         newItems,
         ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
         ...(this.#hasSlots() ? { slots: this.#slotSummary() } : {})
@@ -640,6 +645,7 @@ export class MatchSession {
     const ms = Date.now() < (this.soonUntil ?? 0) && Number.isFinite(t) ? Math.min(Math.max(t, 5000), 240000) : 240000;
     // noWait: one pass without sleeping (the orchestrator checks for events between steps of its own item in s4).
     const deadline = noWait ? Date.now() : Date.now() + ms;
+    this.#watchSlots();
     if (!this.projection) await this.#getProjection();
     const before = this.signature ?? this.#signature();
     let lastFull = Date.now();
@@ -654,8 +660,12 @@ export class MatchSession {
       if (soonFirst.length) { this.soonUntil = Date.now() + 300000; return { changed: true, reason: 'DEADLINE_SOON', deadlineSoon: soonFirst, board: this.#board([]) }; }
       const pi = await this.#incidentUpdate(this.#piWaitMs(noWait), this.peekFresh ?? []);
       if (pi) { this.peekFresh = []; return pi; }
+      if (this.autoResults?.length) {
+        const auto = this.autoResults.splice(0).map(a => ({ ...a, suggestNext: this.#suggestNext(a.slot, a.includedFixes) }));
+        return { changed: true, reason: 'AUTO_SUBMITTED', autoSubmitted: auto, board: this.#board([]) };
+      }
       const done = this.#newSlotResults();
-      if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done, board: this.#board([]) };
+      if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done.map(d => ({ ...d, suggestNext: this.#suggestNext(d.slot) })), board: this.#board([]) };
       const finished = this.#jobsFinished();
       if (finished.length) return { changed: true, reason: 'JOBS_DONE', jobs: finished, board: this.#board([]) };
       const soon = this.#deadlineSoon();
@@ -1137,7 +1147,10 @@ export class MatchSession {
       .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i),
         heavy: this.#isHeavy(i), effort: this.#effort(i).level, gradingKind: this.#gradingKind(i),
         wave: this.#revealSec(i), deadline: Number(i.deadlineMinutes ?? 0), points: Number(i.points ?? 0) }))
-      .sort((a, b) => a.wave - b.wave || a.deadline - b.deadline || b.points - a.points);
+      // Least slack first (minutes left minus the minutes its effort level needs), then the earlier wave, the shorter
+      // deadline, more points (TASK-10: 30 at minute 7, XL; TASK-07: 15 at minute 20: TASK-10 has less slack).
+      .map(d => ({ ...d, slack: Math.round((d.minutesLeft - (NEED_MINUTES[d.effort] ?? 10)) * 10) / 10 }))
+      .sort((a, b) => a.slack - b.slack || a.wave - b.wave || a.deadline - b.deadline || b.points - a.points);
   }
 
   /** When the item was revealed (seconds into the match), from whichever field the projection gives. */
@@ -1332,6 +1345,8 @@ export class MatchSession {
       if (s.reported === sig) continue;
       // While a PI is open, a finished item without a deadline waits until it is submitted.
       if (this.#heldForPi(s.item, hold)) continue;
+      // The helper submits it by itself (#autoTick) unless that already failed.
+      if (!s.autoError) { try { if (this.#autoEligible(s, JSON.parse(raw.replace(/^\uFEFF/, '')))) continue; } catch { /* reported below */ } }
       s.reported = sig;
       s.state = 'DONE';
       let doneAt = null;
@@ -1352,10 +1367,87 @@ export class MatchSession {
             ...(d.qualityGate?.summary ? { summary: clip(String(d.qualityGate.summary), 200) } : {}) };
         }
       } catch { result = { error: 'DONE.json is not valid JSON' }; }
-      out.push({ slot: s.name, item: s.item, ...result });
+      out.push({ slot: s.name, item: s.item, ...result, ...(s.autoError ? { autoIntegrateError: s.autoError } : {}) });
     }
     if (out.length) this.#saveSlots(all);
     return out;
+  }
+
+  /**
+   * A finished worker item the helper may submit by itself (1.5.23): DONE, no doubts, its quality gate PASS when one
+   * applies, not a PI and not the orchestrator's own slot s4. Anything else is reported as SLOT_DONE for a decision.
+   * IPZ0U79E / SC0E8AV2: finished items waited minutes for an orchestrator busy with a PI.
+   */
+  #autoEligible(slot, d) {
+    if (!AUTO_INTEGRATE || slot.name === OWN_SLOT || !d || typeof d !== 'object') return false;
+    const item = this.#items().find(i => i.key === slot.item);
+    if (!item || isIncident(item) || item.submission) return false;
+    if (String(d.status ?? '').toUpperCase() !== 'DONE' || (d.doubts && String(d.doubts).trim())) return false;
+    if (this.#gradingKind(item) && String(d.qualityGate?.status ?? '').toUpperCase() !== 'PASS') return false;
+    return true;
+  }
+
+  /** Background pass (every few seconds during the game): integrates and submits every eligible finished item. */
+  #watchSlots() {
+    if (this.autoTimer || !AUTO_INTEGRATE) return;
+    this.autoTimer = setInterval(() => { this.#autoTick().catch(() => null); }, AUTO_TICK_MS);
+    this.autoTimer.unref?.();
+  }
+
+  async #autoTick() {
+    if (this.autoBusy || this.cfg?.phase !== 'GAME' || !this.#hasSlots()) return;
+    this.autoBusy = true;
+    try {
+      const hold = this.#piHold();
+      for (const sl of Object.values(this.#slots())) {
+        if (!sl.item) continue;
+        const f = join(sl.matchRoot, SCRATCH, sl.item, 'DONE.json');
+        if (!existsSync(f)) continue;
+        let raw, d;
+        try { raw = readFileSync(f, 'utf8'); d = JSON.parse(raw.replace(/^\uFEFF/, '')); } catch { continue; }
+        const sig = sha256(raw);
+        if (sl.autoSig === sig || !this.#autoEligible(sl, d)) continue;
+        // While a PI is open, a no-deadline item waits (the PI's own submission must not queue behind it).
+        if (this.#heldForPi(sl.item, hold)) continue;
+        const key = sl.item;
+        const all = this.#slots(); all[sl.name] = { ...all[sl.name], autoSig: sig }; this.#saveSlots(all);
+        try {
+          const res = await this.integrateItem({ backlogItemKey: key });
+          const ok = res.status === 'SUBMITTED' || res.status === 'ALREADY_SUBMITTED_LOCALLY';
+          this.#timeline('AUTO_INTEGRATED', key, { slot: sl.name, status: res.status });
+          (this.autoResults ??= []).push({ slot: sl.name, item: key, status: res.status, ...(res.submissionId ? { submissionId: res.submissionId } : {}),
+            ...(ok ? {} : { note: 'not submitted: decide (integrate_item again or followup_task)' }),
+            includedFixes: Array.isArray(d.includedFixes) ? d.includedFixes.filter(k => KEY.test(String(k))) : [] });
+        } catch (error) {
+          // The orchestrator decides: reported once as SLOT_DONE with the error.
+          const again = this.#slots();
+          if (again[sl.name]?.item === key) { again[sl.name] = { ...again[sl.name], autoError: { code: error.code ?? 'INTEGRATE_FAILED', message: clip(String(error.message), 300) } }; this.#saveSlots(again); }
+          this.#timeline('AUTO_INTEGRATE_FAILED', key, { slot: sl.name, code: error.code ?? null });
+        }
+      }
+    } finally { this.autoBusy = false; }
+  }
+
+  /**
+   * What the freed slot should take next, in the team's priority: deadline items (least slack first; PIs are started
+   * by the helper itself), then for s5 a heavy item, then an item whose fix the finished worker already made
+   * (includedFixes: the same worker continues it), then the most points per effort. Advice only.
+   */
+  #suggestNext(slotName, includedFixes = []) {
+    const waiting = this.#deadlineWaiting().filter(d => this.#fitsSlot(d, slotName));
+    if (waiting.length) return { backlogItemKey: waiting[0].key, why: `deadline, ${waiting[0].minutesLeft} min left`, worker: 'team_feature_worker' };
+    if (slotName === OWN_SLOT) return null;
+    const open = this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
+      && !this.#slotOf(i.key) && !(this.startedKeys?.has(i.key)) && this.#minutesLeft(i) === null);
+    if (slotName === HEAVY_SLOT) {
+      const heavy = open.find(i => this.#isHeavy(i));
+      if (heavy) return { backlogItemKey: heavy.key, why: 'heavy item', worker: 'team_heavy_worker' };
+    }
+    const chain = open.find(i => includedFixes.includes(i.key) && !this.#isHeavy(i));
+    if (chain) return { backlogItemKey: chain.key, why: 'its fix is already on the branch from the finished item: followup_task to the same worker', worker: 'same' };
+    const rank = i => Number(i.points ?? 0) / ({ S: 1, M: 1.5, L: 2.5, XL: 4 }[this.#effort(i).level] ?? 2);
+    const best = open.filter(i => !this.#isHeavy(i) || slotName === HEAVY_SLOT).sort((a, b) => rank(b) - rank(a))[0];
+    return best ? { backlogItemKey: best.key, why: 'most points per effort', worker: 'team_feature_worker' } : null;
   }
 
   /**
@@ -1417,7 +1509,13 @@ export class MatchSession {
     return out;
   }
 
-  async integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null }) {
+  /** One integration at a time (the helper's own and the orchestrator's share the main checkout). */
+  integrateItem(args) {
+    const run = this.integrationChain = (this.integrationChain ?? Promise.resolve()).catch(() => null).then(() => this.#integrateItem(args));
+    return run;
+  }
+
+  async #integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null }) {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'integrate_item is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
@@ -1486,7 +1584,7 @@ export class MatchSession {
 
   #releaseSlot(name, key) {
     const all = this.#slots();
-    all[name] = { ...all[name], item: null, lastItem: key, state: 'FREE', reported: null };
+    all[name] = { ...all[name], item: null, lastItem: key, state: 'FREE', reported: null, autoSig: null, autoError: null };
     this.#saveSlots(all);
   }
 

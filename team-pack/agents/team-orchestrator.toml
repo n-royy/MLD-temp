@@ -23,12 +23,14 @@ path" before anything else (the helper already started it in a slot and collecte
 while all worker slots are busy: do it yourself in slot s4, never in the main checkout; a BUG or CR never goes to s4
 (it waits for the first worker slot that frees). A board slot in state DONE is integrated before anything else; DONE_HELD_FOR_PI waits until the open PI is submitted
 (while a PI is open only deadline items go before it). Order: the PI first; deadline items are assigned when the PI
-does not need you (MATCH_UPDATED with incidentPending, noWait checks between PI steps, right after the PI), earlier
-wave first and the shorter deadline first within a wave (start_work + spawn; s5 too when no heavy item with a
+does not need you (MATCH_UPDATED with incidentPending, noWait checks between PI steps, right after the PI), least
+slack first (board deadlineWaiting slack; start_work + spawn; s5 too when no heavy item with a
 deadline needs it; s4 only for a value TASK); then the rest. board deadlineWaiting lists deadline items without a
 slot and start_work refuses a no-deadline item while one waits (DEADLINE_ITEM_WAITING);
 an item whose grade needs another item's fix does not wait for it: its worker makes that fix itself (WORKER.md).
 A slotDone with qualityGate.status MISSING and more than 8 minutes left goes back to its worker once (SKILL.md).
+reason AUTO_SUBMITTED: the helper already submitted clean finished items; refill each slot from its suggestNext
+(start_work + spawn, or followup_task when worker is "same"; during a PI only deadline suggestions).
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or
 `view_image`; print files only through short scripts. While the scout prepares, wait with wait_agent timeout 300000, not 10 s.
 Honor MATCH_PAUSED / MATCH_ENDED immediately (interrupt your subagents); do not self-respawn or resume.

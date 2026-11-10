@@ -83,6 +83,8 @@ CR-07 waited for BUG-11 three times and scored 73, 0 and 0).
 5. If the other item lands while you work, rebase: keep its version where both changed the same lines (its worker
    proved it with its own scenarios), rerun your checks. If your fix and its fix differ in a way that changes your
    values, say so in one line in DONE.json.
+   Name every item whose fix your commits include in DONE.json `includedFixes` (e.g. `["BUG-11"]`): the helper then
+   proposes that item to you next (its fix is already on the branch; you add its own answer and evidence).
 6. Never submit FAIL, NOT_RUN or a value "computed elsewhere" because the other item has not landed (32PTEO8K: CR-07
    reported TC-02 FAIL "BUG-11 defects remain in this source" and lost 27 points).
 
@@ -280,7 +282,9 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
 6. Run `validateCommand` (same checks as `validate_answer`); fix until it prints `"valid":true`.
 7. Commit source + tests + answer + evidence. `git -C <worktreeRoot> status --porcelain` must be empty.
 8. Write `doneFile` LAST (it tells the orchestrator you are finished), with Node or `apply_patch`:
-   `{"status":"DONE|PARTIAL|BLOCKED","tests":{"required":n,"executed":n,"passed":n,"failed":n,"skipped":n,"summary":"one line"},"summary":"one line","doubts":"optional one line"}`
+   `{"status":"DONE|PARTIAL|BLOCKED","tests":{"required":n,"executed":n,"passed":n,"failed":n,"skipped":n,"summary":"one line"},"summary":"one line","doubts":"optional one line","includedFixes":["optional <ID>"]}`
+   A DONE with no `doubts` (and the quality gate PASS when your item has one) is submitted by the helper at once,
+   without the orchestrator: write `doubts` only for something the orchestrator must decide.
    `tests` counts test cases = the template rows (`required` = number of rows; `executed`/`passed`/`failed` = rows
    run/PASS/FAIL), never the number of unit tests, suite tests, builds or typechecks. The helper recounts from the
    committed answer rows anyway; existing-suite results go into `summary` and the engineering record as text.

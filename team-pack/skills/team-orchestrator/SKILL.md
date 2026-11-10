@@ -44,8 +44,10 @@ small: never paste briefs, diffs or logs into it.
   your history). Do not set model or reasoning effort. Up to 5 agents run at once including you: at most 3 workers for
   s1-s3 and one heavy worker for s5 (heavy items only, agent type `team_heavy_worker`).
 - **One worker per item, all worker slots (s1-s3) busy** (see "Wave planning"). A worker may get a second item in
-  the same slot (`integrate_item` with `next`, then `followup_task`) only for a queued no-deadline item when that
-  slot is the first to free; it keeps its running server and knowledge of the code. Otherwise spawn a fresh worker.
+  the same slot (`integrate_item` with `next`, or `start_work` in that slot after `AUTO_SUBMITTED`, then
+  `followup_task`) only for a queued no-deadline item when that slot is the first to free, or when `suggestNext.worker`
+  is `"same"` (the finished item already carries that item's fix: `includedFixes`); it keeps its running server and
+  knowledge of the code. Otherwise spawn a fresh worker.
 - Spawn message (keep it this short; the worker reads everything else from files):
   ```
   Item <ID> (<TYPE>) in slot <sN> (index <n>). briefFile: <path>. worktreeRoot: <path>. slotMatchRoot: <path>.
@@ -116,10 +118,11 @@ When a wave appears (game start, or `newItems` on the board):
      `noWait: true`: `board.deadlineWaiting` not empty and a slot free → start + spawn it in one cell, then the
      next PI step; (c) right after the PI is submitted. A deadline item left unassigned during a PI is lost
      (IPZ0U79E: CR-07, deadline 20, never started although s3 stood free for the 13 minutes of PI-02; 0/100).
-   - **Deadline order**: earlier wave first; within a wave the shorter deadline first (20 before 30), then more
-     points. A later wave's item never jumps ahead of an unstarted item of an earlier wave, even with a shorter
-     deadline (a 15-minute item revealed at minute 20 comes after a 30-minute item revealed at minute 7, which may
-     take 12-15 minutes; IPZ0U79E TASK-10 / TASK-07). `board.deadlineWaiting` is already in this order. Slots for
+   - **Deadline order: least slack first** - slack = minutes left minus the minutes the item needs (effort S 6,
+     M 10, L 15, XL 20); ties: earlier wave, then the shorter deadline, then more points. An item with time to spare
+     waits for one that is about to become impossible, whatever its wave (IPZ0U79E: TASK-10, deadline 30, done in
+     12-15 minutes; TASK-07, deadline 15, waited). `board.deadlineWaiting` is already in this order (`slack` per
+     item). Slots for
      them: s1-s3, and s5 when no heavy item with a deadline holds or needs it; s4 only for a value TASK (no
      `gradingKind`, effort S or M) - a test suite, a data pack or a BUG/CR goes to a worker.
    - **The rest** by points per expected effort (CR/BUG usually before TASK). Deadline minutes count from reveal;
@@ -205,7 +208,8 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    (tickets/logs/monitoring for PI/BUG, `get_test_data` / `kb_search` style tools for formats and expected values).
 4. `spawn_agent` (team_feature_worker, `fork_turns: "none"`) with the short spawn message, one per item. Do steps 2-4
    for all new items in as few calls as possible (one `exec` cell for the helper calls, then the spawns).
-5. Wait with `wait_for_update` (blocks up to 4 minutes; returns early on a new item, a status change, pause/end, or
+5. Wait with `wait_for_update` (blocks up to 4 minutes; returns early on a new item, a status change, pause/end,
+   `reason: "AUTO_SUBMITTED"` (step 6a), or
    `reason: "SLOT_DONE"` with `slotDone[]` when a worker wrote its DONE.json, or `reason: "DEADLINE_SOON"` when a busy
    item is 3 minutes from its deadline or the match end: go to "Safety net"). Call it again and again **without
    writing any message in between** - no status lines, no "still waiting", nothing (7GAZA14X: a line every minute
@@ -221,7 +225,17 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    `wait` returns as soon as the cell ends, so a long yield costs no time, while every short one (1000, 10000,
    60000) is a full model turn over your whole context (5FLQMNAA: 168 orchestrator turns, ~41 % of all tokens,
    mostly re-checks). Never use the `sleep` tool and never `wait_agent` to wait for workers.
+6a. On `AUTO_SUBMITTED` (`autoSubmitted[]`): the helper already integrated and submitted those items itself (a clean
+   DONE.json: status DONE, no `doubts`, the quality gate PASS when the item has one; never s4 or a PI). Nothing to
+   check or integrate. For each entry refill its slot from `suggestNext` in one cell: `start_work` with that
+   `backlogItemKey` and the entry's `slot`, then `spawn_agent` (`worker` names the agent type) or, when `worker` is
+   `"same"`, `followup_task` the same worker with the follow-up message ("its fix is already on the branch"). While a
+   PI is open act only on a deadline suggestion (`why` starts with `deadline`); `suggestNext` null or not wanted:
+   refill from the board as in step 7. No-deadline items finished during a PI are submitted right after it.
+   A DONE.json with `doubts`, a missing or PARTIAL quality gate, PARTIAL/BLOCKED, or a failed auto-submission
+   (`autoIntegrateError` on the `slotDone` entry, e.g. `INTEGRATION_CONFLICT`) still comes as `SLOT_DONE`: step 6.
 6. On `SLOT_DONE`: `integrate_item` with `backlogItemKey`, and `next` = the item queued for that slot, if any
+   (or the entry's `suggestNext`)
    (test counts come from the answer's template rows; pass `acknowledgeTestChanges`
    only when DONE.json gives that reason and the brief allows the test change). It checks the slot is committed and
    stays inside the assigned folder, runs `git pull --rebase`, cherry-picks the slot commits, pushes (never force),
@@ -291,7 +305,8 @@ call at a time cost minutes, so the helper does the mechanical part the moment t
 plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
 with `incident` before any other reason. From then on the PI comes first: integrations and spawns of items
 **without a deadline** wait until it is submitted. Only these may go before it: a `DEADLINE_SOON` safety net and a
-`SLOT_DONE` of a deadline item (board `minutesLeft`), and **starting a deadline item in a free slot**: while you
+`SLOT_DONE` of a deadline item (board `minutesLeft`), an `AUTO_SUBMITTED` deadline item (the helper submits clean
+deadline items during the PI by itself; refill only from a deadline `suggestNext`), and **starting a deadline item in a free slot**: while you
 work the PI, call `wait_for_update` with `noWait: true` between steps and, when `board.deadlineWaiting` is not
 empty and a slot is free, `start_work` + spawn it at once (one cell) before the next PI step. The helper
 enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for those; any other finished slot shows

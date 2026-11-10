@@ -83,7 +83,7 @@ let gm, tmp, prepare, start, matchRoot;
 class Helper {
   constructor() {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -381,11 +381,12 @@ test('1.5.21: no dependency scheduling; the brief carries every other item in ba
     assert.equal(refused.error?.code, 'DEADLINE_ITEM_WAITING', JSON.stringify(refused));
     assert.deepEqual(refused.error.details?.waiting?.map(w => w.key) ?? refused.error.waiting?.map(w => w.key), ['CR-17']);
     assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(w => w.key), ['CR-17']);
-    // Deadline order: earlier wave first, then the shorter deadline within a wave (a later short one does not jump ahead).
+    // 1.5.23 deadline order: least slack first (minutes left minus what its effort needs), then the earlier wave.
     gm.reveal({ key: 'TASK-31', backlogType: 'TASK', title: 'Late short', deadlineMinutes: 10, revealedElapsedSec: 690, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'x' });
     gm.reveal({ key: 'TASK-30', backlogType: 'TASK', title: 'Same wave longer', deadlineMinutes: 30, revealedElapsedSec: 600, revisionNo: 1, workStatus: 'NOT_STARTED', descriptionMd: 'x' });
     await h.call('refresh_match');
-    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(w => w.key), ['CR-17', 'TASK-30', 'TASK-31']);
+    const dw = (await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting;
+    assert.deepEqual(dw.map(w => w.key), ['TASK-31', 'CR-17', 'TASK-30'], JSON.stringify(dw));
     gm.state.backlog = gm.state.backlog.filter(i => !['TASK-30', 'TASK-31'].includes(i.key));
     await h.call('refresh_match');
     const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
