@@ -312,7 +312,7 @@ test('slot s5 is the heavy worker slot; a PI is never placed there', async () =>
     gm.state.clock = { elapsedSec: 1000, remainingSec: 1400 };
     gm.reveal({ key: 'CR-11', backlogType: 'CR', title: 'Migrate all reports', deadlineMinutes: null, revealedElapsedSec: 1000, revisionNo: 1, workStatus: 'NOT_STARTED', description: HEAVY_DESC });
     await h.call('refresh_match');
-    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5' });
+    const s = await h.call('start_work', { backlogItemKey: 'CR-11', slot: 's5', force: true }); // earlier tests left deadline items
     assert.equal(s.slot, 's5'); assert.equal(s.heavy, true);
     // Every other slot busy, s5 busy too: a new PI gets no slot rather than s5.
     const board = await h.call('refresh_match');
@@ -374,12 +374,17 @@ test('1.5.21: no dependency scheduling; the brief carries every other item in ba
     const by = Object.fromEntries(board.items.map(i => [i.key, i]));
     assert.equal(by['CR-17'].dependsOn, undefined); assert.equal(by['BUG-21'].prerequisiteOf, undefined);
     assert.equal(by['BUG-21'].effectiveMinutesLeft, undefined); assert.equal(by['BUG-21'].minutesLeft, undefined);
+    // 1.5.22: a no-deadline item never takes a slot while a deadline item waits for one.
+    const refused = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
+    assert.equal(refused.error?.code, 'DEADLINE_ITEM_WAITING', JSON.stringify(refused));
+    assert.deepEqual(refused.error.details?.waiting?.map(w => w.key) ?? refused.error.waiting?.map(w => w.key), ['CR-17']);
+    assert.deepEqual((await h.call('wait_for_update', { noWait: true })).board.deadlineWaiting.map(w => w.key), ['CR-17']);
+    const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
     const bug = await h.call('start_work', { backlogItemKey: 'BUG-21', slot: 's1' });
     const task = await h.call('start_work', { backlogItemKey: 'TASK-25', slot: 's2' });
-    const cr = await h.call('start_work', { backlogItemKey: 'CR-17', slot: 's3' });
     const crBrief = JSON.parse(readFileSync(cr.briefFile, 'utf8'));
     assert.equal(crBrief.dependsOn, undefined);
-    assert.deepEqual(crBrief.otherItems.map(d => [d.key, d.state]), [['BUG-21', 'IN_PROGRESS'], ['TASK-25', 'IN_PROGRESS']]);
+    assert.deepEqual(crBrief.otherItems.map(d => [d.key, d.state]), [['BUG-21', 'NOT_STARTED'], ['TASK-25', 'NOT_STARTED']]);
     assert.match(readFileSync(crBrief.backlogFile, 'utf8'), /## BUG-21[\s\S]*reversed entries/);
     const bugBrief = JSON.parse(readFileSync(bug.briefFile, 'utf8'));
     assert.equal(bugBrief.stopBy && bugBrief.deadlineAt, null, 'a no-deadline item has no deadline of anyone else');

@@ -90,7 +90,8 @@ data-cleaning traps, aggregated answers, points above the same type, a long mult
 `SUITE_DETECTION`, `DATA_REQUIREMENTS`, `OFFICIAL_DATA`). Every brief also carries `grading`, the organizer's own
 scoring text, so a worker plans from it for an item of a kind no playbook names. The organizer does not mark heavy
 items: the profile is the signal. Decide with it in this order, for every item:
-1. **Urgency**: PI (by you), then deadline items, nearest deadline first, then the rest. An item named by a deadline
+1. **Urgency**: PI (by you), then deadline items, nearest deadline first, then the rest. Deadline items are
+   *assigned* before you start working the PI (seconds), see "Order" below. An item named by a deadline
    item is not scheduled earlier for that: the deadline item's worker makes the fix it needs itself (WORKER.md
    "Your item needs another item's changes").
 2. **Effort**: `heavy` goes to the s5 heavy worker at once; `heavyCandidate` goes to s5 when s5 is free, otherwise
@@ -102,9 +103,17 @@ items: the profile is the signal. Decide with it in this order, for every item:
 When a wave appears (game start, or `newItems` on the board):
 1. **Read once** `<matchRoot>/.mtm-tmp/repo-map.md` (first wave only) and the compact board entries. Do not open
    briefs or code.
-2. **Order:** **PI first, immediately, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0); then deadline items, nearest deadline first (deadline
-   minutes count from reveal; skip only an item that cannot be finished in time); then the highest points per
-   expected effort (CR/BUG usually before TASK).
+2. **Order:** in the first cell of the wave, `start_work` + `spawn_agent` for **every deadline item** (nearest
+   deadline first) in the free slots: worker slots s1-s3, and **s5 too when no heavy item with a deadline needs it**.
+   Then **the PI, by you** ("Incident fast path"; race 100/90/75/60 %, FAILED = 0): the helper is already collecting
+   its data, so assigning first costs seconds, while a deadline item left unassigned during a PI is lost (IPZ0U79E:
+   CR-07, deadline 20, never started although s3 stood free for the 13 minutes of PI-02; 0/100). Then the rest by
+   points per expected effort (CR/BUG usually before TASK). Deadline minutes count from reveal; skip only an item
+   that cannot be finished in time.
+   **The helper enforces it**: the board lists `deadlineWaiting` (deadline items without a slot), and `start_work`
+   of an item **without** a deadline answers `DEADLINE_ITEM_WAITING` while one waits that fits the slot (s4 takes no
+   BUG/CR): start the waiting deadline item there instead. `force: true` only for a deadline item that cannot be
+   finished in time (say so in your plan line).
    **An item whose grade needs another item's fix** (its brief says e.g. "right only on source that also contains
    the <ID> fixes") keeps its own place in this order and does not wait for the other item: its worker makes that
    fix itself from the start, in its own commit (WORKER.md "Your item needs another item's changes"; 32PTEO8K /
@@ -132,6 +141,12 @@ When a wave appears (game start, or `newItems` on the board):
    - One heavy item at a time in s5. A second heavy item while s5 is busy waits for s5 (`integrate_item` with `next`
      when the first one is submitted); if a worker slot s1-s3 is free and no other open item waits for one, it may
      take that slot instead (same spawn note).
+   - **s5 serves deadline items before a heavy item without a deadline** (IPZ0U79E: when TASK-10 was submitted, s5
+     took TASK-12, heavy, no deadline, while TASK-07, deadline 15, waited; 0/50). When s5 frees (or is free) and
+     `deadlineWaiting` is not empty, the nearest deadline item takes s5: `integrate_item` with `next` = that item
+     (or `start_work` with `slot: "s5"`), and spawn a **`team_feature_worker`** for it (the heavy worker type is for
+     heavy items). The heavy item without a deadline waits for the next free slot. A heavy item **with** a deadline
+     keeps its claim on s5.
    - No s5 (preparation created only 4 slots) or `spawn_agent` refuses a 5th agent: the heavy item takes a worker
      slot after every other open item is started, or your s4 when s1-s3 are busy (work it in short steps and call
      `wait_for_update` with `noWait: true` after each row, handling events first).
@@ -215,6 +230,8 @@ Repeat until a `MATCH_ENDED`/`MATCH_PAUSED` frame arrives or `refresh_match` sho
    - DONE.json status `BLOCKED` with no usable work: `report_progress` `BACKLOG_STATUS` `BLOCKED`, `release_slot`.
    When the result has `next`, call `company_tool_call` (`saveToSlot`) for that item if needed, then `followup_task`
    the same worker with the follow-up message; on `nextError` start that item in any free slot instead.
+   `nextError.code` `DEADLINE_ITEM_WAITING`: the slot is free; start the deadline item it names there (`start_work`
+   + a fresh `team_feature_worker`), and queue the no-deadline item for a later slot.
    Submitted answers are final: do not re-audit them afterwards.
    **Quality gate:** a `slotDone` entry with `qualityGate.status: "MISSING"` (the brief named a gate: suite scored
    by broken builds, data requirements, official data / hidden tests) and `qualityGate.minutesLeft` above 8: do not
@@ -259,7 +276,9 @@ call at a time cost minutes, so the helper does the mechanical part the moment t
 plus the incident rules into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`. `wait_for_update` returns `reason: "NEW_PI"`
 with `incident` before any other reason. From then on the PI comes first: integrations and spawns of items
 **without a deadline** wait until it is submitted. Only these may go before it: a `DEADLINE_SOON` safety net and a
-`SLOT_DONE` of a deadline item (board `minutesLeft`). The helper
+`SLOT_DONE` of a deadline item (board `minutesLeft`), and **starting a deadline item in a free slot**: while you
+work the PI, call `wait_for_update` with `noWait: true` between steps and, when `board.deadlineWaiting` is not
+empty and a slot is free, `start_work` + spawn it at once (one cell) before the next PI step. The helper
 enforces it: while a PI is open, `wait_for_update` reports `SLOT_DONE` only for those; any other finished slot shows
 `DONE_HELD_FOR_PI` (listed in `board.heldForPi`) and is reported right after the PI is submitted (at most 8 minutes
 after the PI appeared).

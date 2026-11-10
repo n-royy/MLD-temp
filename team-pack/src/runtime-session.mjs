@@ -427,6 +427,8 @@ export class MatchSession {
         match: { status: m.status ?? null, ...(left !== null ? { minutesLeft: left } : {}) },
         items: this.#items().map(i => this.#boardItem(i)),
         ...(held => held.length ? { heldForPi: held } : {})(this.#slotSummary().filter(x => x.state === 'DONE_HELD_FOR_PI').map(x => x.item)),
+        // Deadline items with no slot: they take the next free slot (any of s1-s3, s5; s4 for a TASK) before anything else.
+        ...(w => w.length ? { deadlineWaiting: w.map(({ key, minutesLeft }) => ({ key, minutesLeft })) } : {})(this.#hasSlots() ? this.#deadlineWaiting() : []),
         newItems,
         ...(this.incidents?.size ? { incidents: [...this.incidents.values()].map(e => ({ key: e.key, state: !e.done ? 'PREPARING' : e.result?.error ? 'ERROR' : e.reported ? 'REPORTED' : 'READY', slot: e.result?.slot ?? null })) } : {}),
         ...(this.#hasSlots() ? { slots: this.#slotSummary() } : {})
@@ -747,7 +749,7 @@ export class MatchSession {
       .map(([s, p]) => `${s} ${p}`);
   }
 
-  async startWork({ backlogItemKey, slot }) {
+  async startWork({ backlogItemKey, slot, force = false }) {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'Start Work is only allowed after START_GAME');
     if (!c.apiKey) fail('API_KEY_UNAVAILABLE', 'configure_session with the START_GAME descriptor first');
@@ -755,6 +757,7 @@ export class MatchSession {
     const target = slot ? this.#claimSlot(slot, backlogItemKey) : null; // checked before Start Work is sent
     if (!this.projection) await this.#getProjection();
     if (target?.name === OWN_SLOT && target.item !== backlogItemKey) this.#checkOwnSlot(backlogItemKey);
+    if (target && target.item !== backlogItemKey && !force) this.#checkDeadlineFirst(backlogItemKey, target.name);
     this.#discover(); // a projection loaded before START_GAME has not been discovered yet
     const url = this.#endpoint('start');
     const body = JSON.stringify({ backlogItemKey });
@@ -1068,6 +1071,31 @@ export class MatchSession {
       ? `${key} is a ${type}: start it in the free worker slot ${free.name} and spawn a worker`
       : `${key} is a ${type}: s4 is only for PI and value TASKs. Queue it for the first worker slot that frees ` +
         '(integrate_item with next) and keep integrating.', { freeWorkerSlot: free?.name ?? null });
+  }
+
+  /**
+   * Open deadline items that no slot works on yet (PIs excluded: the helper starts those itself), nearest first.
+   * IPZ0U79E (1.5.21): CR-07 (deadline 20) was never started while s3 stood free during the PI; when the heavy slot
+   * freed, a heavy item without a deadline took it while TASK-07 (deadline 15) waited, and the orchestrator did
+   * TASK-06 (no deadline) itself in s4.
+   */
+  #deadlineWaiting() {
+    return this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
+      && !this.#slotOf(i.key) && (this.#minutesLeft(i) ?? 0) > 0)
+      .map(i => ({ key: i.key, type: String(i.backlogType ?? i.type ?? i.key.split('-')[0]).toUpperCase(), minutesLeft: this.#minutesLeft(i), heavy: this.#isHeavy(i) }))
+      .sort((a, b) => a.minutesLeft - b.minutesLeft);
+  }
+
+  /** A slot never takes an item without a deadline while a deadline item that fits that slot waits (force: true overrides). */
+  #checkDeadlineFirst(key, slotName) {
+    const item = this.#items().find(i => i.key === key);
+    if (!item || isIncident(item) || this.#minutesLeft(item) !== null) return;
+    const fits = d => slotName !== OWN_SLOT || !['BUG', 'CR'].includes(d.type) || d.heavy; // s4 takes no BUG/CR
+    const waiting = this.#deadlineWaiting().filter(fits);
+    if (!waiting.length) return;
+    fail('DEADLINE_ITEM_WAITING', `${waiting[0].key} has a deadline (${waiting[0].minutesLeft} min left) and no slot: start it in ` +
+      `${slotName} instead of ${key} (no-deadline items wait; pass force: true only when it cannot be finished in time).`,
+      { waiting: waiting.map(({ key: k, minutesLeft }) => ({ key: k, minutesLeft })) });
   }
 
   #claimSlot(name, key) {
