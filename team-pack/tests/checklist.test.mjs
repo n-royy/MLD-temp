@@ -1,7 +1,7 @@
 // 1.5.26: the brief as a checklist, built only from the organizer's text (any kind of item).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildChecklist, openBoxes, weakBoxes } from '../src/checklist.mjs';
+import { buildChecklist, openBoxes, weakBoxes, playbooksFor } from '../src/checklist.mjs';
 
 const MVS = `# X-01 minimum verification scenarios
 
@@ -126,4 +126,15 @@ test('1.5.29: files the Requirements ask to produce become Output files boxes (i
 3. Add \`packages/loot-core/src/server/budget/month-close.ts\` exporting a handler.
 4. Export \`reports/summary.csv\` with the totals.` } });
   assert.deepEqual(r.boxes.filter(b => b.section === 'Output files').map(b => b.text.split('`')[1]), ['datasets/bulk-03/manifest.json', 'reports/summary.csv']);
+});
+
+test('1.5.30: playbooksFor picks only the playbooks an item needs', () => {
+  const t08 = { descriptionMd: 'Write an integration test suite from `challenge/TASK-08-spec.md`. Your suite is run against builds that each break one part.' };
+  assert.deepEqual(playbooksFor({ key: 'TASK-08', item: t08, gradingKind: 'SUITE_DETECTION' }), ['suite-spec', 'data-values']);
+  const cr = { descriptionMd: 'Add a page. Build and serve the app yourself; open it in a browser at a desktop viewport. The official test data is the books of `BUG-11`. Hidden tests check the server audit. Evidence: a screenshot.' };
+  assert.deepEqual(playbooksFor({ key: 'CR-07', item: cr, gradingKind: 'OFFICIAL_DATA' }), ['ui-evidence', 'hidden-tests', 'other-items']);
+  const img = { descriptionMd: 'It exists only as an image: `data/cfo-audit-voucher-2025-10.png`. Report the sum of the adjustments.' };
+  assert.deepEqual(playbooksFor({ key: 'TASK-11', item: img }), ['data-values', 'image']);
+  assert.deepEqual(playbooksFor({ key: 'TASK-10', item: { descriptionMd: 'Report the totals.' }, heavy: true }), ['data-values', 'heavy']);
+  assert.deepEqual(playbooksFor({ key: 'BUG-09', item: { descriptionMd: 'Fix the status rule. Add automated tests.' } }), []);
 });

@@ -141,7 +141,7 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
 
   // 3b. 1.5.28: an input image the answer is read from (45CVHIIC TASK-11 48/80: 8-digit amounts read with 7 digits).
   for (const img of inputImages(description, mvs, files)) {
-    add('Image input', `${img}: every number, code and mark read from an enlarged crop (WORKER.md item kind 5, tools/crop-image.ps1), never from the whole image; each number transcribed with its digit count; lengths cross-checked against neighbouring values; strikethroughs, colours, line styles and arrows confirmed in crops. Proof after the box: the crop files and the digit counts`);
+    add('Image input', `${img}: every number, code and mark read from an enlarged crop (playbook image, tools/crop-image.ps1), never from the whole image; each number transcribed with its digit count; lengths cross-checked against neighbouring values; strikethroughs, colours, line styles and arrows confirmed in crops. Proof after the box: the crop files and the digit counts`);
   }
 
   // 4. How it is graded (hidden tests, replays, official data): every such sentence, word for word.
@@ -225,4 +225,23 @@ export function weakBoxes(text) {
 /** Open boxes left in a checklist file's text. */
 export function openBoxes(text) {
   return [...String(text ?? '').matchAll(/^\s*- \[ \]\s+(C\d+)/gm)].map(m => m[1]);
+}
+
+/**
+ * 1.5.30: the playbooks (skills/team-orchestrator/playbooks/<name>.md) that apply to one item, so a worker reads a
+ * ~10 KB core plus what its item needs instead of the whole 45 KB playbook on every model turn.
+ */
+export function playbooksFor({ key = '', item = {}, mvs = null, files = {}, gradingKind = null, heavy = false } = {}) {
+  const text = `${item?.descriptionMd ?? item?.description ?? ''}\n${mvs ?? ''}`;
+  const out = [];
+  if (/\b(browser|screenshot|viewport|desktop|page|screen|sidebar|button|click)\b/i.test(text) && /\b(evidence|scenario|replay|serve|build)\b/i.test(text)) out.push('ui-evidence');
+  if (gradingKind === 'OFFICIAL_DATA' || /\b(hidden|organizer)\s+(?:unit\s+)?tests?\b|official test data|company standard|knowledge base/i.test(text)) out.push('hidden-tests');
+  const others = [...text.matchAll(/\b(?:BUG|CR|TASK|PI)-\d+\b/g)].map(m => m[0]).filter(k => k !== key);
+  if (others.length) out.push('other-items');
+  if (gradingKind === 'SUITE_DETECTION') out.push('suite-spec');
+  const template = item && typeof item === 'object' ? item : {};
+  if (gradingKind === 'DATA_REQUIREMENTS' || /\breport\b|\bcompute\b|\bmanifest\b|\bpack\b|\bsum of\b|\bnumber of\b/i.test(text) || /^\s*(?:PI|TASK)-/.test(key)) out.push('data-values');
+  if (inputImages(String(template.descriptionMd ?? template.description ?? ''), mvs, files).length) out.push('image');
+  if (heavy) out.push('heavy');
+  return [...new Set(out)];
 }

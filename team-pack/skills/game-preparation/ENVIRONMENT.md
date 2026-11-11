@@ -149,7 +149,7 @@ a failing test there is usually the planted defect of a backlog item that is not
 takes that item's work and time. Report such a failure as "probably a backlog item" instead. Time-box: 3 minutes; if not done, prepare nothing. If the baseline is
 still running, skip F: the orchestrator handles the result in the game.
 1. Decide the wrong side from the design documents (`DECISIONS.md`, specs, original migrations, `BUILD_REPORT.md`),
-   exactly as WORKER.md "Baseline failures" says. Prepare a patch only when the code drifted from the documented
+   exactly as the playbook other-items ("Baseline failures") says. Prepare a patch only when the code drifted from the documented
    design and the fix is clear (e.g. a later migration contradicts a documented rule: add a NEW migration that
    restores it; never edit old migrations). Never change a test in this patch. If unsure, prepare nothing.
 2. Make the fix in slot s1 (`<checkoutRoot>.slots/s1/<folder>`; a patch file is not a tracked edit of the checkout),

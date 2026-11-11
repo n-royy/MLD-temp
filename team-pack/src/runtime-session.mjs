@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
 import { PROXY_FILE, relayCompany, startCompanyProxy } from './company-proxy.mjs';
 import { clearStaleLock, git, gitOk } from './git.mjs';
-import { buildChecklist, weakBoxes } from './checklist.mjs';
+import { buildChecklist, weakBoxes, playbooksFor } from './checklist.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
@@ -1368,7 +1368,9 @@ export class MatchSession {
       backlogFile: this.#writeBacklogFile(dir, key),
       // Grading that rewards more than the rows (detection, requirements, official data): the worker runs the
       // matching quality gate of WORKER.md before DONE.json while time remains. issuedRevision: the source as issued.
-      ...(kind => kind ? { qualityGate: { kind, required: true, reportFile: join(dir, 'quality-gate.md') } } : {})(this.#gradingKind(item)),
+      ...(kind => kind ? { qualityGate: { kind, required: true } } : {})(this.#gradingKind(item)),
+      // 1.5.30: the playbooks/<name>.md files (next to WORKER.md) this item needs; the worker reads only those.
+      playbooks: playbooksFor({ key, item: item ?? {}, mvs: r.minimumVerificationScenarios, files: r.files, gradingKind: this.#gradingKind(item), heavy: this.#isHeavy(item) }),
       issuedRevision: c.environmentRevision ?? null,
       // How the organizer scores this item, word for word: the worker plans from it, whatever kind of item it is.
       grading: (m => m ? clip(m[1].trim().replace(/\s+/g, ' '), 1500) : null)(String(item?.descriptionMd ?? item?.description ?? '').match(/#+\s*(?:Grading|Score|Scoring)\b([\s\S]*?)(?=\n#+\s|$)/i)),
@@ -1382,7 +1384,7 @@ export class MatchSession {
     if (existsSync(tools)) cpSync(tools, join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
     return { backlogId: key, backlogType: brief.backlogType, title: item?.title ?? null, replay: r.replay ?? null,
       slot: s.name, slotIndex: s.index, worktreeRoot: s.path, slotMatchRoot: s.matchRoot, briefFile: join(dir, 'brief.json'),
-      doneFile: brief.doneFile, checklistFile: brief.checklistFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null, heavy: brief.heavy,
+      doneFile: brief.doneFile, checklistFile: brief.checklistFile, playbooks: brief.playbooks, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null, heavy: brief.heavy,
       slotInstallState: brief.slotInstallState };
   }
 

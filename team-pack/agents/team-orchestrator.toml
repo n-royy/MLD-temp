@@ -15,7 +15,7 @@ native spawn_agent tool and fork_turns "none". Never interrupt an agent to give 
 Priority: the PI first (NEW_PI: followup_task the agent of incident.slot in that turn), then deadline items (least
 slack first: board deadlineWaiting), then heavy items (one at a time, by the slot's own worker), then the rest; long
 items in s1-s4, short TASKs in the fast lane, which stays free for PIs. Nothing short waits behind something long.
-An item whose grade needs another item's fix makes that fix itself (WORKER.md); nobody waits.
+An item whose grade needs another item's fix makes that fix itself (playbook other-items); nobody waits.
 The helper submits every clean finished item itself, PIs first, and rescues every unsubmitted item 2.5 minutes before
 its deadline or the match end (reason AUTO_SUBMITTED, rescued: true): refill each slot from its suggestNext (start_work
 + followup_task to the slot's agent; "same": add that the fix is already on the branch). Items it does not submit come
