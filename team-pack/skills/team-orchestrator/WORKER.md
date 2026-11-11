@@ -111,15 +111,35 @@ check, result, what you changed), fix what it finds, commit, and put
 Time: the gate is worth its time whenever `stopBy` is more than ~8 minutes away. Stop it
 at `stopBy` minus ~5 minutes, commit what holds, and report `PARTIAL` with what was not checked. Never leave a
 mutant, a temporary source restore or a debug edit in the tree: `git status --porcelain` must be empty before DONE.
-- **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on):
-  1. Rule matrix: for every rule of the specification, every operation that reaches it (create, update of each
-     field, moving between accounts or owners, delete, batch), every field the rule states, and variants (boundaries
-     on both sides, zero, empty, non-ASCII text, several rows at once). Each cell has a case that asserts it.
-  2. Self-mutation: for each rule, break the code that implements it in your slot (invert the condition, drop the
-     field update, shift the boundary by one), run your suite, record which case failed, restore the file
-     (`git -C <worktreeRoot> checkout -- <file>`). A rule no case catches gets a new case. The application fixes you
-     made stay; the mutants never.
-  3. Never assert what the specification does not state: a case that fails on a correct build never counts.
+- **`SUITE_DETECTION`** (your suite is scored by the broken builds it fails on, and the application by the
+  organizer's own suite). How it is scored (R7WFBQBT TASK-08, 84/100): the organizer plants a few defects in the
+  application, each against one statement of the specification; each one is worth its fix (12) plus its detection
+  (4). The four found by the first suite run scored in full; the fifth sat behind the spec's opening sentence
+  "Every rule holds for any number of lines in one import and any number of transactions in one change", which no
+  case exercised: 0 + 0. Twenty-four further minutes of regressions and 28 home-made mutants added nothing. So:
+  1. **The `Spec` boxes of the checklist are the matrix.** Every statement of the specification is a box; the
+     "constraints on every rule" boxes (any number, any order, every entry point) come first. Each box gets at
+     least one case through the real entry point the spec's module table names (the handler, not only the
+     function, when both are listed).
+  2. **Where planted defects hide** (test these axes for every rule before anything else): boundaries on both sides
+     (on, one before, one after), volume (hundreds of lines or transactions in ONE call - planted bugs often break
+     only past a batch or chunk size such as 50, 100 or 1000), order (lines in reverse and interleaved order, two
+     lines competing for one candidate), repetition (the same line or call twice), every path that sets a field
+     (direct, rule, import, schedule, merge), and modules together (import + rule + transfer + budget in one case).
+     A volume case checks every resulting row, not a count.
+  3. **One mutant per `Spec` box**, not per idea: break the code behind that statement in your slot (shift the
+     boundary, cap the loop or batch at a small size, drop the field update, skip the second pass, reverse the
+     order), run only the integration suite, record the case that failed, restore the file
+     (`git -C <worktreeRoot> checkout -- <file>`). A box no case catches gets a new case. The proof of each box is
+     its own: ` - proof: <case title>; mutant <what was broken>`. The gate is PASS only when every `Spec` box has
+     one; the helper does not submit an item with a quality gate while a `Spec` box is open, has no proof or a proof
+     copied onto other boxes (those come back to you).
+  4. **Time**: the suite and the fixes it drives first (the first full run usually shows most planted defects);
+     then the axes above; the existing `loot-core` tests (or the project's tests) once, at the end, only for the
+     modules you changed plus one full run in the background - never twice on a slow machine.
+  5. Never assert what the specification does not state (tie order, ids, timestamps): a case that fails on a
+     correct build never counts. Never change product code only to make tests run on this machine (paths,
+     symlinks, Windows): the grader runs Linux; report it in `doubts` instead.
 - **`DATA_REQUIREMENTS`** (a pack, dataset or manifest checked against requirements):
   1. Requirement table: every quantity, ratio, mix, overlap, recurrence, special case and size limit of the
      specification, the value you reached and the margin. Where a requirement is a bound or range, stay clearly
@@ -275,6 +295,10 @@ files the organizer provides. Use it twice:
 - **Once at the end**, before doneFile: go through it and tick (`- [x]`) what holds; a box you could not meet stays
   open with one word why. No proof notes during the work: they cost time. Open boxes do not stop the helper from
   submitting; mention a real gap in DONE.json `doubts` only when the orchestrator must decide something.
+- **`Spec` boxes** (the organizer's specification file, when the item has one) are the exception: each is a graded
+  statement, so each gets its own proof (` - proof: <case title(s)>; mutant <what was broken>`), written as you
+  cover it. Never tick boxes in bulk with a script or one shared sentence: a proof copied onto 3 or more boxes counts
+  as open, and on an item with a quality gate an open `Spec` box keeps the helper from submitting it.
 
 ## Definition of done, within the budget
 Points come per test-case row, per acceptance criterion and per hidden test. Within `budgetMinutes` (and never past

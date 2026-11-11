@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
 import { PROXY_FILE, relayCompany, startCompanyProxy } from './company-proxy.mjs';
 import { clearStaleLock, git, gitOk } from './git.mjs';
-import { buildChecklist, openBoxes } from './checklist.mjs';
+import { buildChecklist, weakBoxes } from './checklist.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
@@ -87,7 +87,17 @@ export function effortOf(item, peers = [], sizes = {}) {
     const ml = lens[Math.floor((lens.length - 1) / 2)];
     if (text.length >= 3500 && text.length >= 1.6 * ml) add(1, `long brief (${text.length} chars)`);
   }
-  const level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
+  let level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
+  // 1.5.27: an item worked from an organizer specification (a spec file to cover rule by rule, a test suite scored by
+  // broken builds) is never short, whatever its wording (R7WFBQBT TASK-08: 100 points, 30+ rules, rated S with score
+  // 0 - in the fast lane it would have got an 8-minute budget). The level is raised, not the heavy score.
+  const files = [text, ...(Array.isArray(item?.onStartFiles) ? item.onStartFiles : []), ...(Array.isArray(item?.releaseFiles) ? item.releaseFiles : [])].join('\n');
+  const spec = /\bchallenge\/(?![\w.-]*(?:minimum-verification|submit))[\w.-]+\.(?:md|txt)\b/i.exec(files);
+  const suite = /\b(?:test|integration|regression|end-to-end|e2e)\s+(?:test\s+)?suite\b|\bbuilds?\s+that\s+(?:each\s+)?break\b|\bdetection\s+share\b/i.exec(text);
+  if ((spec || suite) && (level === 'S' || level === 'M')) {
+    level = 'L';
+    reasons.push(suite ? `test suite against a specification (${suite[0]})` : `organizer specification (${spec[0]})`);
+  }
   return { score, level, heavy: score >= 5, candidate: score >= 3 && score < 5, reasons };
 }
 // A deadline item with less time left than this is not offered as "waiting" (it cannot be finished).
@@ -1482,14 +1492,22 @@ export class MatchSession {
     if (String(d.status ?? '').toUpperCase() !== 'DONE' || (d.doubts && String(d.doubts).trim())) return false;
     if (this.#gradingKind(item) && String(d.qualityGate?.status ?? '').toUpperCase() !== 'PASS') return false;
     // 1.5.27: open checklist boxes no longer block (R7WFBQBT: ticking 30+ boxes cost minutes per item); they are
-    // reported with the result instead.
+    // reported with the result instead. Except the organizer's specification on an item with a quality gate: there
+    // every statement is a graded part (R7WFBQBT TASK-08: 5 planted defects x 16 points), so a Spec box that is open,
+    // has no proof or a copied one goes to the orchestrator (SLOT_DONE checklistOpen) instead of being submitted.
+    if (this.#gradingKind(item) && this.#checklistWeak(slot).some(b => /^Spec /.test(b.section))) return false;
     return true;
   }
 
-  /** Boxes of the item's checklist (1.5.26) still open in the slot; [] when it has none. */
-  #checklistOpen(slot) {
+  /** Boxes of the item's checklist that do not hold (open, no proof on a Spec box, copied proof); [] without one. */
+  #checklistWeak(slot) {
     const f = join(slot.matchRoot, SCRATCH, slot.item ?? '', 'checklist.md');
-    try { return existsSync(f) ? openBoxes(readFileSync(f, 'utf8')) : []; } catch { return []; }
+    try { return existsSync(f) ? weakBoxes(readFileSync(f, 'utf8')) : []; } catch { return []; }
+  }
+
+  /** The same, as short labels for SLOT_DONE ("C12", "C14 copied proof", "C20 no proof"). */
+  #checklistOpen(slot) {
+    return this.#checklistWeak(slot).map(b => b.why === 'open' ? b.id : `${b.id} ${b.why}`);
   }
 
   /** Background pass (every few seconds during the game): integrates and submits every eligible finished item. */

@@ -82,6 +82,19 @@ after(async () => { await gm.close(); rmSync(tmp, { recursive: true, force: true
 
 const events = () => readFileSync(logFile, 'utf8').trim().split('\n').map(l => JSON.parse(l));
 const remoteHead = () => g(bare, 'rev-parse', 'main');
+/** What a worker subagent does: edit, answer + evidence, validate, commit on the slot branch, DONE.json. */
+function work(s, key, { file = 'src/app.txt', content, answer, done = true, commit = true }) {
+  const root = s.slotMatchRoot;
+  writeFileSync(join(root, file), content);
+  const dir = join(root, 'answers', key);
+  writeFileSync(join(dir, 'evidence', `${key}-TC-01.txt`), 'command: run\nresult: PASS\n');
+  writeFileSync(join(dir, 'submit.json'), JSON.stringify(answer ?? { backlogId: key, status: 'DONE', changeSummary: `${key} done.`,
+    testResults: [{ id: `${key}-TC-01`, result: 'PASS', evidence: [`evidence/${key}-TC-01.txt`] }] }, null, 2));
+  if (commit) { g(s.worktreeRoot, 'add', '--', gm.matchId); g(s.worktreeRoot, 'commit', '-qm', `${key}: fix`); }
+  if (done) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: `${key} fixed`,
+    tests: { required: 1, executed: 41, passed: 41, failed: 0, skipped: 0, summary: '36 unit tests + suite + build.' } }));
+}
+
 const item = (key, type, extra = {}) => ({ key, backlogType: type, title: key, deadlineMinutes: null, revealedElapsedSec: 0,
   revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x', ...extra });
 const wake = async (h, want, tries = 8) => {
@@ -159,5 +172,32 @@ test('SLOT_STALLED: a busy slot where nothing is written for the stall time is r
     assert.deepEqual(w.stalled.map(x => [x.slot, x.item]), [['s2', 'CR-62']]);
     const again = await h.call('wait_for_update', { noWait: true });
     assert.notEqual(again.reason, 'SLOT_STALLED', 'reported once');
+  } finally { h.close(); }
+});
+
+test('1.5.27: a suite item whose Spec boxes carry a copied proof is not auto-submitted; SLOT_DONE names the boxes', async () => {
+  gm.state.backlog = [item('TASK-63', 'TASK', { description: '## Requirements\n1. Write an integration test suite for `challenge/TASK-63-spec.md`.\n## Grading\nYour suite is run against builds that each break one part of the specification: it earns a detection share for each broken build it fails on.' })];
+  gm.state.clock = { elapsedSec: 600, remainingSec: 1800 };
+  const h = new Helper({ MTM_AUTO_INTEGRATE: '1' });
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    const board = await h.call('refresh_match');
+    assert.equal(board.items.find(i => i.key === 'TASK-63').effort?.level ?? 'L', 'L');
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    const s = await h.call('start_work', { backlogItemKey: 'TASK-63', slot: 's3' });
+    assert.ok(s.briefFile, JSON.stringify(s).slice(0, 300));
+    const same = ' - proof: 40 cases pass; 20 mutants detected.';
+    writeFileSync(s.checklistFile, ['# TASK-63 checklist', '', '## Spec TASK-63-spec.md: constraints on every rule',
+      `- [x] C1 Every rule holds for any number of lines.${same}`, '', '## Spec TASK-63-spec.md: T. Transfers',
+      `- [x] C2 T1 one counterpart.${same}`, `- [x] C3 T3 date stays.${same}`, ''].join('\n'));
+    work(s, 'TASK-63', { file: 'src/suite.txt', content: 'suite\n', done: false });
+    writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: 'suite', tests: { required: 1, executed: 1, passed: 1, failed: 0 },
+      qualityGate: { kind: 'SUITE_DETECTION', status: 'PASS', summary: '20 mutants' } }));
+    const w = await wake(h, x => ['SLOT_DONE', 'AUTO_SUBMITTED'].includes(x.reason));
+    assert.equal(w?.reason, 'SLOT_DONE', JSON.stringify(w).slice(0, 400));
+    const e = w.slotDone.find(d => d.item === 'TASK-63');
+    assert.deepEqual(e.checklistOpen, ['C1 copied proof', 'C2 copied proof', 'C3 copied proof']);
+    assert.ok(!gm.state.submissions.has('TASK-63'), 'left to the orchestrator');
+    await h.call('release_slot', { slot: 's3' });
   } finally { h.close(); }
 });

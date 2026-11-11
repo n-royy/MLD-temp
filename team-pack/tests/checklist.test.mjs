@@ -1,7 +1,7 @@
 // 1.5.26: the brief as a checklist, built only from the organizer's text (any kind of item).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildChecklist, openBoxes } from '../src/checklist.mjs';
+import { buildChecklist, openBoxes, weakBoxes } from '../src/checklist.mjs';
 
 const MVS = `# X-01 minimum verification scenarios
 
@@ -47,4 +47,56 @@ test('an item with nothing but a description still gets its asks and the final b
   const r = buildChecklist({ key: 'BUG-01', item: { descriptionMd: 'The sidebar overlaps the content. Fix it so the content is fully visible.' } });
   assert.ok(r.md.includes('Fix it so the content is fully visible.'));
   assert.ok(r.md.includes('every box above ticked with its proof'));
+});
+
+// 1.5.27: R7WFBQBT TASK-08 lost 16 of 100 on the spec's opening sentence (batch-volume): the spec file is now taken
+// apart too, constraints on every rule first, and bulk ticking with one sentence counts as open.
+const SPEC = `# Money movement specification
+
+This specification covers server behavior in \`packages/loot-core\`. Amounts are integer cents, negative for outflow.
+Every rule holds for any number of lines in one import and any number of transactions in one change.
+
+## Modules and entry points
+
+| Module | Where | Entry points |
+|---|---|---|
+| Transactions | \`src/server/transactions/index.ts\` | \`batchUpdateTransactions({ added, updated, deleted })\` |
+| Statement import | \`src/server/accounts/sync.ts\` | \`reconcileTransactions(accountId, lines)\`, handler \`transactions-import\` |
+
+## T. Transfers
+
+- **T1.** A transaction whose payee is another account's transfer payee is a transfer. It has exactly one
+  counterpart in that account.
+- **T3.** Changing the date of one side does not change the other.
+
+## Out of scope
+
+Bank sync and reports.
+`;
+
+test('1.5.27: the organizer specification becomes Spec boxes; constraints on every rule come with volume cases', () => {
+  const r = buildChecklist({ key: 'TASK-08', item: { descriptionMd: '## Requirements\n1. Read the specification.' },
+    template: { schemaVersion: 1, backlogId: 'TASK-08', status: 'NOT_STARTED', evidenceFiles: [], cases: [] },
+    files: { 'challenge/TASK-08-spec.md': SPEC, 'challenge/TASK-08-submit.json': '{}' } });
+  const spec = r.boxes.filter(b => b.section.startsWith('Spec '));
+  const global = spec.filter(b => /constraints on every rule/.test(b.section));
+  assert.equal(global.length, 1, JSON.stringify(global));
+  assert.match(global[0].text, /^Every rule holds for any number of lines in one import/);
+  assert.match(global[0].text, /hundreds of lines or transactions/);
+  assert.ok(spec.some(b => /T1\. A transaction whose payee is another account's transfer payee is a transfer/.test(b.text) && /T\. Transfers/.test(b.section)));
+  assert.ok(spec.some(b => /T3\. Changing the date of one side does not change the other/.test(b.text)));
+  const entry = spec.find(b => /entry points/.test(b.section));
+  assert.ok(entry && /reconcileTransactions/.test(entry.text) && /batchUpdateTransactions/.test(entry.text), JSON.stringify(entry));
+  assert.ok(r.notes.some(n => /Out of scope in TASK-08-spec\.md: Bank sync/.test(n)));
+  assert.ok(!r.boxes.some(b => /\*\*/.test(b.text)), 'markdown bold removed');
+});
+
+test('1.5.27: weakBoxes reports open boxes, Spec boxes without proof and proofs copied onto 3+ boxes', () => {
+  const same = ' - proof: 62 cases pass; 28 mutants detected.';
+  const md = ['# X checklist', '', '## Brief: Requirements', `- [x] C1 Read it.${same}`, `- [x] C2 Implement.${same}`, '- [x] C3 Run.',
+    '', '## Spec x-spec.md: T. Transfers', `- [x] C4 T1 one counterpart.${same}`, '- [x] C5 T3 date stays.',
+    '- [x] C6 T4 delete. - proof: T4 deleting either side; mutant skip counterpart delete', '- [ ] C7 Every rule holds for any number.'].join('\n');
+  const w = weakBoxes(md);
+  assert.deepEqual(w.map(b => [b.id, b.why]), [['C1', 'copied proof'], ['C2', 'copied proof'], ['C4', 'copied proof'], ['C5', 'no proof'], ['C7', 'open']]);
+  assert.deepEqual(openBoxes(md), ['C7']);
 });

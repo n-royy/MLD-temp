@@ -110,5 +110,12 @@ Short rules learned from real matches. Each line names where it came from. They 
   PI agent left s6/BUG-11 untouched for 9.4 min. Since 1.5.27: s5/s6 are a fast lane (PIs and short TASKs only, its
   agents never paused), long items in s1-s4 by their own workers, default reasoning, a time budget per item and a
   SLOT_STALLED warning after 5 quiet minutes.
+- A test suite against a specification is scored per planted defect: fixed (12) + detected (4) each (R7WFBQBT
+  TASK-08: 5 planted, 4 found by the first suite run at minute 6, 84/100 - the same 84 as 32PTEO8K at minute 12).
+  The fifth hid behind the spec's opening sentence "Every rule holds for any number of lines in one import and any
+  number of transactions in one change": no case used more than a few lines. 24 more minutes of full regressions and
+  28 home-made mutants added nothing; a checklist ticked in bulk by a script hid the gap. Since 1.5.27 the spec file
+  is in the checklist (constraints on every rule first), each Spec box needs its own case and mutant, copied proofs
+  count as open, and such items are never rated short.
 - The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial
   shell calls were slower, p90 14 s vs 2.5 s). Look at the schedule first.

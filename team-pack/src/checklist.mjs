@@ -10,6 +10,13 @@ const OUT_OF_SCOPE = /out of scope|not in scope|non-goals?/i;
 const GRADING = /\b(grad(e|er|ed|ing)|hidden|replay|official|scor(e|ed|es|ing)|compared exactly|no ai|judg|points?\b|counts? only|scores? 0|validat)/i;
 const ASKS = /\b(must|should|need|needs|required?|expected|exactly|only|never|do not|don't|then fix|fix\b|add\b|support|show|export|keep|create|copy|commit|report|record|set\b|include|list\b|use\b|run\b)/i;
 
+// 1.5.27: a sentence of an organizer specification that binds every rule at once ("Every rule holds for any number
+// of lines in one import"). R7WFBQBT TASK-08 lost 16 of 100 on exactly such a sentence: no case used more than a
+// few lines, the planted batch-volume bug was neither fixed nor detected.
+const GLOBAL = /\b(every rule|all (?:the )?rules|any number of|any (?:size|volume|amount of)|no matter how many|regardless of (?:the )?(?:number|size|order|count)|in (?:one|a single) (?:call|change|import|batch|request)|however many)\b/i;
+const SPEC_FILE = /\.(md|txt)$/i;
+const NOT_SPEC = /minimum-verification|submit|README/i;
+
 const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 
 /** Markdown -> [{ heading, lines[] }]; the text before the first heading is under heading ''. */
@@ -110,6 +117,31 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
     }
   }
 
+  // 4b. 1.5.27: the organizer's specification files (challenge/*-spec.md, *-pack.md ...): every statement is graded
+  // (the organizer plants defects against them and builds a broken version per statement). Every list item and every
+  // sentence becomes a box; sentences that bind all rules at once go first, with the volume/order/entry-point cases
+  // they need; table rows (modules and entry points) are listed once so the global constraints cover each of them.
+  for (const [name, content] of Object.entries(files ?? {})) {
+    if (!SPEC_FILE.test(name) || NOT_SPEC.test(name) || typeof content !== 'string' || content.length < 200) continue;
+    const base = name.split('/').pop();
+    const entry = [];
+    for (const s of sections(content)) {
+      if (OUT_OF_SCOPE.test(s.heading)) { const o = blocks(s.lines); for (const t of [...o.items, ...o.paras]) notes.push(`Out of scope in ${base}: ${t}`); continue; }
+      const table = s.lines.filter(l => /^\s*\|/.test(l) && !/^\s*\|[\s|:-]+\|\s*$/.test(l)).slice(1).map(l => clean(l.replace(/\|/g, ' ').replace(/`/g, '')));
+      entry.push(...table);
+      const { items, paras } = blocks(s.lines.filter(l => !/^\s*\|/.test(l)));
+      const where = `Spec ${base}${s.heading ? `: ${s.heading}` : ''}`;
+      const listed = new Set(items);
+      for (const t of [...items, ...paras.flatMap(sentences)]) {
+        const text = t.replace(/\*\*/g, '');
+        if (GLOBAL.test(text)) add(`Spec ${base}: constraints on every rule`, `${text} -> cases: every entry point with many records in one call (hundreds of lines or transactions, mixed kinds and order), every result checked; a planted defect may show only there`);
+        else if (listed.has(t)) add(where, text); // a numbered or bulleted rule: always a box
+        else if (/\b(is|are|has|have|holds?|keeps?|creates?|sets?|counts?|never|always|only|must|becomes?|stays?|deletes?|moves?|matches?|takes?|runs?|fills?|clears?|follows?|applies?)\b/i.test(text)) add(where, text);
+      }
+    }
+    if (entry.length) add(`Spec ${base}: entry points`, `each constraint on every rule is covered through: ${entry.join('; ')}`);
+  }
+
   // 5. Test files the organizer provides (run as instructed, never edited).
   for (const f of Object.keys(files ?? {})) if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(f)) add('Provided tests', `${f}: run exactly as the scenarios say (unchanged); it passes on your source`);
 
@@ -118,15 +150,40 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
   const md = [
     `# ${key} checklist`,
     '',
-    'Built by the helper from the brief, the answer template, the verification scenarios and the schema.',
-    'Tick each box (`- [x]`) only when it is met on the final code, and add the proof after it (` - proof: <file, test,',
-    'command or value>`). Do not delete boxes. A box that does not apply: tick it and say why. The helper submits by',
-    'itself only a DONE whose checklist has no open box; anything open goes to the orchestrator.',
+    'Built by the helper from the brief, the answer template, the verification scenarios, the schema and the',
+    "organizer's specification files. Tick each box (`- [x]`) only when it is met on the final code. A `Spec` box",
+    'needs its own proof after it (` - proof: <case title(s)>; mutant <what was broken>`); the same proof copied onto',
+    'several boxes counts as open. Do not delete boxes. A box that does not apply: tick it and say why.',
     '',
     ...[...new Set(boxes.map(b => b.section))].flatMap(sec => [`## ${sec}`, ...boxes.filter(b => b.section === sec).map(b => `- [ ] ${b.id} ${b.text}`), '']),
     ...(notes.length ? ['## Notes (no box)', ...notes.map(n => `- ${n}`), ''] : [])
   ].join('\n');
   return { md, boxes, notes };
+}
+
+/**
+ * Boxes that do not hold (1.5.27): open ones, and ticked ones whose proof is copied word for word onto 3 or more
+ * boxes (R7WFBQBT TASK-08: one script ticked all 14 boxes with the same sentence). [{ id, section, why }].
+ */
+export function weakBoxes(text) {
+  const out = [], ticked = [];
+  let section = '';
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const h = line.match(/^##\s+(.*)$/);
+    if (h) { section = h[1].trim(); continue; }
+    const m = line.match(/^\s*- \[( |x|X)\]\s+(C\d+)\s*(.*)$/);
+    if (!m) continue;
+    if (m[1] === ' ') { out.push({ id: m[2], section, why: 'open' }); continue; }
+    const proof = clean(m[3].split(/\s-\s*proof:/i)[1] ?? '');
+    ticked.push({ id: m[2], section, proof });
+  }
+  const seen = new Map();
+  for (const t of ticked) if (t.proof) seen.set(t.proof, (seen.get(t.proof) ?? 0) + 1);
+  for (const t of ticked) {
+    if (t.proof && seen.get(t.proof) >= 3) out.push({ id: t.id, section: t.section, why: 'copied proof' });
+    else if (!t.proof && /^Spec /.test(t.section)) out.push({ id: t.id, section: t.section, why: 'no proof' });
+  }
+  return out.sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
 }
 
 /** Open boxes left in a checklist file's text. */

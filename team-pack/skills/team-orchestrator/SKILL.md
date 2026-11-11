@@ -117,7 +117,10 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    something specific not met - a quality gate `MISSING`/`PARTIAL`, rows FAIL/NOT_RUN for a defect no other item
    owns, a placeholder value, a doubt the worker can resolve: `followup_task` the worker once with exactly that
    (`<ID>: <kind> gate missing; TC-03 NOT_RUN. Finish them, then rewrite doneFile.`) and wait. Open checklist boxes
-   alone are no reason. Once per item: the second `SLOT_DONE` is integrated as it is.
+   alone are no reason, except on an item with a quality gate: `checklistOpen` entries from its `Spec` boxes (open,
+   "no proof", "copied proof") are graded statements without a case - send exactly those ids back
+   (`<ID>: Spec boxes C21, C22 have no case of their own (WORKER.md SUITE_DETECTION). Cover them, then rewrite
+   doneFile.`). Once per item: the second `SLOT_DONE` is integrated as it is.
 2. **Otherwise** `integrate_item` (`backlogItemKey`, `next` = the slot's queued item or `suggestNext`;
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,
    rebases, cherry-picks, pushes (never force), submits with every gate and logs `SUBMITTED`.
