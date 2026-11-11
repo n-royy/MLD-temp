@@ -15,6 +15,9 @@ Short rules learned from real matches. Each line names where it came from. They 
   or data you cannot obtain, compute the answer on the issued checkout, set `PARTIAL` and state the gap in the
   evidence. Never submit `0`, an empty string or any other placeholder: it always scores 0, while the answer traced
   on the issued source scored full points twice. (QNW5V6OU, HW828P0Y TASK-01)
+- An answer read from an image is only as right as the reading: four 8-digit amounts read off the whole voucher
+  with 7 digits cost 32 of 80 points while every rule was applied right, and a script over the same transcription
+  "verified" it. Read numbers from enlarged crops with their digit counts (WORKER.md item kind 5). (45CVHIIC TASK-11)
 
 ## Engineering
 - Workers could not use the Company Tools (their own helper process is unconfigured: NOT_CONFIGURED in 7GAZA14X)

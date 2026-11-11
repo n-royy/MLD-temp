@@ -19,6 +19,14 @@ const NOT_SPEC = /minimum-verification|submit|README/i;
 
 const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 
+// 1.5.28: pictures the organizer gives as input (data/ or challenge/), not evidence the worker produces.
+const INPUT_IMAGE = /\b((?:data|challenge)\/[\w./-]+\.(?:png|jpe?g|gif|webp|bmp|tiff?))\b/gi;
+function inputImages(description, mvs, files) {
+  const found = [...`${description}\n${mvs ?? ''}`.matchAll(INPUT_IMAGE)].map(m => m[1]);
+  for (const f of Object.keys(files ?? {})) if (/^(?:data|challenge)\/.*\.(?:png|jpe?g|gif|webp|bmp|tiff?)$/i.test(f)) found.push(f);
+  return [...new Set(found)];
+}
+
 /** Markdown -> [{ heading, lines[] }]; the text before the first heading is under heading ''. */
 function sections(md) {
   const out = [{ heading: '', lines: [] }];
@@ -108,6 +116,11 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
   const evidence = [...new Set(sc.flatMap(s => s.evidence))];
   for (const e of evidence) add('Evidence', `evidence/${e}: exists, shows what its row expects, referenced by the row and listed in evidenceFiles`);
 
+  // 3b. 1.5.28: an input image the answer is read from (45CVHIIC TASK-11 48/80: 8-digit amounts read with 7 digits).
+  for (const img of inputImages(description, mvs, files)) {
+    add('Image input', `${img}: every number, code and mark read from an enlarged crop (WORKER.md item kind 5, tools/crop-image.ps1), never from the whole image; each number transcribed with its digit count; lengths cross-checked against neighbouring values; strikethroughs, colours, line styles and arrows confirmed in crops. Proof after the box: the crop files and the digit counts`);
+  }
+
   // 4. How it is graded (hidden tests, replays, official data): every such sentence, word for word.
   const gradingText = [description, String(mvs ?? ''), ...Object.values(schema?.properties ?? {}).map(p => p?.description ?? '')].join('\n\n');
   for (const s of sections(gradingText)) {
@@ -151,7 +164,7 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
     `# ${key} checklist`,
     '',
     'Built by the helper from the brief, the answer template, the verification scenarios, the schema and the',
-    "organizer's specification files. Tick each box (`- [x]`) only when it is met on the final code. A `Spec` box",
+    "organizer's specification files. Tick each box (`- [x]`) only when it is met on the final code. A `Spec` or `Image input` box",
     'needs its own proof after it (` - proof: <case title(s)>; mutant <what was broken>`); the same proof copied onto',
     'several boxes counts as open. Do not delete boxes. A box that does not apply: tick it and say why.',
     '',
@@ -181,7 +194,7 @@ export function weakBoxes(text) {
   for (const t of ticked) if (t.proof) seen.set(t.proof, (seen.get(t.proof) ?? 0) + 1);
   for (const t of ticked) {
     if (t.proof && seen.get(t.proof) >= 3) out.push({ id: t.id, section: t.section, why: 'copied proof' });
-    else if (!t.proof && /^Spec /.test(t.section)) out.push({ id: t.id, section: t.section, why: 'no proof' });
+    else if (!t.proof && /^(Spec |Image input$)/.test(t.section)) out.push({ id: t.id, section: t.section, why: 'no proof' });
   }
   return out.sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1)));
 }

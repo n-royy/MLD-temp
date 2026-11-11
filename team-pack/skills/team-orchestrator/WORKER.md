@@ -239,6 +239,24 @@ Read the brief's "Grading" and "Submission" sections first; they decide what to 
    `-seed.ts`, `-report.ts`): BUG-01 of 5APIQYXW was scored from the layout report the provided script writes. Run
    them exactly as the MVS file says (arguments, output names, dev and production), never replace them with your own
    script, never edit their reports.
+5. **Values read from an image** (the brief's input is a picture: a voucher, scan, chart or diagram in `data/` or
+   `challenge/`). The transcription IS the work: 45CVHIIC TASK-11 scored 48/80 because four 8-digit amounts
+   (35000000, -18500000, ...) were read off the whole image with 7 digits; every rule was applied right, and the
+   self-check passed because it recomputed from the same wrong transcription.
+   - Look at the whole image once (`view_image`, detail `original`) for its layout, sections and printed rules only.
+   - Read every number, code and mark from an ENLARGED CROP of its region, never from the whole image:
+     `pwsh -NoProfile -File <workspace>/.agents/skills/team-orchestrator/tools/crop-image.ps1 -Image <img>` prints
+     the size; add `-Out <slotMatchRoot>/.mtm-tmp/<ID>/c1.png -X -Y -Width -Height` (original pixels, 3x enlarged)
+     and `view_image` the crop. One crop per table column or diagram label group.
+   - Transcribe into `.mtm-tmp/<ID>/transcription.json` with each number as the exact string you see AND its digit
+     count (`{"text": "+35000000", "digits": 8}`); read it in the crop again in groups of three digits from the right.
+     Missing or doubled zeros are the usual misread.
+   - Cross-check magnitudes: values in the same table or diagram are usually the same length. One that is a digit
+     shorter or longer than its neighbours (7 digits among 8-digit flows) is re-read in a tighter crop. A total
+     printed on the image must equal your sum of the rows.
+   - Strikethroughs, stamps, colours, solid/dashed lines and arrow directions: confirm each one in a crop as well.
+   - A script computing from your transcription checks the arithmetic, never the reading. The checklist box for the
+     image needs the crop files and the digit counts as its proof.
 Items without test-case rows (PI, value questions): DONE.json `tests` = `{"required":0,"executed":1,"passed":1,...}`
 for the one verification you ran (or `failed` 1 if it did not hold).
 
@@ -436,7 +454,8 @@ If the item needs a tool the machine lacks, install it following "Toolchain inst
   minutes of one item went into reading compiled CSS chunks and restarting the dev server).
 - Screenshots in your context: `view_image` only to confirm a final evidence shot whose content a text check
   (layout report, page text, a DOM query) cannot confirm, once per shot. Every image stays in your context for the
-  rest of the item.
+  rest of the item. An input image the answer is read from (item kind 5) is the exception: the whole image once,
+  then small enlarged crops, as many as the numbers need.
 - Evidence screenshots: use `.mtm-tmp/tools/shot.mjs` (signed-in, waits for content, one call per screenshot);
   write your own browser script only if it is missing or cannot do the step, and fix it at most twice; then switch
   to another foundation path ("UI evidence" above). When a screenshot fails, read which wait failed before acting:
