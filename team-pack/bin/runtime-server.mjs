@@ -29,7 +29,7 @@ const TOOLS = [
       'the helper integrated and submitted a clean DONE item itself - status DONE, no doubts, quality gate PASS - each with ' +
       'suggestNext {backlogItemKey, why, worker} for its free slot - the slot\'s own agent does it, "same" = its fix is already on the branch; ' +
       'rescued: true = submitted by the helper itself 2.5 minutes before the deadline or the match end with the work committed so far ' +
-      'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now), SLOT_DONE (slotDone[]: a slot ' +
+      'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now; overlaps[] = busy slots that changed files the branch just received: send_message those agents to rebase now), SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 6 minutes from its deadline or from the match ' +
       'end - tell its worker to commit and make its answer valid now; the helper rescues it at 2.5 minutes; reported once each), ' +
       'SLOT_STALLED (stalled[]: a busy slot wrote nothing for 5 minutes - send_message its agent), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - the fast lane s5/s6 first, else any free slot: give it to that slot\'s agent - ' +
@@ -79,7 +79,8 @@ const TOOLS = [
     description: "Bring a worker's committed slot work onto the assigned branch and submit it: checks the slot is committed, " +
       'only the assigned folder changed and no credential is in the diff; git pull --rebase, cherry-pick the slot commits, ' +
       'push (never force); then runs submit_work unchanged (all its gates) with the counts from the slot DONE.json unless ' +
-      '`tests` is given. INTEGRATION_CONFLICT aborts cleanly and nothing is pushed or sent. Frees the slot when submitted.',
+      '`tests` is given. INTEGRATION_CONFLICT, CONFLICT_MARKERS (the commits add <<<<<<< / >>>>>>> lines) and TEST_USES_LOCAL_FILES (a committed test reads .mtm-tmp or a machine path) abort cleanly and nothing is pushed or sent. ' +
+      'The result names overlaps[] (busy slots that changed the same files): tell those agents to rebase now. Frees the slot when submitted.',
     inputSchema: obj({ backlogItemKey: key,
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },
         skipped: { type: 'integer' }, summary: { type: 'string' } }, ['required', 'executed', 'passed', 'failed']),

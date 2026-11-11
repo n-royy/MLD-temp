@@ -21,6 +21,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const sha256 = s => createHash('sha256').update(s, 'utf8').digest('hex');
 const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tests only
 // Existing test files: changing or deleting one needs an explicit, recorded reason.
+// 1.5.29: a diff that adds git conflict markers (39PSWT5C BUG-11 18/70: the rescue committed a slot in the middle of a
+// rebase, src/shared/util.ts carried <<<<<<< ... >>>>>>> to the grader, every replay and hidden test failed to transform).
+const MARKER_LINE = /^\+(?:<<<<<<<(?: |$)|>>>>>>>(?: |$)|=======\s*$)/m;
+const diffFiles = diff => String(diff ?? '').split(/^diff --git a\//m).slice(1).map(chunk => ({ file: chunk.slice(0, chunk.indexOf(' ')), body: chunk }));
+const markerFiles = diff => diffFiles(diff).filter(f => MARKER_LINE.test(f.body)).map(f => f.file);
+// 1.5.29: a committed test that reads the slot's scratch or a machine path fails on the grader (39PSWT5C CR-07
+// team-tests 0/3: "ENOENT ... '../../../.mtm-tmp/CR-07/official.zip'").
+const LOCAL_REF = /^\+.*(?:\.mtm-tmp|[A-Za-z]:[\\/](?:Users|mtm)|\/home\/|\/Users\/)/m;
+const localRefFiles = diff => diffFiles(diff).filter(f => TEST_PATH.test(f.file) && LOCAL_REF.test(f.body)).map(f => f.file);
+
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
@@ -1542,6 +1552,7 @@ export class MatchSession {
           this.#timeline('AUTO_INTEGRATED', key, { slot: sl.name, status: res.status });
           (this.autoResults ??= []).push({ slot: sl.name, item: key, status: res.status, ...(res.submissionId ? { submissionId: res.submissionId } : {}),
             ...(ok ? {} : { note: 'not submitted: decide (integrate_item again or followup_task)' }),
+            ...(res.overlaps ? { overlaps: res.overlaps } : {}),
             includedFixes: Array.isArray(d.includedFixes) ? d.includedFixes.filter(k => KEY.test(String(k))) : [] });
         } catch (error) {
           // The orchestrator decides: reported once as SLOT_DONE with the error.
@@ -1576,6 +1587,7 @@ export class MatchSession {
       try {
         const res = await this.#rescue(sl, key);
         (this.autoResults ??= []).push({ slot: sl.name, item: key, status: res.status, rescued: true, answer: res.answerKind,
+          ...(res.overlaps ? { overlaps: res.overlaps } : {}),
           ...(res.submissionId ? { submissionId: res.submissionId } : {}), includedFixes: [] });
         this.#timeline('RESCUED', key, { slot: sl.name, status: res.status, answer: res.answerKind });
       } catch (error) {
@@ -1593,6 +1605,7 @@ export class MatchSession {
   async #rescue(sl, key) {
     const c = this.cfg;
     await clearStaleLock(sl.path, 30000).catch(() => false);
+    const settled = await this.#settleGitOperation(sl.path);
     const dir = join(sl.matchRoot, 'answers', key);
     const file = join(dir, 'submit.json');
     const exists = ref => existsSync(join(dir, ref));
@@ -1617,17 +1630,51 @@ export class MatchSession {
         mkdirSync(join(dir, 'evidence'), { recursive: true });
         writeFileSync(file, `${JSON.stringify(base, null, 2)}\n`);
         answerKind = answer ? 'repaired' : 'template';
+        // A template nobody filled (nulls, empty strings) fails the schema: nothing to submit, nothing to push
+        // (39PSWT5C PI-04, TASK-12: empty answers pushed, the submission refused).
+        const left = this.#answerProblems(key, base, exists).problems;
+        if (left.length) fail('RESCUE_NOTHING_TO_SUBMIT', `${key}: the answer is still the empty template (${clip(left.join('; '), 200)}); fill what is known and integrate_item now`);
       }
     }
     // Commit whatever the worker has (only inside the assigned folder; scratch stays ignored).
     const add = await git(sl.path, ['add', '-A', '--', c.repository.folder], { timeoutMs: 120000 });
+    // Never commit a half-resolved conflict: such files go back to the slot's last commit.
+    const staged = await gitOk(sl.path, ['diff', '--cached']).catch(() => '');
+    const marked = markerFiles(staged);
+    if (marked.length) {
+      await git(sl.path, ['reset', '-q', '--', ...marked]);
+      await git(sl.path, ['checkout', '--', ...marked]);
+      this.#timeline('RESCUE_DROPPED_MARKERS', key, { slot: sl.name, files: marked.slice(0, 5) });
+    }
     if (add.code === 0 && (await git(sl.path, ['diff', '--cached', '--quiet'])).code !== 0) {
       const msg = `${key}: work in progress committed by the team helper ${RESCUE_MINUTES} minutes before the deadline`;
       let ci = await git(sl.path, ['commit', '-q', '-m', msg], { timeoutMs: 120000 });
       if (ci.code !== 0) ci = await git(sl.path, ['-c', 'user.name=MLD helper', '-c', 'user.email=mld-helper@localhost', 'commit', '-q', '-m', msg], { timeoutMs: 120000 });
     }
-    const res = await this.integrateItem({ backlogItemKey: key, allowUncommitted: true });
-    return { ...res, answerKind };
+    const res = await this.integrateItem({ backlogItemKey: key, allowUncommitted: true, rescue: true });
+    return { ...res, answerKind, ...(settled ? { gitOperation: settled } : {}) };
+  }
+
+  /**
+   * A rebase, merge or cherry-pick left in progress in a slot (the worker was resolving a conflict): finished when
+   * every conflict is resolved, aborted otherwise (back to the worker's own last commit). Returns what was done.
+   */
+  async #settleGitOperation(path) {
+    const ops = [['rebase-merge', 'rebase'], ['rebase-apply', 'rebase'], ['MERGE_HEAD', 'merge'], ['CHERRY_PICK_HEAD', 'cherry-pick']];
+    for (const [marker, op] of ops) {
+      const p = (await git(path, ['rev-parse', '--git-path', marker])).stdout.trim();
+      if (!p || !existsSync(isAbsolute(p) ? p : join(path, p))) continue;
+      const unmerged = (await git(path, ['diff', '--name-only', '--diff-filter=U'])).stdout.trim();
+      const markers = markerFiles(await gitOk(path, ['diff', 'HEAD']).catch(() => ''));
+      if (!unmerged && !markers.length) {
+        await git(path, ['add', '-A', '--', this.cfg.repository.folder]);
+        const cont = op === 'merge' ? ['-c', 'core.editor=true', 'commit', '--no-edit'] : ['-c', 'core.editor=true', op, '--continue'];
+        if ((await git(path, cont, { timeoutMs: 120000 })).code === 0) return `${op} continued`;
+      }
+      await git(path, [op, '--abort'], { timeoutMs: 120000 });
+      return `${op} aborted`;
+    }
+    return null;
   }
 
   /**
@@ -1768,7 +1815,7 @@ export class MatchSession {
     return run;
   }
 
-  async #integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null }) {
+  async #integrateItem({ backlogItemKey, tests, acknowledgeTestChanges, allowUncommitted = false, next = null, rescue = false }) {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'integrate_item is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
@@ -1795,6 +1842,7 @@ export class MatchSession {
     if (s.integratedTip && (await git(c.checkoutRoot, ['merge-base', '--is-ancestor', s.integratedTip, tip])).code === 0) base = s.integratedTip;
     else base = (await gitOk(c.checkoutRoot, ['merge-base', 'HEAD', tip])).trim();
     const commits = (await gitOk(c.checkoutRoot, ['rev-list', '--reverse', '--no-merges', `${base}..${tip}`])).split(/\r?\n/).filter(Boolean);
+    let overlaps = [];
     if (!commits.length && !s.integratedTip) fail('NOTHING_TO_INTEGRATE', `${s.name} has no commits for ${backlogItemKey}`);
     if (commits.length) {
       const names = (await gitOk(c.checkoutRoot, ['diff', '--name-only', base, tip])).split(/\r?\n/).filter(Boolean);
@@ -1802,13 +1850,32 @@ export class MatchSession {
       if (outside.length) fail('OUTSIDE_FOLDER', 'the slot commits touch files outside the assigned folder', { files: outside.slice(0, 10) });
       const diff = (await gitOk(c.checkoutRoot, ['diff', base, tip])) ?? '';
       if ([c.password, c.apiKey].some(v => v && v.length >= 4 && diff.includes(v))) fail('SECRET_IN_DIFF', 'the slot commits contain a credential value');
-      const pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', ...commits], { timeoutMs: 120000 });
+      const marked = markerFiles(diff);
+      if (marked.length) fail('CONFLICT_MARKERS', `${backlogItemKey}: the slot commits add git conflict markers; the worker resolves them (no <<<<<<< ======= >>>>>>> lines), reruns its tests, commits, then integrate again.`, { files: marked.slice(0, 10), worktreeRoot: s.path });
+      const local = rescue ? [] : localRefFiles(diff);
+      if (local.length) fail('TEST_USES_LOCAL_FILES', `${backlogItemKey}: committed tests read the slot scratch (.mtm-tmp) or a path of this machine; the grader has neither. Commit the fixture next to the test (inside the assigned folder) or build it in the test, then integrate again.`, { files: local.slice(0, 10), worktreeRoot: s.path });
+      const before = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
+      let pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', ...commits], { timeoutMs: 120000 });
+      if (pick.code !== 0 && rescue) {
+        // Last minutes: keep the branch's side of each conflicting hunk and every other change of the item (its new
+        // files, its answer) instead of submitting nothing.
+        await git(c.checkoutRoot, ['cherry-pick', '--abort']);
+        await git(c.checkoutRoot, ['reset', '-q', '--hard', before]);
+        pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', '--strategy-option=ours', ...commits], { timeoutMs: 120000 });
+        if (pick.code === 0) this.#timeline('RESCUE_CONFLICT_KEPT_BRANCH', backlogItemKey, { slot: s.name });
+      }
       if (pick.code !== 0) {
         const conflicts = (await git(c.checkoutRoot, ['diff', '--name-only', '--diff-filter=U'])).stdout.split(/\r?\n/).filter(Boolean);
         await git(c.checkoutRoot, ['cherry-pick', '--abort']);
+        await git(c.checkoutRoot, ['reset', '-q', '--hard', before]);
         fail('INTEGRATION_CONFLICT', `${backlogItemKey} conflicts with work already on ${c.repository.branch}. Ask the worker to run ` +
           `"git -C <worktreeRoot> rebase ${c.repository.branch}", resolve, rerun its tests, commit, rewrite DONE.json; then integrate again.`,
           { conflicts: conflicts.slice(0, 10), worktreeRoot: s.path });
+      }
+      const picked = markerFiles(await gitOk(c.checkoutRoot, ['diff', before, 'HEAD']));
+      if (picked.length) {
+        await git(c.checkoutRoot, ['reset', '-q', '--hard', before]);
+        fail('CONFLICT_MARKERS', `${backlogItemKey}: integrating would push git conflict markers; nothing was pushed.`, { files: picked.slice(0, 10), worktreeRoot: s.path });
       }
       let push = await git(c.checkoutRoot, ['push', 'origin', `HEAD:refs/heads/${c.repository.branch}`], { timeoutMs: 180000 });
       if (push.code !== 0) {
@@ -1820,17 +1887,35 @@ export class MatchSession {
       const all = this.#slots();
       all[s.name] = { ...all[s.name], integratedTip: tip, state: 'INTEGRATED' };
       this.#saveSlots(all);
+      overlaps = await this.#overlaps(s.name, names);
     }
     // Every existing submit gate runs unchanged on the pushed revision.
     const result = await this.submitWork({ backlogItemKey, gitRevision: 'HEAD', tests, acknowledgeTestChanges });
     if (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY') this.#releaseSlot(s.name, backlogItemKey);
-    const out = { ...result, slot: s.name, integratedCommits: commits.length };
+    const out = { ...result, slot: s.name, integratedCommits: commits.length, ...(overlaps.length ? { overlaps } : {}) };
     this.#timeline('INTEGRATED', backlogItemKey, { slot: s.name, status: result.status, commits: commits.length });
     // Group chaining: start the next item of this worker's group in the same slot (reset to the new branch head).
     if (next && (result.status === 'SUBMITTED' || result.status === 'ALREADY_SUBMITTED_LOCALLY')) {
       try { out.next = await this.startWork({ backlogItemKey: next, slot: s.name }); }
       catch (error) { out.nextError = { code: error.code ?? 'START_WORK_FAILED', message: String(error.message).slice(0, 300) }; }
       out.board = this.#board([]); // the board from submit_work predates the next item's start
+    }
+    return out;
+  }
+
+  /**
+   * 1.5.29: busy slots whose own changes touch files the branch just received (39PSWT5C: CR-07 carried BUG-11's fix
+   * to src/shared/util.ts; BUG-11 learnt it only at its own integration, 2.5 minutes before the end, mid-rebase).
+   * The orchestrator tells those workers at once to rebase while there is time.
+   */
+  async #overlaps(fromSlot, files) {
+    const set = new Set(files.filter(f => !/\/answers\//.test(`/${f}`)));
+    if (!set.size) return [];
+    const out = [];
+    for (const sl of Object.values(this.#slots()).filter(x => x.item && x.name !== fromSlot && x.base && existsSync(join(x.path ?? '', '.git')))) {
+      const r = await git(sl.path, ['diff', '--name-only', sl.base]);
+      const hit = r.code === 0 ? r.stdout.split(/\r?\n/).filter(f => set.has(f)) : [];
+      if (hit.length) out.push({ slot: sl.name, item: sl.item, files: hit.slice(0, 8) });
     }
     return out;
   }

@@ -294,15 +294,24 @@ TC-01 done at minute 4, nothing committed at the deadline, 0 of 100). So, for ev
    MVS test, computed fields, the hidden-test areas the brief names); UI screenshots, browser flows and other
    evidence come after. Give evidence a time box (about a quarter of your budget); past it, report that row
    NOT_RUN with the true reason instead of losing the item.
-2. **First checkpoint as soon as one row PASSes**: copy the template to `answers/<ID>/submit.json`, set status
+2. **Files the grader reads first exist from the start** (checklist "Output files": a manifest, a report, a CSV):
+   create each as a valid skeleton at your first commit and fill it as you go. Write the answer's computed fields
+   from your script as soon as they exist, even before checks. A rescue submits what is committed: an empty
+   template or a pack without its manifest scores 0 (39PSWT5C TASK-07: 12 statement files, no manifest, 0/45;
+   PI-04 and TASK-12: empty answers, nothing submitted).
+   **Tests you commit carry their own fixtures** (inside the assigned folder, or built in the test): never read
+   `.mtm-tmp` or a path of this machine - the grader has neither (39PSWT5C CR-07 team-tests 0/3).
+   **Browser evidence**: start the app build/serve as a background job in your first minutes when a row needs the
+   browser, so it is ready when the code is (39PSWT5C CR-07: three browser rows NOT_RUN at the deadline, 21 points).
+3. **First checkpoint as soon as one row PASSes**: copy the template to `answers/<ID>/submit.json`, set status
    `PARTIAL`, that row PASS with its evidence, the others NOT_RUN, fill what you already know, validate
    (`validate_answer`), commit. **After every further PASS**: update the answer, validate, commit. A valid answer is
    always committed.
-3. **Time**: the brief gives `budgetMinutes` and `wrapUpBy` (the earlier of your budget and 6 minutes before the
+4. **Time**: the brief gives `budgetMinutes` and `wrapUpBy` (the earlier of your budget and 6 minutes before the
    deadline or the match end). From `wrapUpBy` add no scope: finish the step in hand, final checks, answer, commit,
    doneFile. A `DEADLINE_SOON` message means the same, now. At 2.5 minutes left the helper commits and submits what
    your slot holds, so anything uncommitted or an invalid answer then is lost.
-4. **Rounds**: at most three fix-and-retest rounds per failing row; then report it honestly and move on.
+5. **Rounds**: at most three fix-and-retest rounds per failing row; then report it honestly and move on.
 
 ## The checklist (plan, then one final pass)
 `checklistFile` (`<slotMatchRoot>/.mtm-tmp/<ID>/checklist.md`) is the brief taken apart by the helper: every ask of
@@ -351,7 +360,10 @@ Points come per test-case row, per acceptance criterion and per hidden test. Wit
    If you are the baseline owner and the item has a deadline, the baseline fix comes first.
    Preflight before the final checks and final evidence: `git -C <worktreeRoot> diff --name-only HEAD...<branch>`.
    If it lists a file you changed, or code of a screen you capture, commit and `rebase <branch>` now; when both sides
-   fixed the same defect keep the branch's version. Then run the final checks on the rebased code and retake only
+   fixed the same defect keep the branch's version. A rebase is finished in one go: resolve every file (no
+   `<<<<<<<`, `=======`, `>>>>>>>` line left: `git diff --check`), `git add`, `git rebase --continue`, rerun the
+   checks. Never leave a rebase open while you do other work: near the deadline the helper aborts it and your
+   resolution is lost (39PSWT5C BUG-11: conflict markers reached the grader, 18/70). Then run the final checks on the rebased code and retake only
    the evidence whose screen or output the rebase changed. If nothing overlaps, do not rebase.
 5. Answer: edit `answerFile` (created from the template). Keep exactly the template's keys and rows, fill every field
    truthfully, set the top-level status the way the brief says. Every list stays a JSON array even with one element

@@ -125,9 +125,14 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,
    rebases, cherry-picks, pushes (never force), submits with every gate and logs `SUBMITTED`.
 3. Integration answers:
-   - `INTEGRATION_CONFLICT`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`, `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`,
-     `SCRATCH_COMMITTED`, `EXISTING_TESTS_MODIFIED`: `followup_task` the worker with the code and message; integrate
-     again on its next `SLOT_DONE` (picked commits are not picked twice). Never weaken a test.
+   - `INTEGRATION_CONFLICT`, `CONFLICT_MARKERS`, `TEST_USES_LOCAL_FILES`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`,
+     `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`, `SCRATCH_COMMITTED`, `EXISTING_TESTS_MODIFIED`: `followup_task` the worker
+     with the code and message; integrate again on its next `SLOT_DONE` (picked commits are not picked twice). Never
+     weaken a test.
+   - Any result with `overlaps[]` (also inside `AUTO_SUBMITTED`): the branch just received files those busy slots
+     changed too. `send_message` each named agent once, in that turn: "<ITEM> landed <files> on the branch: commit,
+     `git -C <worktreeRoot> rebase <branch>` now, keep the branch's version where both fixed the same defect, rerun
+     your checks." A conflict found at minute 5 costs a minute; at the deadline it costs the item (39PSWT5C BUG-11).
    - `SUBMIT_OUTCOME_UNCERTAIN`: `integrate_item` again unchanged.
    - `REVISION_NOT_PUSHED`, `GIT_PULL_FAILED`, `GIT_PUSH_FAILED`, `MAIN_DIRTY`: yours: `git -C <checkoutRoot>
      status`, fix without force, integrate again.
@@ -158,7 +163,7 @@ After a helper restart, `prepare_incident` any open PI missing from `board.incid
    answer when valid (else an honest PARTIAL from the template), integrates and submits; it arrives as
    `AUTO_SUBMITTED` with `rescued: true` - `interrupt_agent` that agent and refill its slot. A rescue that failed
    arrives in the same `AUTO_SUBMITTED` with `status: "RESCUE_FAILED"` and the `error` (e.g. the answer breaks the
-   schema): fix exactly that and `integrate_item` with `allowUncommitted: true` while seconds remain, else
+   schema, or `RESCUE_NOTHING_TO_SUBMIT`: the answer is still the empty template): fix exactly that and `integrate_item` with `allowUncommitted: true` while seconds remain, else
    `release_slot`.
 
 ## No slots

@@ -82,7 +82,7 @@ test('1.5.27: the organizer specification becomes Spec boxes; constraints on eve
   const global = spec.filter(b => /constraints on every rule/.test(b.section));
   assert.equal(global.length, 1, JSON.stringify(global));
   assert.match(global[0].text, /^Every rule holds for any number of lines in one import/);
-  assert.match(global[0].text, /hundreds of lines or transactions/);
+  assert.match(global[0].text, /over 1,000/);
   assert.ok(spec.some(b => /T1\. A transaction whose payee is another account's transfer payee is a transfer/.test(b.text) && /T\. Transfers/.test(b.section)));
   assert.ok(spec.some(b => /T3\. Changing the date of one side does not change the other/.test(b.text)));
   const entry = spec.find(b => /entry points/.test(b.section));
@@ -116,4 +116,14 @@ test('1.5.28: an input image in data/ or challenge/ gets an Image input box; evi
   assert.deepEqual(w.map(b => b.why), ['no proof', 'open'], 'the box text itself is no proof');
   const proved = ticked.replace(/(- \[x\] C\d+ data\/cfo[^\n]*)/, '$1 - proof: c1.png c2.png; 8,8,8,8,8,8 digits');
   assert.deepEqual(weakBoxes(proved).filter(b => b.section === 'Image input').map(b => b.why), ['open']);
+});
+
+test('1.5.29: files the Requirements ask to produce become Output files boxes (inputs, answers and source excluded)', () => {
+  const r = buildChecklist({ key: 'TASK-07', item: { descriptionMd: `# Pack
+## Requirements
+1. Commit the statement files and \`datasets/bulk-03/manifest.json\` in the application source root.
+2. Follow \`challenge/TASK-07-pack.md\` for the manifest format. Read \`data/input.csv\`.
+3. Add \`packages/loot-core/src/server/budget/month-close.ts\` exporting a handler.
+4. Export \`reports/summary.csv\` with the totals.` } });
+  assert.deepEqual(r.boxes.filter(b => b.section === 'Output files').map(b => b.text.split('`')[1]), ['datasets/bulk-03/manifest.json', 'reports/summary.csv']);
 });

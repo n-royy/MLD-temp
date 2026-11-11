@@ -19,6 +19,24 @@ const NOT_SPEC = /minimum-verification|submit|README/i;
 
 const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 
+/** Paths the brief's Requirements ask to create or commit (outputs, not inputs or the answer folder). */
+function outputFiles(description) {
+  const out = new Set();
+  for (const s of sections(description)) {
+    if (!/requirement|deliver|output|expected/i.test(s.heading ?? '')) continue;
+    for (const line of s.lines) {
+      if (!/\b(commit|create|write|produce|generate|save|export|add)\b/i.test(line)) continue;
+      for (const m of line.matchAll(/`([^`\s]+\.[A-Za-z0-9]{1,5})`/g)) {
+        const f = m[1];
+        if (/^(challenge|data|answers|evidence|env-require)\//.test(f) || /[*<>{}]/.test(f) || /\.test\.|\.spec\./.test(f)) continue;
+        if (/^(packages|src)\//.test(f) && /\.(ts|tsx|js|mjs|cjs|jsx)$/.test(f)) continue; // source code, not an output
+        out.add(f);
+      }
+    }
+  }
+  return [...out];
+}
+
 // 1.5.28: pictures the organizer gives as input (data/ or challenge/), not evidence the worker produces.
 const INPUT_IMAGE = /\b((?:data|challenge)\/[\w./-]+\.(?:png|jpe?g|gif|webp|bmp|tiff?))\b/gi;
 function inputImages(description, mvs, files) {
@@ -116,6 +134,11 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
   const evidence = [...new Set(sc.flatMap(s => s.evidence))];
   for (const e of evidence) add('Evidence', `evidence/${e}: exists, shows what its row expects, referenced by the row and listed in evidenceFiles`);
 
+  // 3a. 1.5.29: files the brief asks to produce (a manifest, a report, a CSV, a pack). The grader reads them first;
+  // without them nothing else counts (39PSWT5C TASK-07 0/45: twelve statement files committed by the rescue, the
+  // manifest written last never existed - "manifest.json not found" on all six criteria).
+  for (const f of outputFiles(description)) add('Output files', `\`${f}\`: created at the first checkpoint (even incomplete: a valid skeleton) and committed, then completed; the grader reads it before anything else`);
+
   // 3b. 1.5.28: an input image the answer is read from (45CVHIIC TASK-11 48/80: 8-digit amounts read with 7 digits).
   for (const img of inputImages(description, mvs, files)) {
     add('Image input', `${img}: every number, code and mark read from an enlarged crop (WORKER.md item kind 5, tools/crop-image.ps1), never from the whole image; each number transcribed with its digit count; lengths cross-checked against neighbouring values; strikethroughs, colours, line styles and arrows confirmed in crops. Proof after the box: the crop files and the digit counts`);
@@ -147,7 +170,7 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
       const listed = new Set(items);
       for (const t of [...items, ...paras.flatMap(sentences)]) {
         const text = t.replace(/\*\*/g, '');
-        if (GLOBAL.test(text)) add(`Spec ${base}: constraints on every rule`, `${text} -> cases: every entry point with many records in one call (hundreds of lines or transactions, mixed kinds and order), every result checked; a planted defect may show only there`);
+        if (GLOBAL.test(text)) add(`Spec ${base}: constraints on every rule`, `${text} -> cases: every entry point with more records in ONE call than any batch, chunk or SQL-parameter limit (over 1,000 - e.g. 1,500 - not "hundreds"; 39PSWT5C TASK-08 still missed batch-volume with a few hundred), in each kind of call (import lines; added, updated and deleted together in one change), mixed kinds and order, every result row checked; a planted defect may show only there`);
         else if (listed.has(t)) add(where, text); // a numbered or bulleted rule: always a box
         else if (/\b(is|are|has|have|holds?|keeps?|creates?|sets?|counts?|never|always|only|must|becomes?|stays?|deletes?|moves?|matches?|takes?|runs?|fills?|clears?|follows?|applies?)\b/i.test(text)) add(where, text);
       }
