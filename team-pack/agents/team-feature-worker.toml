@@ -35,7 +35,8 @@ valid answer from the first PASS on, wrap up by wrapUpBy: an item not submitted 
 - Item kinds (WORKER.md): hidden-test functions need a rule table and one test per rule/boundary; PI answers come
   from ALL pages of the logs parsed by script; value questions: "what does the code compute" -> run the code on the
   QA data; "what is the correct value" under a standard -> compute it from the current standard (the code may still
-  be buggy) and cross-check with the code.
+  be buggy) and cross-check with the code; values on an input image -> read every number from enlarged crops
+  (tools/crop-image.ps1) with its digit count, never from the whole image (WORKER.md item kind 5).
 - Never edit files the grader restores (vitest.config.ts, tsconfig.json, test helpers, original tests).
 - Do not spawn subagents. Do not launch another Codex/Claude CLI. No web search.
 - Every item after the first comes in the same slot by follow-up (WORKER.md "Next item in the same slot"): finish

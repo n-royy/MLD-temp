@@ -100,3 +100,20 @@ test('1.5.27: weakBoxes reports open boxes, Spec boxes without proof and proofs 
   assert.deepEqual(w.map(b => [b.id, b.why]), [['C1', 'copied proof'], ['C2', 'copied proof'], ['C4', 'copied proof'], ['C5', 'no proof'], ['C7', 'open']]);
   assert.deepEqual(openBoxes(md), ['C7']);
 });
+
+test('1.5.28: an input image in data/ or challenge/ gets an Image input box; evidence screenshots do not', () => {
+  const r = buildChecklist({
+    key: 'TASK-11',
+    item: { descriptionMd: '# Voucher\n\n## Context\nIt exists only as an image: `data/cfo-audit-voucher-2025-10.png` in the match folder.\n\n## Requirements\n1. Read the voucher.\n2. Take a screenshot `evidence/after.png`.' },
+    template: { schemaVersion: 1, backlogId: 'TASK-11', status: 'NOT_STARTED', evidenceFiles: [], netVoucherAdjustmentMinor: null },
+    files: { 'challenge/TASK-11-chart.jpg': '', 'challenge/TASK-11-submit.json': '{}' }
+  });
+  const images = r.boxes.filter(b => b.section === 'Image input').map(b => b.text.split(':')[0]);
+  assert.deepEqual(images, ['data/cfo-audit-voucher-2025-10.png', 'challenge/TASK-11-chart.jpg']);
+  assert.ok(r.md.includes('enlarged crop') && r.md.includes('digit count'));
+  const ticked = r.md.replace(/- \[ \] (C\d+) (data\/cfo[^\n]*)/, '- [x] $1 $2');
+  const w = weakBoxes(ticked).filter(b => b.section === 'Image input');
+  assert.deepEqual(w.map(b => b.why), ['no proof', 'open'], 'the box text itself is no proof');
+  const proved = ticked.replace(/(- \[x\] C\d+ data\/cfo[^\n]*)/, '$1 - proof: c1.png c2.png; 8,8,8,8,8,8 digits');
+  assert.deepEqual(weakBoxes(proved).filter(b => b.section === 'Image input').map(b => b.why), ['open']);
+});

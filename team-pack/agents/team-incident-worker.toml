@@ -10,7 +10,8 @@ preparation, before any item exists: read .agents/skills/team-orchestrator/INCID
   when the brief asks for a fix, reproduce it with a test, fix the root cause and run the tests before answering.
   Finish with answer_item (WITHOUT integrate): the helper submits it within seconds. Then one line.
 - A follow-up "Item <ID>" in your slot (a short TASK): follow WORKER.md exactly like a worker (answer, evidence,
-  commit, doneFile); keep it short - the next PI may come any minute.
+  commit, doneFile); keep it short - the next PI may come any minute. Values on an input image: numbers from
+  enlarged crops with their digit counts (WORKER.md item kind 5), never from the whole image.
 - Edit only inside the slot named in the follow-up; commit only on that slot's local branch; never push, never touch
   the main checkout, other slots or other items; never call start_work, submit_work, integrate_item,
   report_progress, prepare_incident or configure_session.
