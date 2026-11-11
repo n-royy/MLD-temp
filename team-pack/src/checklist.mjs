@@ -170,7 +170,7 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
       const listed = new Set(items);
       for (const t of [...items, ...paras.flatMap(sentences)]) {
         const text = t.replace(/\*\*/g, '');
-        if (GLOBAL.test(text)) add(`Spec ${base}: constraints on every rule`, `${text} -> cases: every entry point with more records in ONE call than any batch, chunk or SQL-parameter limit (over 1,000 - e.g. 1,500 - not "hundreds"; 39PSWT5C TASK-08 still missed batch-volume with a few hundred), in each kind of call (import lines; added, updated and deleted together in one change), mixed kinds and order, every result row checked; a planted defect may show only there`);
+        if (GLOBAL.test(text)) add(`Spec ${base}: constraints on every rule`, `${text} -> cases: every entry point with more records in ONE call than any batch, chunk or SQL-parameter limit (past the largest page/chunk size found in the code the rules run through, db/query helpers included, and at least over 1,000; 39PSWT5C TASK-08 missed batch-volume with 160, 45CVHIIC caught it with 1,005), in each kind of call (import lines; added, updated and deleted together in one change), mixed kinds and order, every result row checked; a planted defect may show only there`);
         else if (listed.has(t)) add(where, text); // a numbered or bulleted rule: always a box
         else if (/\b(is|are|has|have|holds?|keeps?|creates?|sets?|counts?|never|always|only|must|becomes?|stays?|deletes?|moves?|matches?|takes?|runs?|fills?|clears?|follows?|applies?)\b/i.test(text)) add(where, text);
       }

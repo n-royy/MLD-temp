@@ -35,8 +35,9 @@ CR-07 had carried BUG-11's fix to `util.ts`; BUG-11 learnt of it only at its own
 ## Checklist and worker
 - New "Output files" boxes: every file the Requirements ask to commit or produce (a manifest, a report, a CSV), to
   create as a valid skeleton at the first checkpoint.
-- Spec "constraints on every rule": volume cases now over 1,000 records in one call (past batch, chunk and SQL
-  parameter limits), in each kind of call.
+- Spec "constraints on every rule": volume cases sized from the code (past the largest page/chunk size the rules
+  run through, db/query helpers included) and over 1,000 records in one call, in each kind of call. 45CVHIIC passed
+  batch-volume with 1,005 records; 39PSWT5C missed the same planted paging defect (`slice(i, pageCount)`) with 160.
 - WORKER.md "Always submittable": output files and computed fields first; committed tests carry their own fixtures;
   browser build started in the background in the first minutes; a rebase is finished in one go (`git diff --check`).
 - SKILL.md: the new codes and the `overlaps[]` rule.

@@ -123,7 +123,11 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      function, when both are listed).
   2. **Where planted defects hide** (test these axes for every rule before anything else): boundaries on both sides
      (on, one before, one after), volume (hundreds of lines or transactions in ONE call - planted bugs often break
-     only past a batch or chunk size such as 50, 100 or 1000), order (lines in reverse and interleaved order, two
+     only past a batch or chunk size such as 50, 100 or 1000). Size them from the code, not by guess: `rg -n
+     "pageCount|pageSize|chunk|batchSize|LIMIT|\.slice\(" <the modules the spec names, and the db/query helpers they
+     call>` and go past the largest size found, in every kind of call (45CVHIIC passed with 1,005 records, 39PSWT5C
+     missed the same defect with 160: a paging helper sliced `slice(i, pageCount)` instead of `slice(i, i + pageCount)`,
+     visible only past one page), order (lines in reverse and interleaved order, two
      lines competing for one candidate), repetition (the same line or call twice), every path that sets a field
      (direct, rule, import, schedule, merge), and modules together (import + rule + transfer + budget in one case).
      A volume case checks every resulting row, not a count.
