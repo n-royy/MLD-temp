@@ -123,6 +123,7 @@ Short rules learned from real matches. Each line names where it came from. They 
 - Integration under overlap (39PSWT5C, 408 points): CR-07 carried BUG-11's fix to util.ts; BUG-11 met the conflict
   only at its own end, the rescue committed the half-done rebase and the grader got conflict markers (18/70). TASK-07
   committed its statement files but wrote the manifest last (0/45); PI-04/TASK-12 rescues pushed empty templates.
+  BUG-09 sat done for 7 minutes behind the old "hold for the open PI" rule: removed, finished items go at once.
   Since 1.5.29: markers are refused, open rebases are settled, overlaps are announced at once, the graded output
   files exist from the first commit.
 - The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial

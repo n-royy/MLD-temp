@@ -210,17 +210,14 @@ test('a revealed PI is started in a PI agent slot (s5) and its data collected be
     assert.equal(inc.deadlineMinutes, 15);
     assert.ok(w.board.incidents.some(i => i.key === 'PI-01' && i.state === 'REPORTED'));
     assert.deepEqual(w.board.newItems.sort(), ['CR-04', 'PI-01'], 'items revealed with the PI are still listed as new');
-    // 1.5.10: while the PI is open, a finished item without a deadline waits (the PI scores by submission order).
-    assert.equal(w.board.slots.find(x => x.slot === 's1').state, 'DONE_HELD_FOR_PI');
-    assert.deepEqual(w.board.heldForPi, ['BUG-07']);
-    const held = await h.call('wait_for_update', { noWait: true });
-    assert.notEqual(held.reason, 'SLOT_DONE', JSON.stringify(held).slice(0, 300));
-    // Once the PI is submitted the worker's result comes, and the PI is never reported twice.
-    gm.state.backlog.find(i => i.key === 'PI-01').submission = { attemptNo: 1, receivedAt: new Date().toISOString() };
-    await h.call('refresh_match');
+    // 1.5.29: nothing waits for an open PI (39PSWT5C BUG-09 sat done for 7 minutes): the finished item comes at once.
+    assert.equal(w.board.slots.find(x => x.slot === 's1').state, 'DONE');
+    assert.equal(w.board.heldForPi, undefined);
     const w2 = await h.call('wait_for_update', {});
     assert.equal(w2.reason, 'SLOT_DONE', JSON.stringify(w2).slice(0, 300));
-    assert.equal(w2.board.heldForPi, undefined);
+    assert.deepEqual(w2.slotDone.map(d => d.item), ['BUG-07']);
+    gm.state.backlog.find(i => i.key === 'PI-01').submission = { attemptNo: 1, receivedAt: new Date().toISOString() };
+    await h.call('refresh_match');
     // Manual trigger returns the same prepared data without collecting again.
     const before = gm.state.companyCalls;
     const again = await h.call('prepare_incident', { backlogItemKey: 'PI-01' });
@@ -475,7 +472,7 @@ test('1.5.21: no dependency scheduling; the brief carries every other item in ba
     assert.match(readFileSync(crBrief.backlogFile, 'utf8'), /## BUG-21[\s\S]*reversed entries/);
     const bugBrief = JSON.parse(readFileSync(bug.briefFile, 'utf8'));
     assert.equal(bugBrief.stopBy && bugBrief.deadlineAt, null, 'a no-deadline item has no deadline of anyone else');
-    // Everything finishes while a PI is open: only the deadline item goes before the PI.
+    // Everything finishes while a PI is open: 1.5.29 reports all of them at once (nothing is held for the PI).
     for (const s of [bug, task, cr]) writeFileSync(s.doneFile, JSON.stringify({ status: 'DONE', summary: 'done' }));
     const { submission, ...pi } = PI;
     gm.reveal({ ...pi, key: 'PI-09' });
@@ -484,12 +481,8 @@ test('1.5.21: no dependency scheduling; the brief carries every other item in ba
     assert.equal(w.reason, 'NEW_PI', JSON.stringify(w).slice(0, 300));
     const w2 = await h.call('wait_for_update', {});
     assert.equal(w2.reason, 'SLOT_DONE');
-    assert.deepEqual(w2.slotDone.map(d => d.item), ['CR-17']);
-    assert.deepEqual([...w2.board.heldForPi].sort(), ['BUG-21', 'TASK-25']);
-    gm.state.backlog.find(i => i.key === 'PI-09').submission = { attemptNo: 1 };
-    await h.call('refresh_match');
-    const w3 = await h.call('wait_for_update', {});
-    assert.equal(w3.reason, 'SLOT_DONE'); assert.deepEqual(w3.slotDone.map(d => d.item).sort(), ['BUG-21', 'TASK-25']);
+    assert.deepEqual(w2.slotDone.map(d => d.item).sort(), ['BUG-21', 'CR-17', 'TASK-25']);
+    assert.equal(w2.board.heldForPi, undefined);
   } finally { h.close(); }
 });
 

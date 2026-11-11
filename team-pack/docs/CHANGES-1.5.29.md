@@ -8,6 +8,7 @@ On top of 1.5.28. Driven by 39PSWT5C (1.5.28, 408 points, 8 of 14 submitted). Pe
 | TASK-07 | 0/45 | The rescue committed 12 statement files; the manifest, written last, did not exist: "manifest.json not found" on all six criteria. |
 | CR-07 | 35/70 | Three browser rows NOT_RUN at the deadline (21 points); a committed test read `.mtm-tmp/CR-07/official.zip` (team-tests 0/3). |
 | TASK-08 | 97/110 | batch-volume missed again: the volume cases used a few hundred records. |
+| BUG-09 | 60/60, 7 min late | Done at 08:15:26, held for the open PI-03 until 08:22:24: its slot idle. |
 | PI-04, TASK-12 | not submitted | The rescue pushed the empty template; the submission was refused. |
 
 CR-07 had carried BUG-11's fix to `util.ts`; BUG-11 learnt of it only at its own integration near the end.
@@ -25,6 +26,11 @@ CR-07 had carried BUG-11's fix to `util.ts`; BUG-11 learnt of it only at its own
   rescue).
 - **`RESCUE_NOTHING_TO_SUBMIT`**: a rescue whose answer is still the empty template does not push or submit; the
   orchestrator is woken with that code.
+
+## Nothing waits for a PI
+- Removed the 1.5.10 hold (`DONE_HELD_FOR_PI`, `board.heldForPi`): a finished item is reported and auto-submitted at
+  once, also while a PI is open, and its slot refilled. 39PSWT5C BUG-09: done at 08:15:26, submitted at 08:22:24 -
+  its slot idle 7 minutes while PI-03 was worked in the fast lane. Integrations are serialized and take seconds.
 
 ## Checklist and worker
 - New "Output files" boxes: every file the Requirements ask to commit or produce (a manifest, a report, a CSV), to

@@ -394,24 +394,14 @@ export class MatchSession {
 
   #isHeavy(item) { return this.#effort(item).heavy; }
 
-  /** True when the item's finished result waits for the open PI (see #piHold). */
-  #heldForPi(key, hold = this.#piHold()) {
-    if (!hold.length || hold.includes(key)) return false;
-    // A PI without a slot needs a finished slot to start in: nothing is held for it (a hold would park the very slot
-    // the PI waits for, up to 8 minutes). A deadline item waiting with no free slot: the finished slot is its way in.
-    if (!hold.some(k => this.#slotOf(k))) return false;
-    if (this.#urgent(this.#items().find(i => i.key === key))) return false;
-    // A deadline item waiting with no free slot gets the earliest finished slot(s), one per waiting item; the
-    // others stay held so the PI is not interrupted by integrations nobody needs yet.
-    const waiting = this.#deadlineWaiting();
-    if (waiting.length && !this.#freeSlotForDeadline(waiting)) {
-      const finished = Object.values(this.#slots()).filter(sl => sl.item && !this.#urgent(this.#items().find(i => i.key === sl.item)))
-        .map(sl => { try { return { key: sl.item, at: statSync(join(sl.matchRoot, SCRATCH, sl.item, 'DONE.json')).mtimeMs }; } catch { return null; } })
-        .filter(Boolean).sort((a, b) => a.at - b.at).slice(0, waiting.length).map(x => x.key);
-      if (finished.includes(key)) return false;
-    }
-    return true;
-  }
+  /**
+   * 1.5.29: nothing finished waits for a PI any more. Since 1.5.10 a finished no-deadline item was held while a PI was
+   * open (so the PI's submission would not queue behind it); 39PSWT5C BUG-09 was done at 08:15:26 and submitted at
+   * 08:22:24, its slot idle 7 minutes while PI-03 was worked in its own lane. Integrations are serialized and take
+   * seconds; a free slot is worth more. Kept as a function so the board and tests read the same answer.
+   */
+  #heldForPi() { return false; }
+
 
   /** Busy items whose deadline (or the match end) is SOON_MINUTES away, each reported once. */
   #deadlineSoon() {
@@ -1542,8 +1532,6 @@ export class MatchSession {
         try { raw = readFileSync(f, 'utf8'); d = JSON.parse(raw.replace(/^\uFEFF/, '')); } catch { continue; }
         const sig = sha256(raw);
         if (sl.autoSig === sig || !this.#autoEligible(sl, d)) continue;
-        // While a PI is open, a no-deadline item waits (the PI's own submission must not queue behind it).
-        if (this.#heldForPi(sl.item, hold)) continue;
         const key = sl.item;
         const all = this.#slots(); all[sl.name] = { ...all[sl.name], autoSig: sig }; this.#saveSlots(all);
         try {

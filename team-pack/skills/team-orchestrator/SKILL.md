@@ -140,8 +140,8 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
      `release_slot`.
    - `next` in the result: hand it to the slot's agent; `nextError` `DEADLINE_ITEM_WAITING`: start that deadline
      item in the slot instead.
-4. A slot `DONE_HELD_FOR_PI` waits for the open PI; the helper submits it right after. Submitted answers are final:
-   never re-audit them.
+4. A finished item is submitted at once, also while a PI is open (nothing waits for a PI: its own lane is free).
+   Submitted answers are final: never re-audit them.
 
 ## PI (every PI, at once)
 The helper starts the PI in a free slot (the fast lane s5/s6 first, else any free worker slot), fetches the incident
@@ -149,7 +149,7 @@ rules and sweeps every log entry into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/` 
 `NEW_PI` brings `incident`. In that turn:
 1. `followup_task` the agent **of `incident.slot`** with the PI message (PA/PB in s5/s6; a worker in s1-s4 reads
    INCIDENT.md for it). The agent answers with `answer_item`; the helper submits it within seconds (PIs first).
-2. Go on with the deadline items. Finished items without a deadline are held while a PI is open.
+2. Go on with every other item as usual: finished items are submitted at once, nothing is held for the PI.
 `incident.slot` null (every slot busy): the helper starts it in the first slot that frees and sends `NEW_PI` again
 (the fast lane runs short items only, so that is minutes at most). Never interrupt an agent for a PI.
 A PI's `SLOT_DONE` (doubts, invalid answer): `followup_task` its agent; never answer it yourself.
