@@ -18,7 +18,7 @@ let gm, tmp, bare, checkoutRoot, matchRoot, logFile, prepare, start;
 class Helper {
   constructor() {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', MTM_SOON_MINUTES: '3', MTM_RESCUE_MINUTES: '-1', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1' }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -99,7 +99,7 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, six slots: 4 wor
     assert.ok(Math.abs(bug.minutesLeft - 2.5) < 0.2, `minutesLeft ${bug.minutesLeft}`);
     assert.equal(board.items.find(i => i.key === 'CR-09').minutesLeft, undefined);
     assert.ok(Math.abs(board.match.minutesLeft - 32.5) < 0.2);
-    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'pi-agent', 'pi-agent']);
+    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'fast-lane', 'fast-lane']);
     assert.ok(JSON.stringify(board).length < 2500, `board ${JSON.stringify(board).length} chars`);
     assert.equal((await h.call('prepare_slots', { count: 7 })).error?.code, 'INVALID_SLOT_COUNT');
     const s = await h.call('start_work', { backlogItemKey: 'BUG-09', slot: 's1' });

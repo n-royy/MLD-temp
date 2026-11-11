@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
 import { PROXY_FILE, relayCompany, startCompanyProxy } from './company-proxy.mjs';
 import { clearStaleLock, git, gitOk } from './git.mjs';
-import { buildChecklist, openBoxes } from './checklist.mjs';
+import { buildChecklist, weakBoxes } from './checklist.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
@@ -24,17 +24,24 @@ const allowLoopback = process.env.MTM_HELPER_ALLOW_LOOPBACK === '1'; // mock tes
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
-// 1.5.25: the orchestrator only coordinates. s1-s4: the 4 item workers. s5, s6: the two PI agents' own slots - a PI
-// goes there first; while no PI is open the PI agent works ordinary items there. Every slot is installed (a PI may
-// ask for a fix in the source: YH6OAYMZ PI-02 "Then fix the fault in the application source").
+// 1.5.27: the orchestrator only coordinates. s1-s4: the 4 workers (any item, long ones above all). s5, s6: the fast
+// lane - the two PI agents take PIs and short items only, so a PI or a short item never waits behind a long one
+// (R7WFBQBT: PI-03 waited 8 minutes, TASK-05/06/11 11-24 minutes for a slot, while 1.5.13 did them at once in s4).
+// Every slot is installed (a PI may ask for a fix in the source).
 const PI_AGENT_SLOTS = ['s5', 's6'];
-const slotRole = n => PI_AGENT_SLOTS.includes(n) ? 'pi-agent' : 'worker';
+const slotRole = n => PI_AGENT_SLOTS.includes(n) ? 'fast-lane' : 'worker';
 // Board entries stay small: every wait_for_update result is re-sent with the orchestrator's context.
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
-// DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left.
-const SOON_MINUTES = 3;
-// A heavy item works on until this close to its deadline / the match end; then its last commit is integrated at once.
-const HEAVY_FINAL_MINUTES = 1.5;
+// DEADLINE_SOON fires once per item (and once per busy item before the match ends) at this many minutes left: the
+// worker commits and makes its answer valid now (R7WFBQBT CR-07: 3 minutes was too late to get anything submitted).
+const SOON_MINUTES = Number(process.env.MTM_SOON_MINUTES) || 6;
+// At this many minutes left an unsubmitted busy item is submitted by the helper itself: its work committed, its answer
+// kept when valid or made an honest PARTIAL from the template (an unsubmitted item scores 0).
+const RESCUE_MINUTES = Number(process.env.MTM_RESCUE_MINUTES) || 2.5;
+// A busy slot with no file activity (scratch, jobs, answers) for this long is reported once as SLOT_STALLED.
+const STALL_MINUTES = Number(process.env.MTM_STALL_MINUTES) || 5;
+// Soft time budget per item by effort level: past it the worker stops adding scope and finishes what it verified.
+const BUDGET_MINUTES = { S: 8, M: 12, L: 18, XL: 25 };
 // Incident fast path: a revealed PI is started in a free slot and its logs and rules are collected by code at once.
 const INCIDENT_AUTO = process.env.MTM_INCIDENT_FASTPATH !== '0';
 /**
@@ -80,7 +87,17 @@ export function effortOf(item, peers = [], sizes = {}) {
     const ml = lens[Math.floor((lens.length - 1) / 2)];
     if (text.length >= 3500 && text.length >= 1.6 * ml) add(1, `long brief (${text.length} chars)`);
   }
-  const level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
+  let level = score >= 5 ? 'XL' : score >= 3 ? 'L' : score >= 1 ? 'M' : 'S';
+  // 1.5.27: an item worked from an organizer specification (a spec file to cover rule by rule, a test suite scored by
+  // broken builds) is never short, whatever its wording (R7WFBQBT TASK-08: 100 points, 30+ rules, rated S with score
+  // 0 - in the fast lane it would have got an 8-minute budget). The level is raised, not the heavy score.
+  const files = [text, ...(Array.isArray(item?.onStartFiles) ? item.onStartFiles : []), ...(Array.isArray(item?.releaseFiles) ? item.releaseFiles : [])].join('\n');
+  const spec = /\bchallenge\/(?![\w.-]*(?:minimum-verification|submit))[\w.-]+\.(?:md|txt)\b/i.exec(files);
+  const suite = /\b(?:test|integration|regression|end-to-end|e2e)\s+(?:test\s+)?suite\b|\bbuilds?\s+that\s+(?:each\s+)?break\b|\bdetection\s+share\b/i.exec(text);
+  if ((spec || suite) && (level === 'S' || level === 'M')) {
+    level = 'L';
+    reasons.push(suite ? `test suite against a specification (${suite[0]})` : `organizer specification (${spec[0]})`);
+  }
   return { score, level, heavy: score >= 5, candidate: score >= 3 && score < 5, reasons };
 }
 // A deadline item with less time left than this is not offered as "waiting" (it cannot be finished).
@@ -394,9 +411,9 @@ export class MatchSession {
     for (const s of Object.values(this.#slots())) {
       if (!s.item) continue;
       const item = this.#items().find(i => i.key === s.item);
-      const heavy = this.#isHeavy(item);
-      const soon = heavy ? HEAVY_FINAL_MINUTES : SOON_MINUTES;
-      const extra = heavy ? { heavy: true, action: 'INTEGRATE_LAST_COMMIT_NOW' } : {};
+      if (!item || item.submission) continue;
+      const soon = SOON_MINUTES;
+      const extra = { action: 'COMMIT_AND_VALIDATE_NOW', rescueAtMinutesLeft: RESCUE_MINUTES };
       const left = this.#minutesLeft(item);
       if (left !== null && left <= soon && left > -1 && !this.warned.has(`${s.item}:deadline`)) {
         this.warned.add(`${s.item}:deadline`);
@@ -726,6 +743,8 @@ export class MatchSession {
       if (done.length) return { changed: true, reason: 'SLOT_DONE', slotDone: done.map(d => ({ ...d, suggestNext: this.#suggestNext(d.slot) })), board: this.#board([]) };
       const finished = this.#jobsFinished();
       if (finished.length) return { changed: true, reason: 'JOBS_DONE', jobs: finished, board: this.#board([]) };
+      const stalled = this.#stalledSlots();
+      if (stalled.length) return { changed: true, reason: 'SLOT_STALLED', stalled, board: this.#board([]) };
       const soon = this.#deadlineSoon();
       if (soon.length) { this.soonUntil = Date.now() + 300000; return { changed: true, reason: 'DEADLINE_SOON', deadlineSoon: soon, board: this.#board([]) }; }
       const status = this.projection?.match?.status;
@@ -1210,9 +1229,20 @@ export class MatchSession {
     return seen && el !== null ? Math.max(0, el - (Date.now() - seen) / 1000) : 0;
   }
 
-  /** Every slot takes any item (1.5.25). */
-  #fitsSlot() {
-    return true;
+  /** A short item (1.5.27): a TASK that is not heavy and of effort S or M - it goes to the fast lane. */
+  #isShort(item) {
+    if (!item || isIncident(item)) return false;
+    const type = String(item.backlogType ?? item.type ?? '').toUpperCase();
+    const e = this.#effort(item);
+    return type === 'TASK' && !e.heavy && (e.level === 'S' || e.level === 'M');
+  }
+
+  /** The fast lane (s5/s6) takes PIs and short items only; s1-s4 take anything. */
+  #fitsSlot(d, slotName) {
+    if (!PI_AGENT_SLOTS.includes(slotName)) return true;
+    const key = d?.key ?? d;
+    const item = this.#items().find(i => i.key === key) ?? { key };
+    return isIncident(item) || this.#isShort(item);
   }
 
   /** A free slot a waiting deadline item could take right now. */
@@ -1234,7 +1264,7 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers) or s5-s6 (PI agents)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers) or s5-s6 (fast lane: PIs and short TASKs)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
@@ -1242,6 +1272,10 @@ export class MatchSession {
     if (claimed && claimed !== key) fail('SLOT_BUSY', `${name} is being started for ${claimed} (the PI)`);
     const other = this.#slotOf(key);
     if (other && other.name !== name) fail('ITEM_IN_OTHER_SLOT', `${key} is already in ${other.name}`);
+    if (s.item !== key && !this.#fitsSlot(key, name)) {
+      fail('FAST_LANE_SHORT_ONLY', `${name} is the fast lane (PIs and short TASKs only); start ${key} in a worker slot s1-s4`,
+        { freeWorkerSlot: ['s1', 's2', 's3', 's4'].find(n => { const x = this.#slots()[n]; return x && !x.item && !this.pendingClaims?.has(n); }) ?? null });
+    }
     return s;
   }
 
@@ -1367,7 +1401,11 @@ export class MatchSession {
     const end = this.#matchMinutesLeft();
     const dl = item ? this.#minutesLeft(item) : null;
     const stop = [dl, end].filter(v => v !== null && v !== undefined);
-    return { deadlineAt: at(dl), matchEndsAt: at(end), stopBy: stop.length ? at(Math.min(...stop)) : null };
+    // 1.5.27: a soft budget by effort; past wrapUpBy the worker adds no scope and finishes what it verified.
+    const budget = BUDGET_MINUTES[this.#effort(item).level] ?? 12;
+    const wrap = [budget, ...stop.map(v => v - SOON_MINUTES)].filter(v => Number.isFinite(v));
+    return { deadlineAt: at(dl), matchEndsAt: at(end), stopBy: stop.length ? at(Math.min(...stop)) : null,
+      budgetMinutes: budget, wrapUpBy: at(Math.max(1, Math.min(...wrap))) };
   }
 
   /** <matchRoot>/.mtm-tmp/jobs when preparation started background jobs there, else null. */
@@ -1453,14 +1491,23 @@ export class MatchSession {
     if (!item || item.submission) return false;
     if (String(d.status ?? '').toUpperCase() !== 'DONE' || (d.doubts && String(d.doubts).trim())) return false;
     if (this.#gradingKind(item) && String(d.qualityGate?.status ?? '').toUpperCase() !== 'PASS') return false;
-    if (this.#checklistOpen(slot).length) return false;
+    // 1.5.27: open checklist boxes no longer block (R7WFBQBT: ticking 30+ boxes cost minutes per item); they are
+    // reported with the result instead. Except the organizer's specification on an item with a quality gate: there
+    // every statement is a graded part (R7WFBQBT TASK-08: 5 planted defects x 16 points), so a Spec box that is open,
+    // has no proof or a copied one goes to the orchestrator (SLOT_DONE checklistOpen) instead of being submitted.
+    if (this.#gradingKind(item) && this.#checklistWeak(slot).some(b => /^Spec /.test(b.section))) return false;
     return true;
   }
 
-  /** Boxes of the item's checklist (1.5.26) still open in the slot; [] when it has none. */
-  #checklistOpen(slot) {
+  /** Boxes of the item's checklist that do not hold (open, no proof on a Spec box, copied proof); [] without one. */
+  #checklistWeak(slot) {
     const f = join(slot.matchRoot, SCRATCH, slot.item ?? '', 'checklist.md');
-    try { return existsSync(f) ? openBoxes(readFileSync(f, 'utf8')) : []; } catch { return []; }
+    try { return existsSync(f) ? weakBoxes(readFileSync(f, 'utf8')) : []; } catch { return []; }
+  }
+
+  /** The same, as short labels for SLOT_DONE ("C12", "C14 copied proof", "C20 no proof"). */
+  #checklistOpen(slot) {
+    return this.#checklistWeak(slot).map(b => b.why === 'open' ? b.id : `${b.id} ${b.why}`);
   }
 
   /** Background pass (every few seconds during the game): integrates and submits every eligible finished item. */
@@ -1503,38 +1550,146 @@ export class MatchSession {
           this.#timeline('AUTO_INTEGRATE_FAILED', key, { slot: sl.name, code: error.code ?? null });
         }
       }
+      await this.#rescuePass();
     } finally { this.autoBusy = false; }
   }
 
   /**
-   * What the freed slot should take next, in the team's priority (1.5.24): deadline items (least slack first; PIs are
-   * started by the helper itself, s5/s6 first), then a heavy item (one at a time: the machine is shared), then the rest:
-   * first an item whose fix the finished worker already made (includedFixes: the same worker continues it), then the
-   * most points per effort. `worker`: the agent type to spawn, `same` (followup_task the worker of that slot) or
-   * `pi_agent` (s5/s6: followup_task that slot's PI agent). Advice only.
+   * 1.5.27: an item still in its slot RESCUE_MINUTES before its deadline (or the match end) is submitted by the helper
+   * itself - its work committed, its answer kept when valid, otherwise an honest PARTIAL built from the template (rows
+   * NOT_RUN except PASS rows whose evidence exists). R7WFBQBT CR-07: the code and TC-01 were done at minute 4, nothing
+   * was committed at the deadline, the item scored 0.
+   */
+  async #rescuePass() {
+    if (this.projection?.match?.status !== 'IN_PROGRESS') return;
+    const end = this.#matchMinutesLeft();
+    this.rescued ??= new Set();
+    for (const sl of Object.values(this.#slots()).filter(x => x.item)) {
+      const key = sl.item;
+      const item = this.#items().find(i => i.key === key);
+      if (!item || item.submission || this.rescued.has(key)) continue;
+      const lefts = [this.#minutesLeft(item), end].filter(v => v !== null && v !== undefined);
+      if (!lefts.length) continue;
+      const left = Math.min(...lefts);
+      if (left > RESCUE_MINUTES || left < -0.5) continue;
+      this.rescued.add(key);
+      try {
+        const res = await this.#rescue(sl, key);
+        (this.autoResults ??= []).push({ slot: sl.name, item: key, status: res.status, rescued: true, answer: res.answerKind,
+          ...(res.submissionId ? { submissionId: res.submissionId } : {}), includedFixes: [] });
+        this.#timeline('RESCUED', key, { slot: sl.name, status: res.status, answer: res.answerKind });
+      } catch (error) {
+        const again = this.#slots();
+        if (again[sl.name]?.item === key) { again[sl.name] = { ...again[sl.name], autoError: { code: error.code ?? 'RESCUE_FAILED', message: clip(String(error.message), 300) } }; this.#saveSlots(again); }
+        this.#timeline('RESCUE_FAILED', key, { slot: sl.name, code: error.code ?? null });
+        // Wakes the orchestrator at once: the last minutes are its to use (integrate_item / submit_work by hand).
+        (this.autoResults ??= []).push({ slot: sl.name, item: key, status: 'RESCUE_FAILED', rescued: true,
+          error: { code: error.code ?? 'RESCUE_FAILED', message: clip(String(error.message), 300) },
+          note: 'not submitted: fix and integrate_item now', includedFixes: [] });
+      }
+    }
+  }
+
+  async #rescue(sl, key) {
+    const c = this.cfg;
+    await clearStaleLock(sl.path, 30000).catch(() => false);
+    const dir = join(sl.matchRoot, 'answers', key);
+    const file = join(dir, 'submit.json');
+    const exists = ref => existsSync(join(dir, ref));
+    let answer = null;
+    try { answer = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); } catch { /* none or broken */ }
+    let answerKind = 'worker';
+    if (!answer || this.#answerProblems(key, answer, exists).problems.length) {
+      let template = null;
+      try { template = JSON.parse(readFileSync(join(this.#stateDir(), `${key}.start.json`), 'utf8')).submitTemplate ?? null; } catch { /* none */ }
+      if (template) {
+        const base = answer && typeof answer === 'object' ? { ...structuredClone(template), ...answer } : structuredClone(template);
+        const prev = new Map((Array.isArray(answer?.testResults) ? answer.testResults : []).map(r => [r?.id, r]));
+        const keep = r => r && String(r.result ?? '').toUpperCase() === 'PASS' && Array.isArray(r.evidence) && r.evidence.length && r.evidence.every(exists);
+        if (Array.isArray(template.testResults)) {
+          base.testResults = template.testResults.map(t => {
+            const p = prev.get(t.id);
+            return keep(p) ? p : { id: t.id, result: 'NOT_RUN', evidence: [], note: 'Not verified before the deadline.' };
+          });
+          if (Array.isArray(template.evidenceFiles)) base.evidenceFiles = [...new Set(base.testResults.flatMap(r => r.result === 'PASS' ? r.evidence : []))];
+        }
+        base.status = 'PARTIAL';
+        mkdirSync(join(dir, 'evidence'), { recursive: true });
+        writeFileSync(file, `${JSON.stringify(base, null, 2)}\n`);
+        answerKind = answer ? 'repaired' : 'template';
+      }
+    }
+    // Commit whatever the worker has (only inside the assigned folder; scratch stays ignored).
+    const add = await git(sl.path, ['add', '-A', '--', c.repository.folder], { timeoutMs: 120000 });
+    if (add.code === 0 && (await git(sl.path, ['diff', '--cached', '--quiet'])).code !== 0) {
+      const msg = `${key}: work in progress committed by the team helper ${RESCUE_MINUTES} minutes before the deadline`;
+      let ci = await git(sl.path, ['commit', '-q', '-m', msg], { timeoutMs: 120000 });
+      if (ci.code !== 0) ci = await git(sl.path, ['-c', 'user.name=MLD helper', '-c', 'user.email=mld-helper@localhost', 'commit', '-q', '-m', msg], { timeoutMs: 120000 });
+    }
+    const res = await this.integrateItem({ backlogItemKey: key, allowUncommitted: true });
+    return { ...res, answerKind };
+  }
+
+  /**
+   * Busy slots where nothing happens (1.5.27): no DONE.json and no file written in the item's scratch folder, the
+   * slot's jobs or its answer for STALL_MINUTES. R7WFBQBT: s6 held BUG-11 for 9 minutes with no agent on it.
+   */
+  #stalledSlots() {
+    if (this.cfg?.phase !== 'GAME' || !this.#hasSlots()) return [];
+    this.stallSeen ??= new Map();
+    const newest = d => {
+      let m = 0;
+      try {
+        for (const n of readdirSync(d, { withFileTypes: true })) {
+          const f = join(d, n.name);
+          try { m = Math.max(m, statSync(f).mtimeMs); } catch { /* gone */ }
+          if (n.isDirectory()) try { for (const x of readdirSync(f)) m = Math.max(m, statSync(join(f, x)).mtimeMs); } catch { /* ignore */ }
+        }
+      } catch { /* missing */ }
+      return m;
+    };
+    const out = [];
+    for (const sl of Object.values(this.#slots()).filter(x => x.item)) {
+      const key = sl.item;
+      const item = this.#items().find(i => i.key === key);
+      if (!item || item.submission || existsSync(join(sl.matchRoot, SCRATCH, key, 'DONE.json'))) continue;
+      const started = Date.parse(sl.startedAt ?? '') || 0;
+      const last = Math.max(started, newest(join(sl.matchRoot, SCRATCH, key)), newest(join(sl.matchRoot, SCRATCH, 'jobs')), newest(join(sl.matchRoot, 'answers', key)));
+      const idle = (Date.now() - last) / 60000;
+      if (idle < STALL_MINUTES || this.stallSeen.get(key) === last) continue;
+      this.stallSeen.set(key, last);
+      out.push({ slot: sl.name, item: key, idleMinutes: Math.round(idle * 10) / 10 });
+    }
+    return out;
+  }
+
+  /**
+   * What the freed slot should take next (1.5.27). The fast lane (s5/s6): a short item with a deadline, then the short
+   * item with the most points (nothing long: it stays free for the next PI). A worker slot: deadline items (least slack
+   * first), then a heavy item (one at a time), then an item whose fix the finished worker already made (includedFixes),
+   * then long items by points per effort, then short ones. The slot's own agent always does it (`worker: "slot_agent"`).
    */
   #suggestNext(slotName, includedFixes = []) {
-    const piAgent = PI_AGENT_SLOTS.includes(slotName);
-    // A PI waiting for a slot takes this one (the helper starts it there itself).
+    const fast = PI_AGENT_SLOTS.includes(slotName);
     if ([...(this.incidents?.values() ?? [])].some(e => e.done && !e.result?.started)) return { backlogItemKey: null, why: 'a PI waits for a slot: the helper starts it here', worker: null };
-    const who = type => piAgent ? 'pi_agent' : type;
+    const pick = (key, why) => ({ backlogItemKey: key, why, worker: 'slot_agent' });
     const waiting = this.#deadlineWaiting().filter(d => this.#fitsSlot(d, slotName));
-    if (waiting.length) {
-      const d = waiting[0];
-      return { backlogItemKey: d.key, why: `deadline, ${d.minutesLeft} min left`, worker: who(d.heavy ? 'team_heavy_worker' : 'team_feature_worker') };
-    }
+    if (waiting.length) return pick(waiting[0].key, `deadline, ${waiting[0].minutesLeft} min left`);
     const open = this.#items().filter(i => !isIncident(i) && !i.submission && String(i.status ?? '').toUpperCase() !== 'CLOSED'
       && !this.#slotOf(i.key) && !(this.startedKeys?.has(i.key)) && this.#minutesLeft(i) === null);
+    const rank = i => Number(i.points ?? 0) / ({ S: 1, M: 1.5, L: 2.5, XL: 4 }[this.#effort(i).level] ?? 2);
+    const short = open.filter(i => this.#isShort(i)).sort((a, b) => rank(b) - rank(a));
+    if (fast) return short.length ? pick(short[0].key, 'short item (fast lane)') : null;
     const heavyBusy = Object.values(this.#slots()).some(sl => sl.item && sl.name !== slotName && this.#isHeavy(this.#items().find(i => i.key === sl.item)));
     if (!heavyBusy) {
       const heavy = open.find(i => this.#isHeavy(i));
-      if (heavy) return { backlogItemKey: heavy.key, why: 'heavy item (one at a time)', worker: who('team_heavy_worker') };
+      if (heavy) return pick(heavy.key, 'heavy item (one at a time)');
     }
     const chain = open.find(i => includedFixes.includes(i.key) && !this.#isHeavy(i));
-    if (chain) return { backlogItemKey: chain.key, why: 'its fix is already on the branch from the finished item: followup_task to the same worker', worker: piAgent ? 'pi_agent' : 'same' };
-    const rank = i => Number(i.points ?? 0) / ({ S: 1, M: 1.5, L: 2.5, XL: 4 }[this.#effort(i).level] ?? 2);
-    const best = open.filter(i => !this.#isHeavy(i)).sort((a, b) => rank(b) - rank(a))[0];
-    return best ? { backlogItemKey: best.key, why: 'most points per effort', worker: who('team_feature_worker') } : null;
+    if (chain) return { ...pick(chain.key, 'its fix is already on the branch from the finished item'), worker: 'same' };
+    const long = open.filter(i => !this.#isHeavy(i) && !this.#isShort(i)).sort((a, b) => rank(b) - rank(a));
+    if (long.length) return pick(long[0].key, 'most points per effort');
+    return short.length ? pick(short[0].key, 'short item (the fast lane is busy)') : null;
   }
 
   /** NEW_PI hint: the PI agents' item slots, so the orchestrator knows which agent is free or the cheapest to pause. */

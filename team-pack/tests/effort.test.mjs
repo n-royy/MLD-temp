@@ -125,6 +125,10 @@ test('32PTEO8K without the title prefix: exactly TASK-10 and TASK-12 are heavy, 
   assert.deepEqual(Object.keys(r).filter(k => r[k].candidate), []);
   assert.ok(r['TASK-10'].score >= 8 && r['TASK-12'].score >= 7, JSON.stringify([r['TASK-10'], r['TASK-12']]));
   for (const k of Object.keys(r).filter(k => !r[k].heavy)) assert.ok(r[k].score <= 2, `${k}: ${JSON.stringify(r[k])}`);
+  // 1.5.27: worked from an organizer specification -> never short (R7WFBQBT TASK-08 was rated S); not heavy either.
+  assert.equal(r['TASK-08'].level, 'L', JSON.stringify(r['TASK-08'])); assert.equal(r['TASK-07'].level, 'L', JSON.stringify(r['TASK-07']));
+  assert.ok(r['TASK-08'].reasons.some(x => /test suite against a specification/.test(x)));
+  assert.equal(r['BUG-09'].level === 'L', false, JSON.stringify(r['BUG-09']));
   assert.ok(r['TASK-10'].reasons.some(x => /compressed data/.test(x)) && r['TASK-10'].reasons.some(x => /50,000 records/.test(x)));
 });
 
@@ -138,4 +142,10 @@ test('a title prefix or the word "heavy" alone does not make an item heavy; pres
   assert.ok(hinted.reasons.includes('organizer hint'));
   const sized = effortOf(T('TASK-01', 'TASK', 60, 'Read `data/ledger.csv` and report the totals.'), [], { 'data/ledger.csv': 2_000_000 });
   assert.equal(sized.score, 2); assert.equal(sized.level, 'M');
+});
+
+test('1.5.27: a spec file given at Start Work (onStartFiles) raises the level to L, a submit file does not', () => {
+  const base = { key: 'TASK-20', type: 'TASK', points: 60, descriptionMd: '## Requirements\n1. Implement the rules.' };
+  assert.equal(effortOf({ ...base, onStartFiles: ['challenge/TASK-20-submit.json', 'challenge/TASK-20-spec.md'] }).level, 'L');
+  assert.equal(effortOf({ ...base, onStartFiles: ['challenge/TASK-20-submit.json', 'challenge/TASK-20-minimum-verification-scenarios.md'] }).level, 'S');
 });

@@ -99,4 +99,23 @@ Short rules learned from real matches. Each line names where it came from. They 
   after their reveal and accept nothing afterwards; the PI is ranked by submission time (100/90/75/60 %).
 - Each item is submitted once and graded per criterion, and an early non-PI submission earns nothing: items
   submitted with defects left lost most of their points (32PTEO8K TASK-08/TASK-07: 31 points). Since 1.5.26 the
-  brief is a checklist and the helper submits by itself only when every box is ticked.
+  brief is a checklist the worker plans from; since 1.5.27 open boxes no longer hold a clean submission back.
+- Not submitted in time scores 0, whatever was done. R7WFBQBT CR-07: the code and TC-01 were done at minute 4, nothing
+  was committed, the safety net could not integrate, the PARTIAL came 4 seconds after the deadline. Commit and keep a
+  valid answer from the first PASS on; the helper rescues (commits, answers PARTIAL honestly, submits) every item
+  still in its slot 2.5 minutes before its deadline or the match end.
+- Lanes, not roles: R7WFBQBT submitted 6 of 12 items with 1.5.26 where 6QYJQAVJ submitted 11 with 1.5.13. Short items
+  waited behind long ones (PI-03 8 min, TASK-05 24 min, TASK-07 started 4.3 min late and missed its deadline by
+  seconds), heavy workers on `high` reasoning (18 s a turn) held W3/W4's slots (W3 idle 29.7 of 40 min) and a paused
+  PI agent left s6/BUG-11 untouched for 9.4 min. Since 1.5.27: s5/s6 are a fast lane (PIs and short TASKs only, its
+  agents never paused), long items in s1-s4 by their own workers, default reasoning, a time budget per item and a
+  SLOT_STALLED warning after 5 quiet minutes.
+- A test suite against a specification is scored per planted defect: fixed (12) + detected (4) each (R7WFBQBT
+  TASK-08: 5 planted, 4 found by the first suite run at minute 6, 84/100 - the same 84 as 32PTEO8K at minute 12).
+  The fifth hid behind the spec's opening sentence "Every rule holds for any number of lines in one import and any
+  number of transactions in one change": no case used more than a few lines. 24 more minutes of full regressions and
+  28 home-made mutants added nothing; a checklist ticked in bulk by a script hid the gap. Since 1.5.27 the spec file
+  is in the checklist (constraints on every rule first), each Spec box needs its own case and mutant, copied proofs
+  count as open, and such items are never rated short.
+- The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial
+  shell calls were slower, p90 14 s vs 2.5 s). Look at the schedule first.

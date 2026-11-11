@@ -1,13 +1,13 @@
-# Answering a PI (playbook of the PI agents, `team_incident_worker`)
+# Answering a PI (playbook of the fast-lane agents `team_incident_worker`, and of any worker given a PI)
 
 A PI (production incident) is a race: the first correct team gets 100 %, later ones 90/75/60 %, a wrong field 0 for
-that field. Every field and the fix are graded on their own. So **exact and complete first, then fast**; tokens do not
-matter. The helper has already done the slow, mechanical part: Start Work in a slot (yours, s5/s6, when it was free),
+that field. Every field and the fix are graded on their own. So **exact and complete first, then fast**. The helper
+has already done the slow, mechanical part: Start Work in a slot (the fast lane s5/s6, or a free worker slot),
 the incident rules, and it is collecting every log entry into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`.
 
 ## The follow-up you get
 `PI <ID> in slot <sN>. incident.dir <path>. briefFile <path>. answerFile <path>. validateCommand <cmd>.
-worktreeRoot <path>. slotMatchRoot <path>.` - possibly prefixed with `Pause <item>, PI first:`. Work in the slot it
+worktreeRoot <path>. slotMatchRoot <path>.` Work in the slot it
 names (the slot is installed: tests and builds run there).
 
 ## Steps
@@ -49,8 +49,8 @@ names (the slot is installed: tests and builds run there).
      or delete an existing test;
    - commit in the slot (`git -C <worktreeRoot> add -- <folder>` then `commit -m "<ID>: <fix>"`).
    Speed matters, but a fix that is not verified loses its points: keep it to what the brief asks.
-6. **Tick the checklist** (`checklistFile`): every box with its proof (the value and the script line, the fix commit
-   and its test). The helper submits by itself only when no box is open, so tick it BEFORE `answer_item`.
+6. **One pass over the checklist** (`checklistFile`) before `answer_item`: every box met by a value from the script
+   or the fix and its test; an open box is work still to do, not a note to write.
 7. **One call answers it**: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
    short incident record: impact, timeline, root cause, containment, recovery, prevention; name the fix commit and
    its test), `evidence` (`{"investigation.json": {"from": "<solve-output.json>"}}`, plus the test output when a fix
@@ -60,8 +60,7 @@ names (the slot is installed: tests and builds run there).
 8. Final answer: one line (`<ID> answered: <the key values>; fix <commit or none>`). Nothing else.
 
 ## After the PI
-If the follow-up said "Pause <item>, PI first", go back to that item in your own slot and continue it from where
-you stopped (WORKER.md). Otherwise wait for the next follow-up.
+Wait for the next follow-up (in the fast lane: another PI or a short TASK).
 
 ## Never
 Guess a value, read values off a log by eye, stop at the first page of a capped query, call `integrate`,
