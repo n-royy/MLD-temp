@@ -16,13 +16,14 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
    effort). A deadline item is never queued behind another item.
 3. **Nothing short ever waits behind something long.** The fast lane (s5/s6) takes only PIs and short TASKs, so a PI
    or a 2-minute TASK starts at once; long items run in s1-s4. No idle slot while an item is open; dependencies are
-   never a reason to wait (WORKER.md "Your item needs another item's changes").
+   never a reason to wait (playbook `other-items`: the item makes the other item's fix itself).
 4. **You coordinate, you never work an item** (not even a PI or a short TASK). You do not read product code,
    briefs or logs and run no product tests. The helper does the mechanics by code; the agents do the work.
 5. **Small context, few turns.** Every call re-sends your whole context: compact tool results, one long wait cell,
    no messages between waits, no status pings to agents.
 6. **Self-healing, no human.** Every failure below has a scripted answer; a human intervention costs 50 points.
-7. **Lessons over habits**: `LESSONS.md` holds what earlier matches taught; read it once at the start.
+7. **Lessons are in the rules**: what earlier matches taught is built into the helper, WORKER.md and its playbooks
+   (`LESSONS.md` is the maintainers' history: nobody reads it during a match - it would cost tokens on every turn).
 
 ## The team (spawned and briefed during preparation, kept for the whole match)
 | Slot | Agent | Work |
@@ -36,13 +37,13 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
 - Collaboration tools (`spawn_agent`, `followup_task`, `send_message`, `wait_agent`, `interrupt_agent`,
   `list_agents`) are direct tool calls, not `exec` `tools.*`.
 - **Preparation message** (also for a replacement): `You are <W1|PA|...> of team MLD, slot <sN>. Read
-  <teamWorkspace>/.agents/skills/team-orchestrator/<WORKER.md | INCIDENT.md and WORKER.md> and LESSONS.md now, then
-  reply READY and wait for your first item.`
+  <teamWorkspace>/.agents/skills/team-orchestrator/<WORKER.md | INCIDENT.md and WORKER.md> now (each item's brief
+  names the playbooks it needs), then reply READY and wait for your first item.`
 - **Item message** (`followup_task`; the agent reads everything else from files):
   ```
   Item <ID> (<TYPE>) in slot <sN>. briefFile: <path>. checklistFile: <path>. worktreeRoot: <path>.
   slotMatchRoot: <path>. Assigned branch: <branch>. New item: forget the previous item's details.
-  Notes: <baseline note>, <deadline>, <heavy: WORKER.md "Heavy items">, <blocker or dependency note>.
+  Playbooks: <the result's playbooks>. Notes: <baseline note>, <deadline>, <blocker or dependency note>.
   Plan from the checklist; commit and keep a valid answer from the first PASS on; wrap up by wrapUpBy.
   ```
 - **PI message** (`followup_task` to the agent of `incident.slot`): `PI <ID> in slot <sN>. incident.dir <path>.
@@ -53,7 +54,7 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
   placeholder value. Never credentials, keys or descriptors in any message.
 
 ## Start of the game
-1. Read `LESSONS.md` once. `configure_session` with `descriptors: [<PREPARE_GAME descriptor>, <START_GAME
+1. `configure_session` with `descriptors: [<PREPARE_GAME descriptor>, <START_GAME
    descriptor>]`.
 2. `report_progress` `GAME_START_STATUS` `BACKLOG_SYNC` `IN_PROGRESS` → `refresh_match` → `BACKLOG_SYNC`
    `COMPLETED`. In the same cell `stop_jobs` (`dir` `<matchRoot>/.mtm-tmp/jobs`, `names: ["baseline"]`): a test run
@@ -65,7 +66,7 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
 4. Baseline: a ready patch (`<matchRoot>/.mtm-tmp/baseline/baseline.patch`) → `apply_baseline` right after the first
    `start_work`, before handing out any item. No patch but failing baseline tests → name one baseline owner: the
    item with the nearest deadline whose criteria require existing tests to pass; its note says `Baseline owner: fix
-   <tests> (WORKER.md "Baseline failures")`; every other item started before the owner is submitted gets `Known
+   <tests> (playbook other-items, "Baseline failures")`; every other item started before the owner is submitted gets `Known
    baseline failure <tests> is fixed by <owner>; do not touch it`.
 
 ## Assigning work (each wave, and each freed slot)
@@ -83,7 +84,7 @@ harmless; it syncs the slot to the branch head and writes the brief, the **check
 and validator into `<slotMatchRoot>/.mtm-tmp/<ID>/`), then `company_tool_call` (`backlogId`, `saveToSlot: true`)
 for its official QA data when a tool offers it. Then `followup_task` the slot's agent with the item message.
 - An item whose grade needs another item's fix: note `Your grade needs <ID>'s fix: make it yourself first
-  (WORKER.md)`.
+  (playbook other-items)`.
 - A verification dependency: note `<ID> fixes <what>; you will be told when it is on the branch`; when that item is
   submitted, `send_message` once: `<ID> is on <branch>: rebase before your final evidence`.
 - Overlap: after an integration, an agent whose slot changed the same files gets one `send_message`: `<ID> on
@@ -119,7 +120,7 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    (`<ID>: <kind> gate missing; TC-03 NOT_RUN. Finish them, then rewrite doneFile.`) and wait. Open checklist boxes
    alone are no reason, except on an item with a quality gate: `checklistOpen` entries from its `Spec` boxes (open,
    "no proof", "copied proof") are graded statements without a case - send exactly those ids back
-   (`<ID>: Spec boxes C21, C22 have no case of their own (WORKER.md SUITE_DETECTION). Cover them, then rewrite
+   (`<ID>: Spec boxes C21, C22 have no case of their own (playbook suite-spec). Cover them, then rewrite
    doneFile.`). Once per item: the second `SLOT_DONE` is integrated as it is.
 2. **Otherwise** `integrate_item` (`backlogItemKey`, `next` = the slot's queued item or `suggestNext`;
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,

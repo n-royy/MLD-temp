@@ -508,7 +508,7 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     const kinds = Object.fromEntries(Object.entries(started).map(([k, r]) => [k, JSON.parse(readFileSync(r.briefFile, 'utf8')).qualityGate?.kind ?? null]));
     assert.deepEqual(kinds, { 'TASK-38': 'SUITE_DETECTION', 'TASK-37': 'DATA_REQUIREMENTS', 'CR-37': 'OFFICIAL_DATA', 'BUG-37': null });
     const brief = JSON.parse(readFileSync(started['TASK-38'].briefFile, 'utf8'));
-    assert.ok(brief.qualityGate.reportFile.endsWith('quality-gate.md') && 'issuedRevision' in brief);
+    assert.ok(brief.qualityGate.kind && 'issuedRevision' in brief && Array.isArray(brief.playbooks));
     writeFileSync(started['TASK-38'].doneFile, JSON.stringify({ status: 'DONE', summary: 'suite passes' }));
     writeFileSync(started['TASK-37'].doneFile, JSON.stringify({ status: 'DONE', summary: 'pack', qualityGate: { status: 'PASS', summary: '14/14 requirements with margin' } }));
     writeFileSync(started['BUG-37'].doneFile, JSON.stringify({ status: 'DONE', summary: 'fixed' }));

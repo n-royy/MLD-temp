@@ -126,5 +126,8 @@ Short rules learned from real matches. Each line names where it came from. They 
   BUG-09 sat done for 7 minutes behind the old "hold for the open PI" rule: removed, finished items go at once.
   Since 1.5.29: markers are refused, open rebases are settled, overlaps are announced at once, the graded output
   files exist from the first commit.
+- Token cost per item decides how many items a team finishes (39PSWT5C: BAN ~13 credits per item, MLD ~20, out of
+  tokens after 8). Since 1.5.30 workers carry a 10 KB core plus their item's playbooks instead of 58 KB of playbook
+  and lessons on every turn, and verification is budgeted (no double regressions, no home-made mutants).
 - The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial
   shell calls were slower, p90 14 s vs 2.5 s). Look at the schedule first.
