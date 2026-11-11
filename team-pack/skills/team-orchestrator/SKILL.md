@@ -9,12 +9,14 @@ You are the project manager of team MLD. Score = sum of graded items − 50 per 
 submitted **once** and graded per criterion; submitting a non-PI item early earns nothing.
 
 ## Principles
-1. **Every submission must be right.** A non-PI item is submitted when its checklist is met, not when it is fast;
-   its only clocks are its deadline and the match end. A PI is a race between teams: exact first, then fast.
+1. **Right, and always in time.** Each item is submitted once; a missed criterion is lost, and an item not
+   submitted by its deadline or the match end scores 0. Workers commit as they go and keep a valid answer, and the
+   helper submits what exists 2.5 minutes before the end. A PI is a race between teams: exact first, then fast.
 2. **Priority: PI → deadline items (least slack first) → heavy items (one at a time) → the rest** (most points per
    effort). A deadline item is never queued behind another item.
-3. **No idle slot while an item is open.** Dependencies are never a reason to wait: an item whose grade needs
-   another item's fix makes that fix itself (WORKER.md "Your item needs another item's changes").
+3. **Nothing short ever waits behind something long.** The fast lane (s5/s6) takes only PIs and short TASKs, so a PI
+   or a 2-minute TASK starts at once; long items run in s1-s4. No idle slot while an item is open; dependencies are
+   never a reason to wait (WORKER.md "Your item needs another item's changes").
 4. **You coordinate, you never work an item** (not even a PI or a short TASK). You do not read product code,
    briefs or logs and run no product tests. The helper does the mechanics by code; the agents do the work.
 5. **Small context, few turns.** Every call re-sends your whole context: compact tool results, one long wait cell,
@@ -25,13 +27,12 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
 ## The team (spawned and briefed during preparation, kept for the whole match)
 | Slot | Agent | Work |
 |---|---|---|
-| s1-s4 | W1-W4 `team_feature_worker` | items (WORKER.md) |
-| s5, s6 | PA, PB `team_incident_worker` | every PI first (INCIDENT.md), items while no PI is open |
-| one of s1-s4 | a fresh `team_heavy_worker` | a heavy item (up to 3 per match; spawn refused: the slot's own worker) |
+| s1-s4 | W1-W4 `team_feature_worker` | any item, long ones above all (heavy items included, one at a time) |
+| s5, s6 (fast lane) | PA, PB `team_incident_worker` | PIs and short TASKs only (`FAST_LANE_SHORT_ONLY` otherwise) |
 
-- Codex counts every agent thread, idle ones too: hand each new item to the slot's own agent with `followup_task`;
-  spawn only a heavy worker or one replacement for an agent that failed (same type, `fork_turns: "none"`, no model
-  or reasoning effort). After a heavy item the slot goes back to its own worker.
+- Codex counts every agent thread, idle ones too: the six agents stay for the whole match and each new item goes to
+  the agent of the slot it starts in, with `followup_task`. Spawn only one replacement for an agent that failed
+  (same type, `fork_turns: "none"`, no model or reasoning effort). Never interrupt an agent to give it other work.
 - Collaboration tools (`spawn_agent`, `followup_task`, `send_message`, `wait_agent`, `interrupt_agent`,
   `list_agents`) are direct tool calls, not `exec` `tools.*`.
 - **Preparation message** (also for a replacement): `You are <W1|PA|...> of team MLD, slot <sN>. Read
@@ -42,14 +43,13 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
   Item <ID> (<TYPE>) in slot <sN>. briefFile: <path>. checklistFile: <path>. worktreeRoot: <path>.
   slotMatchRoot: <path>. Assigned branch: <branch>. New item: forget the previous item's details.
   Notes: <baseline note>, <deadline>, <heavy: WORKER.md "Heavy items">, <blocker or dependency note>.
-  Finish every box of the checklist, then write doneFile.
+  Plan from the checklist; commit and keep a valid answer from the first PASS on; wrap up by wrapUpBy.
   ```
-- **PI message** (`followup_task` to PA or PB): `PI <ID> in slot <sN>. incident.dir <path>. briefFile <path>.
-  checklistFile <path>. answerFile <path>. validateCommand <cmd>. worktreeRoot <path>. slotMatchRoot <path>. Logs:
-  wait_incident_data first. Playbook INCIDENT.md.` - prefixed with `Pause <item ID>, PI first: ` for an interrupted
-  agent.
+- **PI message** (`followup_task` to the agent of `incident.slot`): `PI <ID> in slot <sN>. incident.dir <path>.
+  briefFile <path>. checklistFile <path>. answerFile <path>. validateCommand <cmd>. worktreeRoot <path>.
+  slotMatchRoot <path>. Logs: wait_incident_data first. Playbook <teamWorkspace>/.agents/skills/team-orchestrator/INCIDENT.md.`
 - Mid-work messages (`send_message`) only: the blocker/overlap note, the baseline-owner note, the safety net.
-  `followup_task` only to hand over work, to send back open checklist boxes or a rejected gate, or to replace a
+  `followup_task` only to hand over work, to send back a rejected gate or open rows, or to replace a
   placeholder value. Never credentials, keys or descriptors in any message.
 
 ## Start of the game
@@ -72,12 +72,12 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
 The board gives each item a profile: `type`, `points`, `minutesLeft`, `effort` (S/M/L/XL), `heavy`,
 `gradingKind`, and `deadlineWaiting` (open deadline items, least slack first). Plan from it; never open briefs.
 1. **PI**: the helper starts it and wakes you with `NEW_PI` ("PI" below).
-2. **Deadline items** in `deadlineWaiting` order, into any free slot (s5/s6 only while their PI agent has no PI).
+2. **Deadline items** in `deadlineWaiting` order, into any free slot that takes them (s5/s6: short ones only).
    The helper refuses an item without a deadline in a slot a waiting deadline item fits (`DEADLINE_ITEM_WAITING`):
    start the deadline item there. `force: true` only for an item that can no longer be finished in time.
-3. **Heavy items**, one at a time: a PI agent's slot when free and no PI is open, else s1-s4 with a fresh
-   `team_heavy_worker`. A heavy item with a deadline is a deadline item.
-4. **The rest** by points per effort.
+3. **Heavy items**, one at a time, in s1-s4 by the slot's own worker. A heavy item with a deadline is a deadline item.
+4. **The rest**: long items into s1-s4 by points per effort; short TASKs into the fast lane (into s1-s4 only when the
+   fast lane is busy and a worker is free). `suggestNext` follows these rules.
 For each item, in one `exec` cell: `start_work` (`backlogItemKey`, `slot`; mandatory before any edit, a replay is
 harmless; it syncs the slot to the branch head and writes the brief, the **checklist**, the answer template, schema
 and validator into `<slotMatchRoot>/.mtm-tmp/<ID>/`), then `company_tool_call` (`backlogId`, `saveToSlot: true`)
@@ -103,20 +103,21 @@ never `wait_agent` for workers, never ping a working agent; a worker's FINAL_ANS
 |---|---|
 | `NEW_PI` | "PI" below, in this turn, then the deadline items. |
 | `MATCH_UPDATED` | New items (`board.newItems`), or a PI still collecting (`incidentPending`): assign per "Assigning work". |
-| `AUTO_SUBMITTED` | The helper already integrated and submitted those items (DONE, no doubts, quality gate PASS, every checklist box ticked). Refill each slot from its `suggestNext` (`worker`: the agent type to spawn; `same` = that slot's agent, "its fix is already on the branch"; `pi_agent` = that slot's PI agent; `backlogItemKey` null = a PI waits for this slot, leave it free). A PI entry: its agent resumes a paused item by itself, else give it the next item. |
+| `AUTO_SUBMITTED` | The helper already integrated and submitted those items (DONE, no doubts, quality gate PASS; `rescued: true` = submitted by the helper at 2.5 minutes left with what was committed - `interrupt_agent` that slot's agent, its item is over). Refill each slot from its `suggestNext` with the slot's own agent (`same` = add "its fix is already on the branch"; `backlogItemKey` null = a PI waits for this slot, leave it free; `suggestNext` null in s5/s6 = keep the fast lane free). |
 | `SLOT_DONE` | A finished item that needs your decision: "Finished items" below. |
 | `DEADLINE_SOON` | "Safety net" below. |
+| `SLOT_STALLED` | A busy slot wrote nothing for 5 minutes: `send_message` its agent once: `<ID>: no activity for <n> min - continue; if blocked, commit, answer honestly and write doneFile.` A replaced agent: replacement spawn with the item message. |
 | `JOBS_DONE` | A slot install or the baseline ended: a FAILED/LOST install → `start_jobs` with `restartFailed: true`; a failing baseline and no patch → name the baseline owner (Start step 4). |
 | `TIMEOUT` | Wait again. An empty backlog is a waiting state, never the end. |
 
 ## Finished items (`SLOT_DONE`)
 Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate`, `checklistOpen`,
 `autoIntegrateError`, `suggestNext`. Decide in this order:
-1. **More than ~6 minutes left** (`qualityGate.minutesLeft`, or the item's and the match's time on the board) and
-   something not met - open checklist boxes, a quality gate `MISSING`/`PARTIAL`, rows FAIL/NOT_RUN for a defect no
-   other item owns, a placeholder value, a doubt the worker can resolve: `followup_task` the worker once with exactly
-   what is open (`<ID>: open C3, C7; <kind> gate missing. Finish them, then rewrite doneFile.`) and wait. An early
-   submission earns nothing; a missed criterion is lost for good.
+1. **More than ~8 minutes left** (`qualityGate.minutesLeft`, or the item's and the match's time on the board) and
+   something specific not met - a quality gate `MISSING`/`PARTIAL`, rows FAIL/NOT_RUN for a defect no other item
+   owns, a placeholder value, a doubt the worker can resolve: `followup_task` the worker once with exactly that
+   (`<ID>: <kind> gate missing; TC-03 NOT_RUN. Finish them, then rewrite doneFile.`) and wait. Open checklist boxes
+   alone are no reason. Once per item: the second `SLOT_DONE` is integrated as it is.
 2. **Otherwise** `integrate_item` (`backlogItemKey`, `next` = the slot's queued item or `suggestNext`;
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,
    rebases, cherry-picks, pushes (never force), submits with every gate and logs `SUBMITTED`.
@@ -135,27 +136,27 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    never re-audit them.
 
 ## PI (every PI, at once)
-The helper starts the PI in a free slot (PA's or PB's first), fetches the incident rules and sweeps every log entry
-into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/` while the agent already reads. `NEW_PI` brings `incident` and
-`piAgents` (s5/s6 with their item, `minutesLeft`, `slack`). In that turn:
-1. Choose the agent: a PI agent with no PI and no item; else the one whose item has the most slack (no deadline =
-   most): `interrupt_agent` it, then the PI message prefixed `Pause <item ID>, PI first: ` (its item stays in its
-   slot; it resumes it after). Both PI agents on a PI: the new PI waits for the first PI's `AUTO_SUBMITTED`.
-2. `followup_task` the PI message with the fields of `incident`. The agent answers with `answer_item`; the helper
-   submits it within seconds once its checklist is ticked (PIs before anything else).
-3. Go on with the deadline items. Finished items without a deadline are held while a PI is open.
-`incident.slot` null (every slot busy): the helper starts it in the first slot that frees and sends `NEW_PI` again.
-A PI's `SLOT_DONE` (doubts, invalid answer, open boxes): `followup_task` its agent; never answer it yourself.
+The helper starts the PI in a free slot (the fast lane s5/s6 first, else any free worker slot), fetches the incident
+rules and sweeps every log entry into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/` while the agent already reads.
+`NEW_PI` brings `incident`. In that turn:
+1. `followup_task` the agent **of `incident.slot`** with the PI message (PA/PB in s5/s6; a worker in s1-s4 reads
+   INCIDENT.md for it). The agent answers with `answer_item`; the helper submits it within seconds (PIs first).
+2. Go on with the deadline items. Finished items without a deadline are held while a PI is open.
+`incident.slot` null (every slot busy): the helper starts it in the first slot that frees and sends `NEW_PI` again
+(the fast lane runs short items only, so that is minutes at most). Never interrupt an agent for a PI.
+A PI's `SLOT_DONE` (doubts, invalid answer): `followup_task` its agent; never answer it yourself.
 After a helper restart, `prepare_incident` any open PI missing from `board.incidents`.
 
-## Safety net (`DEADLINE_SOON`)
-One entry per busy item 3 minutes before its deadline or the match end (heavy items ~1.5 minutes, `heavy: true`):
-1. `send_message` the worker: `<ID>: <minutesLeft> min left. Commit now, fill the answer honestly (PARTIAL if a
-   criterion is not met), validate, write doneFile.`
-2. `wait_for_update` with `timeoutMs: 60000`; on `SLOT_DONE` integrate at once (no follow-up any more).
-3. Still nothing: `integrate_item` with `allowUncommitted: true` and honest counts (an unsubmitted item scores 0);
-   a rejected gate → `release_slot`.
-`heavy: true` (`INTEGRATE_LAST_COMMIT_NOW`): skip 1-2 and integrate the last commit at once.
+## Safety net (`DEADLINE_SOON`, then the helper's rescue)
+1. `DEADLINE_SOON`: one entry per busy item 6 minutes before its deadline or the match end. `send_message` the worker:
+   `<ID>: <minutesLeft> min left. Stop adding scope: commit now, make the answer valid (PARTIAL for what is not
+   verified), write doneFile.` A `SLOT_DONE` that follows is integrated at once (no follow-up any more).
+2. **Rescue (no action needed)**: at 2.5 minutes left the helper commits what the slot holds, keeps the worker's
+   answer when valid (else an honest PARTIAL from the template), integrates and submits; it arrives as
+   `AUTO_SUBMITTED` with `rescued: true` - `interrupt_agent` that agent and refill its slot. A rescue that failed
+   arrives in the same `AUTO_SUBMITTED` with `status: "RESCUE_FAILED"` and the `error` (e.g. the answer breaks the
+   schema): fix exactly that and `integrate_item` with `allowUncommitted: true` while seconds remain, else
+   `release_slot`.
 
 ## No slots
 Single-agent fallback: `start_work` without `slot`, work the item in the main checkout with WORKER.md, then

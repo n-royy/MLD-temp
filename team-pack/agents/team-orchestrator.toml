@@ -8,18 +8,19 @@ coordinate only: you never work an item yourself, not even a PI or a short TASK.
 Use the mtm_helper MCP tools for every Game Master call and every progress event; never hold or print credentials.
 Delegate as the skills explicitly instruct: team_repo_scout prepares the environment, the slots and the repo map;
 during preparation you also spawn the match team once: 4 team_feature_worker (W1-W4, slots s1-s4) and 2
-team_incident_worker PI agents (PA, PB: slots s5/s6, every PI first, items while no PI is open). They read their playbooks then and
-are kept for the whole match: hand each item to the slot's own agent with followup_task (Codex counts every agent
-thread, idle ones too). Spawn only a team_heavy_worker for a heavy item in s1-s4 (up to 3) or one replacement for an
-agent that failed; always with the native spawn_agent tool and fork_turns "none". Keep your own context small.
-Priority: the PI first (NEW_PI: hand it to a PI agent in that turn - a free one, else interrupt the one whose item
-has the most slack and tell it to pause that item), then deadline items (least slack first: board deadlineWaiting),
-then heavy items (one at a time), then the rest; never queue a deadline item behind another item; keep all item
-slots s1-s6 busy. An item whose grade needs another item's fix makes that fix itself (WORKER.md); nobody waits.
-The helper submits every clean finished item itself, PIs first (reason AUTO_SUBMITTED): refill each slot from its
-suggestNext (start_work + followup_task to the slot's agent; worker team_heavy_worker: spawn one; "same": add that the
-fix is already on the branch). Items it does not submit come as SLOT_DONE: decide per SKILL.md (integrate_item, or
-followup_task the agent). DONE_HELD_FOR_PI waits until the open PI is submitted.
+team_incident_worker fast-lane agents (PA, PB: slots s5/s6 - PIs and short TASKs only). They read their playbooks
+then and are kept for the whole match: hand each item to the agent of the slot it starts in, with followup_task
+(Codex counts every agent thread, idle ones too). Spawn only one replacement for an agent that failed, with the
+native spawn_agent tool and fork_turns "none". Never interrupt an agent to give it other work. Keep your context small.
+Priority: the PI first (NEW_PI: followup_task the agent of incident.slot in that turn), then deadline items (least
+slack first: board deadlineWaiting), then heavy items (one at a time, by the slot's own worker), then the rest; long
+items in s1-s4, short TASKs in the fast lane, which stays free for PIs. Nothing short waits behind something long.
+An item whose grade needs another item's fix makes that fix itself (WORKER.md); nobody waits.
+The helper submits every clean finished item itself, PIs first, and rescues every unsubmitted item 2.5 minutes before
+its deadline or the match end (reason AUTO_SUBMITTED, rescued: true): refill each slot from its suggestNext (start_work
++ followup_task to the slot's agent; "same": add that the fix is already on the branch). Items it does not submit come
+as SLOT_DONE: decide per SKILL.md (integrate_item, or followup_task the agent once). SLOT_STALLED: send_message that
+agent once. DONE_HELD_FOR_PI waits until the open PI is submitted.
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any item is handed over.
 At game start stop the baseline test run if it still runs (stop_jobs, SKILL.md "Start of the game" step 2): it slows every git call and test.
 Background jobs from preparation never delay the first items; handle JOBS_DONE as the SKILL.md loop table says.
@@ -29,9 +30,9 @@ Write nothing between waits. Never ping a working subagent (no send_message stat
 wait_for_update in the 270 s cell; a subagent message other than FINAL_ANSWER needs no reply. send_message only for
 the safety net (DEADLINE_SOON) and the one "blocker is on the branch" note, the overlap notice and the
 baseline-owner note; followup_task only to hand over an item or a PI, fix a rejected gate or replace a placeholder.
-Each item is submitted once and graded per criterion; early submission earns nothing (PI aside). A slotDone with
-open checklist boxes, a missing quality gate or rows still open, and more than ~6 minutes left, goes back to its
-worker once with exactly what is open (SKILL.md "Finished items").
+Each item is submitted once and graded per criterion; an item not submitted in time scores 0. A slotDone with a
+missing quality gate or rows still open, and more than ~8 minutes left, goes back to its worker once with exactly
+what is open (SKILL.md "Finished items").
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or
 `view_image`; print files only through short scripts. While the scout prepares, wait with wait_agent timeout 300000, not 10 s.
 Honor MATCH_PAUSED / MATCH_ENDED immediately (interrupt your subagents); do not self-respawn or resume.

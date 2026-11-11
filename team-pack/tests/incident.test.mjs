@@ -118,7 +118,7 @@ let gm, tmp, prepare, start, matchRoot;
 class Helper {
   constructor(extra = {}) {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', MTM_SOON_MINUTES: '3', MTM_RESCUE_MINUTES: '-1', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -245,11 +245,11 @@ test('with every slot busy the PI is not started; it starts by itself in the fir
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
-    const keys = ['BUG-08', 'BUG-10', 'BUG-12', 'BUG-13'];
-    for (const k of keys) gm.reveal({ key: k, backlogType: 'BUG', title: k, deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
+    const keys = ['BUG-08', 'BUG-10', 'BUG-12', 'TASK-13'];
+    for (const k of keys) gm.reveal({ key: k, backlogType: k.split('-')[0], title: k, deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x' });
     await h.call('refresh_match');
     // s1 holds BUG-07 and s5 holds PI-01 from the test before; fill the rest.
-    for (const [k, slot] of [['BUG-08', 's2'], ['BUG-10', 's3'], ['BUG-12', 's4'], ['BUG-13', 's6']]) assert.ok((await h.call('start_work', { backlogItemKey: k, slot })).briefFile);
+    for (const [k, slot] of [['BUG-08', 's2'], ['BUG-10', 's3'], ['BUG-12', 's4'], ['TASK-13', 's6']]  /* the fast lane takes short TASKs only */) assert.ok((await h.call('start_work', { backlogItemKey: k, slot })).briefFile);
     const { submission, ...pi } = PI; // the test before marked PI (the same object) submitted
     gm.reveal({ ...pi, key: 'PI-03' });
     const w = await h.call('wait_for_update', {});
@@ -302,7 +302,7 @@ test('heavy items: recognised from the brief (no title prefix); the brief carrie
   } finally { h.close(); }
 });
 
-test('heavy items get their final call about 1.5 minutes before the end, not at 3 minutes', async () => {
+test('1.5.27: heavy items get the same commit-and-validate call as every busy item (no late heavy call)', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
@@ -318,12 +318,11 @@ test('heavy items get their final call about 1.5 minutes before the end, not at 
     };
     gm.state.clock = { elapsedSec: 2250, remainingSec: 150 };
     const at25 = await pending();
-    assert.ok(at25.length > 0 && !at25.some(d => d.backlogItemKey === 'CR-09'), JSON.stringify(at25));
+    const heavy = at25.find(d => d.backlogItemKey === 'CR-09');
+    assert.ok(heavy, JSON.stringify(at25));
+    assert.ok(at25.every(d => d.action === 'COMMIT_AND_VALIDATE_NOW' && 'rescueAtMinutesLeft' in d), JSON.stringify(at25));
     gm.state.clock = { elapsedSec: 2320, remainingSec: 80 };
-    const at13 = await pending();
-    const heavy = at13.find(d => d.backlogItemKey === 'CR-09');
-    assert.ok(heavy, JSON.stringify(at13));
-    assert.deepEqual([heavy.kind, heavy.heavy, heavy.action], ['MATCH_END', true, 'INTEGRATE_LAST_COMMIT_NOW']);
+    assert.equal((await pending()).length, 0, 'reported once');
   } finally { h.close(); }
 });
 
@@ -345,7 +344,7 @@ test('wait_for_update noWait returns at once with TIMEOUT, or with the pending e
   } finally { h.close(); }
 });
 
-test('1.5.24: heavy items are suggested one at a time; a PI agent slot gets worker pi_agent', async () => {
+test('1.5.24: heavy items are suggested one at a time; the fast-lane slot gets worker slot_agent and never a long item', async () => {
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
@@ -366,13 +365,16 @@ test('1.5.24: heavy items are suggested one at a time; a PI agent slot gets work
     const pick = async () => { for (let i = 0; i < 4; i++) { const w = await h.call('wait_for_update', { noWait: i === 0 ? false : false }); const e = w.slotDone?.find(d => d.item === 'TASK-50'); if (e) return e; } return null; };
     let e = await pick();
     assert.ok(e, 'SLOT_DONE for the item with doubts');
-    // CR-11 (heavy) runs in s1: the second heavy item is not suggested; a PI agent's slot gets worker pi_agent.
+    // CR-11 (heavy) runs in s1: the second heavy item is not suggested; the fast lane's own agent does its next item.
     assert.notEqual(e.suggestNext?.backlogItemKey, 'CR-12', JSON.stringify(e.suggestNext));
-    if (e.suggestNext) assert.equal(e.suggestNext.worker, 'pi_agent');
+    if (e.suggestNext) assert.equal(e.suggestNext.worker, 'slot_agent');
     await h.call('release_slot', { slot: 's1' });
     writeFileSync(t.doneFile, JSON.stringify({ ...done, summary: 'done again' }));
     e = await pick();
-    assert.ok(e.suggestNext.why.startsWith('deadline') || e.suggestNext.backlogItemKey === 'CR-12', JSON.stringify(e.suggestNext));
+    // 1.5.27: the fast lane (s5) never gets the long CR-12; it stays free for PIs and short TASKs.
+    assert.notEqual(e.suggestNext?.backlogItemKey, 'CR-12', JSON.stringify(e.suggestNext));
+    const long = await h.call('start_work', { backlogItemKey: 'CR-12', slot: 's6', force: true });
+    assert.equal(long.error?.code, 'FAST_LANE_SHORT_ONLY', JSON.stringify(long).slice(0, 300));
     await h.call('release_slot', { slot: 's5' });
   } finally { h.close(); }
 });
@@ -509,7 +511,7 @@ test('1.5.11: grading kinds from the brief give a quality gate; a DONE.json with
     for (const slot of ['s1', 's2', 's3', 's4', 's5']) await h.call('release_slot', { slot }).catch(() => null);
     await h.call('refresh_match');
     const started = {};
-    for (const [key, slot] of [['TASK-38', 's1'], ['TASK-37', 's2'], ['CR-37', 's3'], ['BUG-37', 's5']]) started[key] = await h.call('start_work', { backlogItemKey: key, slot });
+    for (const [key, slot] of [['TASK-38', 's1'], ['TASK-37', 's2'], ['CR-37', 's3'], ['BUG-37', 's4']]) started[key] = await h.call('start_work', { backlogItemKey: key, slot });
     const kinds = Object.fromEntries(Object.entries(started).map(([k, r]) => [k, JSON.parse(readFileSync(r.briefFile, 'utf8')).qualityGate?.kind ?? null]));
     assert.deepEqual(kinds, { 'TASK-38': 'SUITE_DETECTION', 'TASK-37': 'DATA_REQUIREMENTS', 'CR-37': 'OFFICIAL_DATA', 'BUG-37': null });
     const brief = JSON.parse(readFileSync(started['TASK-38'].briefFile, 'utf8'));

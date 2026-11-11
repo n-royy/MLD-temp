@@ -18,7 +18,7 @@ let gm, tmp, bare, checkoutRoot, matchRoot, logFile, prepare, start;
 class Helper {
   constructor(extra = {}) {
     this.child = spawn(process.execPath, [join(packRoot, 'bin', 'runtime-server.mjs')],
-      { env: { MTM_AUTO_INTEGRATE: '0', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
+      { env: { MTM_AUTO_INTEGRATE: '0', MTM_SOON_MINUTES: '3', MTM_RESCUE_MINUTES: '-1', ...process.env, MTM_HELPER_ALLOW_LOOPBACK: '1', ...extra }, stdio: ['pipe', 'pipe', 'inherit'] });
     this.next = 1; this.pending = new Map(); this.buf = '';
     this.child.stdout.on('data', d => {
       this.buf += d;
@@ -225,7 +225,7 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   await h3.call('refresh_match');
   const a1 = await h3.call('start_work', { backlogItemKey: 'BUG-05', slot: 's1' });
   const a2 = await h3.call('start_work', { backlogItemKey: 'BUG-06', slot: 's2' });
-  // 1.5.26: every box of the checklist ticked; BUG-06's stays open (it also has doubts).
+  // 1.5.26: every box of the checklist ticked; BUG-06's stays open and is reported (it also has doubts).
   assert.ok(a1.checklistFile && existsSync(a1.checklistFile));
   writeFileSync(a1.checklistFile, readFileSync(a1.checklistFile, 'utf8').replace(/- \[ \]/g, '- [x]'));
   work(a1, 'BUG-05', { file: 'src/auto.txt', content: 'auto\n' });
@@ -240,7 +240,9 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   const auto = seen.find(w => w.reason === 'AUTO_SUBMITTED');
   assert.ok(auto, JSON.stringify(seen).slice(0, 400));
   assert.deepEqual(auto.autoSubmitted.map(a => [a.item, a.status]), [['BUG-05', 'SUBMITTED']]);
-  assert.equal(auto.autoSubmitted[0].suggestNext.backlogItemKey, 'TASK-07');
+  // 1.5.27: a worker slot takes the open long item (BUG-01) before the short TASK-07, which suits the fast lane.
+  assert.equal(auto.autoSubmitted[0].suggestNext.backlogItemKey, 'BUG-01');
+  assert.equal(auto.autoSubmitted[0].suggestNext.worker, 'slot_agent');
   assert.ok(gm.state.submissions.has('BUG-05'));
   const manual = seen.find(w => w.reason === 'SLOT_DONE');
   assert.ok(manual.slotDone[0].checklistOpen?.length > 0, 'open boxes are reported');

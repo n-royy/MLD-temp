@@ -1,7 +1,7 @@
 # Working one backlog item (worker playbook)
 
-Read by every `team_feature_worker`, `team_heavy_worker` and PI agent (`team_incident_worker`, for its ordinary
-items; PIs follow INCIDENT.md). Same rules as the single-agent pack; only the place changes: you work in your slot
+Read by every `team_feature_worker` and fast-lane agent (`team_incident_worker`, for its short TASKs; PIs follow
+INCIDENT.md). Same rules as the single-agent pack; only the place changes: you work in your slot
 (`slotMatchRoot`) instead of `matchRoot`.
 **You are kept for the whole match** (1.5.24): you read this file once when you were spawned during preparation,
 then each item arrives by follow-up (item message). Start every item from its `briefFile`; nothing of the previous
@@ -137,8 +137,8 @@ mutant, a temporary source restore or a debug edit in the tree: `git status --po
      standard states (before, on, after; empty; non-ASCII; rounding), in a new test file.
 
 ## Heavy items (brief `heavy: true`)
-The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. Only one heavy item runs at a time, and you have this item only:
-aim for every row, with full quality (tokens are not the limit here; time is). Points come per test-case row, so
+The brief's effort profile (`effort`, level XL, with its reasons) marks the item as expensive. Only one heavy item
+runs at a time and the worker of the slot does it; aim for every row, but time is the limit. Points come per test-case row, so
 secure rows one by one. The brief gives `stopBy` (ISO time: the earlier of the item deadline and the match end);
 check the clock with `Get-Date` (or `new Date()`) before each step.
 1. **Plan first** (`.mtm-tmp/<ID>/plan.md`, before any code change): read the whole brief, the MVS file, the
@@ -249,35 +249,44 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
 - If you need to run the app, use port `<default port> + 10 × slot index` and check it is free first; stop every
   server you started before finishing. Use the slot's own database (its env file already names it).
 
-## The checklist is your definition of done (1.5.26)
+## Always submittable: commit as you go (1.5.27)
+An item not submitted by its deadline or the match end scores 0, whatever its code (R7WFBQBT CR-07: server, page and
+TC-01 done at minute 4, nothing committed at the deadline, 0 of 100). So, for every item:
+1. **Score-first order.** Do first what the grader checks by replaying tests or comparing values (server logic, the
+   MVS test, computed fields, the hidden-test areas the brief names); UI screenshots, browser flows and other
+   evidence come after. Give evidence a time box (about a quarter of your budget); past it, report that row
+   NOT_RUN with the true reason instead of losing the item.
+2. **First checkpoint as soon as one row PASSes**: copy the template to `answers/<ID>/submit.json`, set status
+   `PARTIAL`, that row PASS with its evidence, the others NOT_RUN, fill what you already know, validate
+   (`validate_answer`), commit. **After every further PASS**: update the answer, validate, commit. A valid answer is
+   always committed.
+3. **Time**: the brief gives `budgetMinutes` and `wrapUpBy` (the earlier of your budget and 6 minutes before the
+   deadline or the match end). From `wrapUpBy` add no scope: finish the step in hand, final checks, answer, commit,
+   doneFile. A `DEADLINE_SOON` message means the same, now. At 2.5 minutes left the helper commits and submits what
+   your slot holds, so anything uncommitted or an invalid answer then is lost.
+4. **Rounds**: at most three fix-and-retest rounds per failing row; then report it honestly and move on.
+
+## The checklist (plan, then one final pass)
 `checklistFile` (`<slotMatchRoot>/.mtm-tmp/<ID>/checklist.md`) is the brief taken apart by the helper: every ask of
 the description, every answer row with its expected result and evidence, every answer field with its type, every
 required evidence file, every sentence about how it is graded (hidden tests, replays, official data) and the test
-files the organizer provides. Each item is submitted once and graded per criterion, so:
-- Read it right after the brief; plan your work from its boxes (`plan.md` may just reference them).
-- Tick a box (`- [x]`) only when it holds on the final code, and append its proof (` - proof: <test, file, command
-  output or value>`). Never delete or reword a box; one that does not apply is ticked with the reason.
-- A box you cannot meet: leave it open and say why in DONE.json `doubts`. The helper submits by itself only a DONE
-  with no open box; anything else goes to the orchestrator, who sends you back while time remains.
-- Re-check every ticked box after a rebase or a late fix.
+files the organizer provides. Use it twice:
+- **To plan**, right after the brief: it is the list of what is graded; order it score-first (above).
+- **Once at the end**, before doneFile: go through it and tick (`- [x]`) what holds; a box you could not meet stays
+  open with one word why. No proof notes during the work: they cost time. Open boxes do not stop the helper from
+  submitting; mention a real gap in DONE.json `doubts` only when the orchestrator must decide something.
 
-## Definition of done: every defect fixed, every criterion met
-Points come per test-case row, per acceptance criterion and per hidden test; tokens do not matter, a missed defect
-does. Before writing `doneFile` with `DONE` (and alongside the checklist):
-1. **Every defect the brief describes is fixed at its root cause**, in every place the same cause shows (same
-   function used by another screen, the sibling code path, the server and the client side). Search for the pattern
-   (`rg`) instead of fixing only the line the scenario hits.
-2. **Every acceptance criterion** is checked one by one against the code and the evidence (write the list in
-   `.mtm-tmp/<ID>/plan.md` and tick it): exact names, values, formats, the current standard's revision.
-3. **Every template row PASSes** on the final code, run the way the MVS says; an existing-tests criterion means the
-   existing suite of the touched modules passes.
-4. **Hidden tests**: when the brief mentions graders, official data or hidden tests, one test of your own per rule
-   boundary (before/on/after, empty, rounding, non-ASCII) in a new test file, passing.
-5. **Regressions**: the existing tests of every module you changed pass; a fix for one row never breaks another.
-6. **Self-review** of the full diff (`git -C <worktreeRoot> diff <base>`): no debug code, no unrelated change, no
-   weakened test, nothing outside the assigned folder.
-Anything not met while time remains is not a reason to stop: fix it, then check again. Only when `stopBy` is near,
-submit what is verified (`PARTIAL`, honest rows) rather than nothing.
+## Definition of done, within the budget
+Points come per test-case row, per acceptance criterion and per hidden test. Within `budgetMinutes` (and never past
+`wrapUpBy`), before writing `doneFile` with `DONE`:
+1. Every defect the brief describes is fixed at its root cause, including the sibling places the same cause shows
+   (search the pattern with `rg`).
+2. Every acceptance criterion holds (exact names, values, formats, the current standard's revision).
+3. Every template row PASSes on the final code, run the way the MVS says; the existing tests of the modules you
+   changed pass.
+4. When the brief mentions hidden tests or official data and time allows: one own test per rule boundary in a new
+   test file.
+5. A quick self-review of the diff: no debug code, no weakened test, nothing outside the assigned folder.
 
 ## How to work
 1. Read the brief and any Company Tool files already in your folder, then query what else the item needs yourself
@@ -292,8 +301,7 @@ submit what is verified (`PARTIAL`, honest rows) rather than nothing.
    (`qualityGate`, "Quality gate" below): one run per template row (`<ID>-TC-01..n`),
    following its MVS scenario, plus only the checks the acceptance criteria name. Think through edge cases while
    writing the code (empty input, permissions, boundaries, validation), but do not turn them into extra test cases,
-   extra pages, viewports or scripts. Keep fixing and re-testing until the "Definition of done" holds or `stopBy` is
-   near; a fourth round that finds a missed case is worth more than an early submission.
+   extra pages, viewports or scripts. At most three fix-and-retest rounds per failing row ("Always submittable").
 4. Commit early: as soon as the MVS pass, commit (the orchestrator can integrate the last commit at the safety net).
    Before you report an "existing tests pass" case FAIL because of a known baseline failure, check whether its fix
    (or another item's fix of the same test) already landed: `git -C <worktreeRoot> log --oneline HEAD..<branch>`;

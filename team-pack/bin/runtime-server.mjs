@@ -27,12 +27,15 @@ const TOOLS = [
   { name: 'wait_for_update', handler: a => session.waitForUpdate(a),
     description: 'Block up to 240 s (timeoutMs is ignored) until something needs you: reason AUTO_SUBMITTED (autoSubmitted[]: ' +
       'the helper integrated and submitted a clean DONE item itself - status DONE, no doubts, quality gate PASS - each with ' +
-      'suggestNext {backlogItemKey, why, worker} for its free slot; worker "same" = followup_task the same agent, "pi_agent" = followup_task that slot\'s PI agent; PIs are submitted the same way), SLOT_DONE (slotDone[]: a slot ' +
-      'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 3 minutes from its deadline or from the match ' +
-      'end, a heavy item about 1.5 minutes with heavy: true - integrate its last commit at once; reported once each), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - a PI agent\'s s5/s6 first - ' +
+      'suggestNext {backlogItemKey, why, worker} for its free slot - the slot\'s own agent does it, "same" = its fix is already on the branch; ' +
+      'rescued: true = submitted by the helper itself 2.5 minutes before the deadline or the match end with the work committed so far ' +
+      'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now), SLOT_DONE (slotDone[]: a slot ' +
+      'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 6 minutes from its deadline or from the match ' +
+      'end - tell its worker to commit and make its answer valid now; the helper rescues it at 2.5 minutes; reported once each), ' +
+      'SLOT_STALLED (stalled[]: a busy slot wrote nothing for 5 minutes - send_message its agent), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - the fast lane s5/s6 first, else any free slot: give it to that slot\'s agent - ' +
       'and fetched the incident rules (kb.md) into incident.dir; logsComplete false: the logs are still being collected ' +
       '(digest.md, logs.json, entities.json, collection.json follow; the PI agent waits with wait_incident_data); ' +
-      'it outranks every other reason and arrives once per PI; piAgents[] = the PI agents\' item slots s5/s6 with their item and slack), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
+      'it outranks every other reason and arrives once per PI; piAgents[] = the fast-lane slots s5/s6 with their item), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
       'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
       'effort S/M/L/XL ' +
@@ -67,7 +70,7 @@ const TOOLS = [
       'template and the evidence/ folder; logs IN_PROGRESS and BACKLOG_TESTS NOT_RUN. No get_backlog_item call is needed ' +
       'afterwards. Calling again for a started item is a harmless replay.',
     inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'],
-      description: 'Slot (s1-s4 for workers, s5-s6 for the PI agents). The tree is synced to the checkout HEAD before Start Work is sent; the slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
+      description: 'Slot (s1-s4 for workers: any item; s5-s6 the fast lane: PIs and short TASKs only, FAST_LANE_SHORT_ONLY otherwise). The tree is synced to the checkout HEAD before Start Work is sent; the slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
         'summary with briefFile/doneFile for the worker instead of the whole brief.' },
       force: { type: 'boolean', description: 'Start an item without a deadline although a deadline item waits for a slot ' +
