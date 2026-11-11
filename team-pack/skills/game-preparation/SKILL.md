@@ -63,7 +63,7 @@ slots and the match team are created while it runs.
    ```
 3c. **Slots** - then at once `prepare_slots` with `count: 6` and no `copyFiles` (worktrees only, under a minute).
 3d. **Match team** - then spawn the six match agents (all with `fork_turns: "none"`, no model or reasoning effort),
-   in one go, each with the preparation message of the team-orchestrator SKILL.md "Sub-agents":
+   in one go, each with the preparation message of the team-orchestrator SKILL.md "The team":
    W1-W4 = `team_feature_worker` for s1-s4 (playbook WORKER.md), PA and PB = `team_incident_worker` for s5 and s6
    (playbook INCIDENT.md and WORKER.md; a PI first, items while no PI is open). Keep their agent ids for the summary. Do not wait for their
    READY (they need no reply). A spawn refused ("agent thread limit"): note which agent is missing in the summary;

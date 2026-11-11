@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { CompanyMcp } from './company-mcp.mjs';
 import { PROXY_FILE, relayCompany, startCompanyProxy } from './company-proxy.mjs';
 import { clearStaleLock, git, gitOk } from './git.mjs';
+import { buildChecklist, openBoxes } from './checklist.mjs';
 import { HttpError, cookieHeader, mergeCookies, request } from './http.mjs';
 import { ProgressLog, clip } from './progress.mjs';
 import { answerProblems } from './schema.mjs';
@@ -528,6 +529,7 @@ export class MatchSession {
         try { brief = start?.briefFile ? JSON.parse(readFileSync(start.briefFile, 'utf8')) : null; } catch { /* optional */ }
         const base = { backlogItemKey: key, slot: start ? slot : null, started: Boolean(start), startError,
           worktreeRoot: start?.worktreeRoot ?? null, slotMatchRoot: start?.slotMatchRoot ?? null, briefFile: start?.briefFile ?? null,
+          checklistFile: brief?.checklistFile ?? null,
           answerFile: brief?.answerFile ?? join(root, 'answers', key, 'submit.json'), validateCommand: brief?.validateCommand ?? null,
           doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item) };
         // NEW_PI is reported as soon as the rules are in (phase 1); the logs keep being collected and collection.json
@@ -1308,7 +1310,15 @@ export class MatchSession {
       'console.log(JSON.stringify({ valid: r.problems.length === 0, schemaChecked: r.schemaChecked, problems: r.problems.slice(0, 20) }));',
       'process.exit(r.problems.length ? 1 : 0);', ''].join('\n'));
     const item = this.#items().find(i => i.key === key) ?? null;
-    const brief = { backlogId: key, backlogType: r.backlogType ?? item?.backlogType ?? null, item,
+    // 1.5.26: the brief as a checklist (kept on a replay: the worker's ticks stay).
+    const checklistFile = join(dir, 'checklist.md');
+    if (!existsSync(checklistFile)) {
+      try {
+        const cl = buildChecklist({ key, item: item ?? {}, mvs: r.minimumVerificationScenarios, template: r.submitTemplate, schema, files: r.files });
+        writeFileSync(checklistFile, cl.md);
+      } catch { /* a brief the builder cannot read: the worker works from the brief */ }
+    }
+    const brief = { backlogId: key, checklistFile: existsSync(checklistFile) ? checklistFile : null, backlogType: r.backlogType ?? item?.backlogType ?? null, item,
       startInstruction: r.startInstruction ?? '', submitTemplate: r.submitTemplate ?? null,
       minimumVerificationScenarios: r.minimumVerificationScenarios ?? null, requiredTestCases: required,
       answerFile: submitPath, evidenceDir: join(dirname(submitPath), 'evidence'), organizerFiles: filesDir, submitSchemaFile: schemaFile,
@@ -1338,7 +1348,7 @@ export class MatchSession {
     if (existsSync(tools)) cpSync(tools, join(s.matchRoot, SCRATCH, 'tools'), { recursive: true });
     return { backlogId: key, backlogType: brief.backlogType, title: item?.title ?? null, replay: r.replay ?? null,
       slot: s.name, slotIndex: s.index, worktreeRoot: s.path, slotMatchRoot: s.matchRoot, briefFile: join(dir, 'brief.json'),
-      doneFile: brief.doneFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null, heavy: brief.heavy,
+      doneFile: brief.doneFile, checklistFile: brief.checklistFile, requiredTestCases: required, deadlineMinutes: item?.deadlineMinutes ?? null, heavy: brief.heavy,
       slotInstallState: brief.slotInstallState };
   }
 
@@ -1423,6 +1433,8 @@ export class MatchSession {
             ...(d.qualityGate?.summary ? { summary: clip(String(d.qualityGate.summary), 200) } : {}) };
         }
       } catch { result = { error: 'DONE.json is not valid JSON' }; }
+      const open = this.#checklistOpen(s);
+      if (open.length) result.checklistOpen = open.slice(0, 20);
       out.push({ slot: s.name, item: s.item, ...result, ...(s.autoError ? { autoIntegrateError: s.autoError } : {}) });
     }
     if (out.length) this.#saveSlots(all);
@@ -1441,7 +1453,14 @@ export class MatchSession {
     if (!item || item.submission) return false;
     if (String(d.status ?? '').toUpperCase() !== 'DONE' || (d.doubts && String(d.doubts).trim())) return false;
     if (this.#gradingKind(item) && String(d.qualityGate?.status ?? '').toUpperCase() !== 'PASS') return false;
+    if (this.#checklistOpen(slot).length) return false;
     return true;
+  }
+
+  /** Boxes of the item's checklist (1.5.26) still open in the slot; [] when it has none. */
+  #checklistOpen(slot) {
+    const f = join(slot.matchRoot, SCRATCH, slot.item ?? '', 'checklist.md');
+    try { return existsSync(f) ? openBoxes(readFileSync(f, 'utf8')) : []; } catch { return []; }
   }
 
   /** Background pass (every few seconds during the game): integrates and submits every eligible finished item. */

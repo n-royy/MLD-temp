@@ -225,6 +225,9 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   await h3.call('refresh_match');
   const a1 = await h3.call('start_work', { backlogItemKey: 'BUG-05', slot: 's1' });
   const a2 = await h3.call('start_work', { backlogItemKey: 'BUG-06', slot: 's2' });
+  // 1.5.26: every box of the checklist ticked; BUG-06's stays open (it also has doubts).
+  assert.ok(a1.checklistFile && existsSync(a1.checklistFile));
+  writeFileSync(a1.checklistFile, readFileSync(a1.checklistFile, 'utf8').replace(/- \[ \]/g, '- [x]'));
   work(a1, 'BUG-05', { file: 'src/auto.txt', content: 'auto\n' });
   work(a2, 'BUG-06', { file: 'src/doubt.txt', content: 'doubt\n', done: false });
   writeFileSync(a2.doneFile, JSON.stringify({ status: 'DONE', summary: 'done', doubts: 'TC-02 flaky on Windows',
@@ -240,6 +243,7 @@ test('slots: prepare, parallel work, integrate, conflict, gates', async () => {
   assert.equal(auto.autoSubmitted[0].suggestNext.backlogItemKey, 'TASK-07');
   assert.ok(gm.state.submissions.has('BUG-05'));
   const manual = seen.find(w => w.reason === 'SLOT_DONE');
+  assert.ok(manual.slotDone[0].checklistOpen?.length > 0, 'open boxes are reported');
   assert.deepEqual(manual.slotDone.map(d => d.item), ['BUG-06']);
   assert.ok(!gm.state.submissions.has('BUG-06'), 'doubts: the orchestrator decides');
   h3.close();

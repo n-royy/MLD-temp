@@ -249,9 +249,21 @@ in slices. Use them for every standard, QA data set, log and ticket the item nee
 - If you need to run the app, use port `<default port> + 10 × slot index` and check it is free first; stop every
   server you started before finishing. Use the slot's own database (its env file already names it).
 
-## Definition of done: every defect fixed, every criterion met (1.5.25)
+## The checklist is your definition of done (1.5.26)
+`checklistFile` (`<slotMatchRoot>/.mtm-tmp/<ID>/checklist.md`) is the brief taken apart by the helper: every ask of
+the description, every answer row with its expected result and evidence, every answer field with its type, every
+required evidence file, every sentence about how it is graded (hidden tests, replays, official data) and the test
+files the organizer provides. Each item is submitted once and graded per criterion, so:
+- Read it right after the brief; plan your work from its boxes (`plan.md` may just reference them).
+- Tick a box (`- [x]`) only when it holds on the final code, and append its proof (` - proof: <test, file, command
+  output or value>`). Never delete or reword a box; one that does not apply is ticked with the reason.
+- A box you cannot meet: leave it open and say why in DONE.json `doubts`. The helper submits by itself only a DONE
+  with no open box; anything else goes to the orchestrator, who sends you back while time remains.
+- Re-check every ticked box after a rebase or a late fix.
+
+## Definition of done: every defect fixed, every criterion met
 Points come per test-case row, per acceptance criterion and per hidden test; tokens do not matter, a missed defect
-does. Before writing `doneFile` with `DONE`:
+does. Before writing `doneFile` with `DONE` (and alongside the checklist):
 1. **Every defect the brief describes is fixed at its root cause**, in every place the same cause shows (same
    function used by another screen, the sibling code path, the server and the client side). Search for the pattern
    (`rg`) instead of fixing only the line the scenario hits.

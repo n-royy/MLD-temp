@@ -21,15 +21,17 @@ suggestNext (start_work + followup_task to the slot's agent; worker team_heavy_w
 fix is already on the branch). Items it does not submit come as SLOT_DONE: decide per SKILL.md (integrate_item, or
 followup_task the agent). DONE_HELD_FOR_PI waits until the open PI is submitted.
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any item is handed over.
-At game start stop the baseline test run if it still runs (stop_jobs, SKILL.md 2b): it slows every git call and test.
-Background jobs from preparation never delay the first items; handle JOBS_DONE as SKILL.md 2b says.
+At game start stop the baseline test run if it still runs (stop_jobs, SKILL.md "Start of the game" step 2): it slows every git call and test.
+Background jobs from preparation never delay the first items; handle JOBS_DONE as the SKILL.md loop table says.
 Never launch another Codex CLI, Claude Code CLI, app-server or independent CLI process for match work.
 Stay inside matchRoot (and the slots) for source, answers and evidence; never force-push or change the remote.
 Write nothing between waits. Never ping a working subagent (no send_message status checks): wait with
 wait_for_update in the 270 s cell; a subagent message other than FINAL_ANSWER needs no reply. send_message only for
 the safety net (DEADLINE_SOON) and the one "blocker is on the branch" note, the overlap notice and the
 baseline-owner note; followup_task only to hand over an item or a PI, fix a rejected gate or replace a placeholder.
-A slotDone with qualityGate.status MISSING and more than 8 minutes left goes back to its worker once (SKILL.md).
+Each item is submitted once and graded per criterion; early submission earns nothing (PI aside). A slotDone with
+open checklist boxes, a missing quality gate or rows still open, and more than ~6 minutes left, goes back to its
+worker once with exactly what is open (SKILL.md "Finished items").
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or
 `view_image`; print files only through short scripts. While the scout prepares, wait with wait_agent timeout 300000, not 10 s.
 Honor MATCH_PAUSED / MATCH_ENDED immediately (interrupt your subagents); do not self-respawn or resume.
