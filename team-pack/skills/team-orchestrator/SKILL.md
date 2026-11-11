@@ -125,9 +125,14 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,
    rebases, cherry-picks, pushes (never force), submits with every gate and logs `SUBMITTED`.
 3. Integration answers:
-   - `INTEGRATION_CONFLICT`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`, `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`,
-     `SCRATCH_COMMITTED`, `EXISTING_TESTS_MODIFIED`: `followup_task` the worker with the code and message; integrate
-     again on its next `SLOT_DONE` (picked commits are not picked twice). Never weaken a test.
+   - `INTEGRATION_CONFLICT`, `CONFLICT_MARKERS`, `TEST_USES_LOCAL_FILES`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`,
+     `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`, `SCRATCH_COMMITTED`, `EXISTING_TESTS_MODIFIED`: `followup_task` the worker
+     with the code and message; integrate again on its next `SLOT_DONE` (picked commits are not picked twice). Never
+     weaken a test.
+   - Any result with `overlaps[]` (also inside `AUTO_SUBMITTED`): the branch just received files those busy slots
+     changed too. `send_message` each named agent once, in that turn: "<ITEM> landed <files> on the branch: commit,
+     `git -C <worktreeRoot> rebase <branch>` now, keep the branch's version where both fixed the same defect, rerun
+     your checks." A conflict found at minute 5 costs a minute; at the deadline it costs the item (39PSWT5C BUG-11).
    - `SUBMIT_OUTCOME_UNCERTAIN`: `integrate_item` again unchanged.
    - `REVISION_NOT_PUSHED`, `GIT_PULL_FAILED`, `GIT_PUSH_FAILED`, `MAIN_DIRTY`: yours: `git -C <checkoutRoot>
      status`, fix without force, integrate again.
@@ -135,8 +140,8 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
      `release_slot`.
    - `next` in the result: hand it to the slot's agent; `nextError` `DEADLINE_ITEM_WAITING`: start that deadline
      item in the slot instead.
-4. A slot `DONE_HELD_FOR_PI` waits for the open PI; the helper submits it right after. Submitted answers are final:
-   never re-audit them.
+4. A finished item is submitted at once, also while a PI is open (nothing waits for a PI: its own lane is free).
+   Submitted answers are final: never re-audit them.
 
 ## PI (every PI, at once)
 The helper starts the PI in a free slot (the fast lane s5/s6 first, else any free worker slot), fetches the incident
@@ -144,7 +149,7 @@ rules and sweeps every log entry into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/` 
 `NEW_PI` brings `incident`. In that turn:
 1. `followup_task` the agent **of `incident.slot`** with the PI message (PA/PB in s5/s6; a worker in s1-s4 reads
    INCIDENT.md for it). The agent answers with `answer_item`; the helper submits it within seconds (PIs first).
-2. Go on with the deadline items. Finished items without a deadline are held while a PI is open.
+2. Go on with every other item as usual: finished items are submitted at once, nothing is held for the PI.
 `incident.slot` null (every slot busy): the helper starts it in the first slot that frees and sends `NEW_PI` again
 (the fast lane runs short items only, so that is minutes at most). Never interrupt an agent for a PI.
 A PI's `SLOT_DONE` (doubts, invalid answer): `followup_task` its agent; never answer it yourself.
@@ -158,7 +163,7 @@ After a helper restart, `prepare_incident` any open PI missing from `board.incid
    answer when valid (else an honest PARTIAL from the template), integrates and submits; it arrives as
    `AUTO_SUBMITTED` with `rescued: true` - `interrupt_agent` that agent and refill its slot. A rescue that failed
    arrives in the same `AUTO_SUBMITTED` with `status: "RESCUE_FAILED"` and the `error` (e.g. the answer breaks the
-   schema): fix exactly that and `integrate_item` with `allowUncommitted: true` while seconds remain, else
+   schema, or `RESCUE_NOTHING_TO_SUBMIT`: the answer is still the empty template): fix exactly that and `integrate_item` with `allowUncommitted: true` while seconds remain, else
    `release_slot`.
 
 ## No slots

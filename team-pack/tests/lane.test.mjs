@@ -201,3 +201,65 @@ test('1.5.27: a suite item whose Spec boxes carry a copied proof is not auto-sub
     await h.call('release_slot', { slot: 's3' });
   } finally { h.close(); }
 });
+
+test('1.5.29: integration refuses conflict markers and tests that read the slot scratch; overlaps are reported', async () => {
+  gm.state.backlog = [item('BUG-70', 'BUG'), item('BUG-71', 'BUG'), item('BUG-72', 'BUG')];
+  gm.state.clock = { elapsedSec: 900, remainingSec: 1500 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    const a = await h.call('start_work', { backlogItemKey: 'BUG-70', slot: 's1' });
+    const b = await h.call('start_work', { backlogItemKey: 'BUG-71', slot: 's2' });
+    const c = await h.call('start_work', { backlogItemKey: 'BUG-72', slot: 's3' });
+    // s1: a "resolved" file that still carries markers.
+    work(a, 'BUG-70', { content: 'line1\n<<<<<<< HEAD\nline2 a\n=======\nline2 b\n>>>>>>> x\nline3\n' });
+    const marked = await h.call('integrate_item', { backlogItemKey: 'BUG-70' });
+    assert.equal(marked.error?.code, 'CONFLICT_MARKERS', JSON.stringify(marked).slice(0, 300));
+    // s2: a test reading the slot scratch.
+    mkdirSync(join(b.slotMatchRoot, 'src', 'tests'), { recursive: true });
+    writeFileSync(join(b.slotMatchRoot, 'src', 'tests', 'official.test.ts'), "const zip = '../../.mtm-tmp/BUG-71/official.zip';\n");
+    work(b, 'BUG-71', { content: 'line1\nline2 by 71\nline3\n' });
+    const local = await h.call('integrate_item', { backlogItemKey: 'BUG-71' });
+    assert.equal(local.error?.code, 'TEST_USES_LOCAL_FILES', JSON.stringify(local).slice(0, 300));
+    // s3 lands a change to src/app.txt, which s1 and s2 changed too: both are named.
+    work(c, 'BUG-72', { content: 'line1\nline2 by 72\nline3\n' });
+    const ok = await h.call('integrate_item', { backlogItemKey: 'BUG-72' });
+    assert.equal(ok.status, 'SUBMITTED', JSON.stringify(ok).slice(0, 300));
+    assert.deepEqual((ok.overlaps ?? []).map(o => o.slot).sort(), ['s1', 's2'], JSON.stringify(ok.overlaps));
+    assert.ok(ok.overlaps.every(o => o.files.some(f => f.endsWith('src/app.txt'))));
+    assert.doesNotMatch(g(bare, 'show', `main:${gm.matchId}/src/app.txt`), /<<<<<<<|>>>>>>>/);
+    for (const slot of ['s1', 's2']) await h.call('release_slot', { slot });
+  } finally { h.close(); }
+});
+
+test('1.5.29: a rescue in the middle of a conflicted rebase aborts it and submits without conflict markers', async () => {
+  gm.state.backlog = [item('BUG-73', 'BUG', { deadlineMinutes: 10, revealedElapsedSec: 1000 }), item('BUG-74', 'BUG')];
+  gm.state.clock = { elapsedSec: 1100, remainingSec: 1300 };
+  const h = new Helper({ MTM_AUTO_INTEGRATE: '1', MTM_RESCUE_MINUTES: '2.5' });
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    const a = await h.call('start_work', { backlogItemKey: 'BUG-73', slot: 's1' });
+    const b = await h.call('start_work', { backlogItemKey: 'BUG-74', slot: 's2' });
+    work(a, 'BUG-73', { content: 'line1\nline2 by 73\nline3\n', done: false });
+    work(b, 'BUG-74', { content: 'line1\nline2 by 74\nline3\n', done: false });
+    assert.equal((await h.call('integrate_item', { backlogItemKey: 'BUG-74' })).status, 'SUBMITTED');
+    // The worker of s1 starts the rebase the orchestrator asked for and stops in the middle of the conflict.
+    let failed = false;
+    try { g(a.worktreeRoot, 'rebase', 'main'); } catch { failed = true; }
+    assert.ok(failed, 'the rebase stops on the conflict');
+    assert.match(readFileSync(join(a.slotMatchRoot, 'src', 'app.txt'), 'utf8'), /<<<<<<</);
+    gm.state.clock = { elapsedSec: 1490, remainingSec: 910 }; // 1.8 minutes to the deadline
+    gm.state.sequence++;
+    const w = await wake(h, x => x.reason === 'AUTO_SUBMITTED');
+    const r = w?.autoSubmitted.find(x => x.item === 'BUG-73');
+    assert.ok(r && r.rescued && r.status === 'SUBMITTED', JSON.stringify(w?.autoSubmitted ?? w).slice(0, 400));
+    const sub = gm.state.submissions.get('BUG-73');
+    const text = g(bare, 'show', `${sub.body.gitRevision}:${gm.matchId}/src/app.txt`);
+    assert.doesNotMatch(text, /<<<<<<<|=======|>>>>>>>/);
+    assert.match(text, /line2 by 74/, 'the branch side of the conflicting line is kept');
+  } finally { h.close(); }
+});

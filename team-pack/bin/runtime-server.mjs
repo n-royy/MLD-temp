@@ -29,7 +29,7 @@ const TOOLS = [
       'the helper integrated and submitted a clean DONE item itself - status DONE, no doubts, quality gate PASS - each with ' +
       'suggestNext {backlogItemKey, why, worker} for its free slot - the slot\'s own agent does it, "same" = its fix is already on the branch; ' +
       'rescued: true = submitted by the helper itself 2.5 minutes before the deadline or the match end with the work committed so far ' +
-      'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now), SLOT_DONE (slotDone[]: a slot ' +
+      'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now; overlaps[] = busy slots that changed files the branch just received: send_message those agents to rebase now), SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 6 minutes from its deadline or from the match ' +
       'end - tell its worker to commit and make its answer valid now; the helper rescues it at 2.5 minutes; reported once each), ' +
       'SLOT_STALLED (stalled[]: a busy slot wrote nothing for 5 minutes - send_message its agent), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - the fast lane s5/s6 first, else any free slot: give it to that slot\'s agent - ' +
@@ -40,8 +40,7 @@ const TOOLS = [
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
       'effort S/M/L/XL ' +
       'from the brief, heavy (XL) or heavyCandidate (L) with effortReasons, gradingKind). ' +
-      'While a PI is open, SLOT_DONE is reported only for deadline items; other finished slots show ' +
-      'DONE_HELD_FOR_PI (board.heldForPi) until the PI is submitted. A slotDone entry carries qualityGate {kind, status, ' +
+      'Every finished slot is reported (and auto-submitted) at once, also while a PI is open. A slotDone entry carries qualityGate {kind, status, ' +
       'minutesLeft} when the brief names a quality gate; status MISSING with time left goes back to the worker once. ' +
       'While idle call it again right away without writing any message; an empty backlog is never the end of the match. ' +
       'timeoutMs is honoured only within 5 minutes after a DEADLINE_SOON (safety net: wait ~60 s for the DONE.json). ' +
@@ -79,7 +78,8 @@ const TOOLS = [
     description: "Bring a worker's committed slot work onto the assigned branch and submit it: checks the slot is committed, " +
       'only the assigned folder changed and no credential is in the diff; git pull --rebase, cherry-pick the slot commits, ' +
       'push (never force); then runs submit_work unchanged (all its gates) with the counts from the slot DONE.json unless ' +
-      '`tests` is given. INTEGRATION_CONFLICT aborts cleanly and nothing is pushed or sent. Frees the slot when submitted.',
+      '`tests` is given. INTEGRATION_CONFLICT, CONFLICT_MARKERS (the commits add <<<<<<< / >>>>>>> lines) and TEST_USES_LOCAL_FILES (a committed test reads .mtm-tmp or a machine path) abort cleanly and nothing is pushed or sent. ' +
+      'The result names overlaps[] (busy slots that changed the same files): tell those agents to rebase now. Frees the slot when submitted.',
     inputSchema: obj({ backlogItemKey: key,
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },
         skipped: { type: 'integer' }, summary: { type: 'string' } }, ['required', 'executed', 'passed', 'failed']),

@@ -20,7 +20,7 @@ The helper submits every clean finished item itself, PIs first, and rescues ever
 its deadline or the match end (reason AUTO_SUBMITTED, rescued: true): refill each slot from its suggestNext (start_work
 + followup_task to the slot's agent; "same": add that the fix is already on the branch). Items it does not submit come
 as SLOT_DONE: decide per SKILL.md (integrate_item, or followup_task the agent once). SLOT_STALLED: send_message that
-agent once. DONE_HELD_FOR_PI waits until the open PI is submitted.
+agent once. Nothing waits for an open PI: a finished item is submitted at once and its slot refilled.
 Apply the scout's baseline patch (apply_baseline) right after the first start_work, before any item is handed over.
 At game start stop the baseline test run if it still runs (stop_jobs, SKILL.md "Start of the game" step 2): it slows every git call and test.
 Background jobs from preparation never delay the first items; handle JOBS_DONE as the SKILL.md loop table says.
