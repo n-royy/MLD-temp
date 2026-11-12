@@ -9,7 +9,7 @@ each). The organizer's own suite checks the application; your suite must pass on
    (the handler, not only the function, when both are listed).
 2. **Where planted defects hide** - test these axes for every rule before anything else:
    - boundaries on both sides (on, one before, one after);
-   - **volume sized from the code**: `rg -n "pageCount|pageSize|chunk|batchSize|LIMIT|\.slice\(" <the modules the
+   - **volume sized from the code**: `rg -n -i "page_?count|page_?size|chunk|batch_?size|limit|offset|max_?rows|\.slice\(|\[[^]]*:" <the modules the
      spec names and the db/query helpers they call>`, then more records in ONE call than the largest size found and
      over 1,000, in every kind of call (import lines; added, updated and deleted together). A volume case checks
      every resulting row, not a count (45CVHIIC caught the paging defect `slice(i, pageCount)` with 1,005 records;

@@ -141,7 +141,7 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
   // 3a'. 1.5.31: the grader's own run on our source becomes one committed test.
   for (const s of sections(description)) for (const t of blocks(s.lines).paras.flatMap(sentences).concat(blocks(s.lines).items)) {
     const text = t.replace(/\*\*/g, '').replace(/^>\s*/, '');
-    if (GRADER_RUN.test(text)) add('Grader run on your source', `${text} -> one committed vitest case that does exactly this on a FRESH test database through your own handlers, in the brief's order (load the data, every step it names, then the call it grades), with the fixture committed next to the test; it passes before DONE (playbook hidden-tests)`);
+    if (GRADER_RUN.test(text)) add('Grader run on your source', `${text} -> one committed test case in the project's own test runner (the one the existing tests and the MVS use) that does exactly this on a FRESH test database through your own handlers, in the brief's order (load the data, every step it names, then the call it grades), with the fixture committed next to the test; it passes before DONE (playbook hidden-tests)`);
   }
 
   // 3a. 1.5.29: files the brief asks to produce (a manifest, a report, a CSV, a pack). The grader reads them first;

@@ -61,7 +61,8 @@ function jsonTypecheckRisks(diff, root) {
   return out;
 }
 
-const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
+// Test files of any common stack (JS/TS, Python, Go, Java/Kotlin/C#, Ruby, PHP).
+const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e|testing)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|kt|py|php)$|(^|\/)test_[^/]+\.py$|_test\.(py|go)$|_spec\.rb$/;
 const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
 // 1.5.27: the orchestrator only coordinates. s1-s4: the 4 workers (any item, long ones above all). s5, s6: the fast
