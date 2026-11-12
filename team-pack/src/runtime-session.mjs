@@ -64,12 +64,13 @@ function jsonTypecheckRisks(diff, root) {
 // Test files of any common stack (JS/TS, Python, Go, Java/Kotlin/C#, Ruby, PHP).
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e|testing)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|kt|py|php)$|(^|\/)test_[^/]+\.py$|_test\.(py|go)$|_spec\.rb$/;
 const SCRATCH = '.mtm-tmp';
-const SLOT_NAME = /^s[1-6]$/;
+const SLOT_NAME = /^s[1-7]$/;
 // 1.5.27: the orchestrator only coordinates. s1-s4: the 4 workers (any item, long ones above all). s5, s6: the fast
 // lane - the two PI agents take PIs and short items only, so a PI or a short item never waits behind a long one
 // (R7WFBQBT: PI-03 waited 8 minutes, TASK-05/06/11 11-24 minutes for a slot, while 1.5.13 did them at once in s4).
 // Every slot is installed (a PI may ask for a fix in the source).
-const PI_AGENT_SLOTS = ['s5', 's6'];
+// 1.5.33: three fast-lane slots (s5-s7, agents PA/PB/PC): wave 2 can bring two PIs while the first is still open.
+const PI_AGENT_SLOTS = ['s5', 's6', 's7'];
 const slotRole = n => PI_AGENT_SLOTS.includes(n) ? 'fast-lane' : 'worker';
 // Board entries stay small: every wait_for_update result is re-sent with the orchestrator's context.
 const BOARD_DROP = new Set(['description', 'brief', 'acceptanceCriteria', 'updatedByEventKey', 'updatedAt', 'body', 'markdown', 'instructions', 'summary']);
@@ -537,7 +538,7 @@ export class MatchSession {
   }
 
   // ---------- incident fast path ----------
-  /** Starts (once per item) the background preparation of a PI: Start Work in a free slot (s5/s6 first), then every log
+  /** Starts (once per item) the background preparation of a PI: Start Work in a free slot (s5-s7 first), then every log
    *  page and the incident rules collected into <slotMatchRoot>/.mtm-tmp/<ID>/incident/. Never throws. */
   #kickIncident(key, slotWanted = null) {
     const known = this.incidents.get(key);
@@ -680,7 +681,7 @@ export class MatchSession {
     const c = this.#need();
     if (c.phase !== 'GAME') fail('NOT_IN_GAME', 'prepare_incident is only allowed after START_GAME');
     if (!KEY.test(backlogItemKey ?? '')) fail('INVALID_BACKLOG_KEY', 'invalid backlogItemKey');
-    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s6');
+    if (slot !== null && !SLOT_NAME.test(slot)) fail('INVALID_SLOT', 'slot is s1..s7');
     if (!this.projection) await this.#getProjection();
     const prev = this.incidents.get(backlogItemKey);
     // Collect again on request, or when the PI could not be started earlier (no free slot then).
@@ -1181,7 +1182,7 @@ export class MatchSession {
   async prepareSlots({ count = 2, copyFiles = [] } = {}) {
     const c = this.#need();
     const n = Number(count);
-    if (!Number.isInteger(n) || n < 1 || n > 6) fail('INVALID_SLOT_COUNT', 'count must be 1..6 (s1-s4 for the 4 workers, s5-s6 for the 2 PI agents)');
+    if (!Number.isInteger(n) || n < 1 || n > 7) fail('INVALID_SLOT_COUNT', 'count must be 1..7 (s1-s4 for the 4 workers, s5-s7 for the 3 fast-lane agents)');
     if (!Array.isArray(copyFiles) || copyFiles.length > 10) fail('INVALID_COPY_FILES', 'copyFiles must be an array of at most 10 entries');
     const parent = `${c.checkoutRoot}.slots`;
     const head = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
@@ -1268,7 +1269,7 @@ export class MatchSession {
     return type === 'TASK' && !e.heavy && (e.level === 'S' || e.level === 'M');
   }
 
-  /** The fast lane (s5/s6) takes PIs and short items only; s1-s4 take anything. */
+  /** The fast lane (s5-s7) takes PIs and short items only; s1-s4 take anything. */
   #fitsSlot(d, slotName) {
     if (!PI_AGENT_SLOTS.includes(slotName)) return true;
     const key = d?.key ?? d;
@@ -1295,7 +1296,7 @@ export class MatchSession {
   }
 
   #claimSlot(name, key) {
-    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers) or s5-s6 (fast lane: PIs and short TASKs)');
+    if (!SLOT_NAME.test(name ?? '')) fail('INVALID_SLOT', 'slot is s1-s4 (workers) or s5-s7 (fast lane: PIs and short TASKs)');
     const s = this.#slots()[name];
     if (!s || !existsSync(join(s.path, '.git'))) fail('SLOT_MISSING', `${name} does not exist; call prepare_slots`);
     if (s.item && s.item !== key) fail('SLOT_BUSY', `${name} is working on ${s.item}`);
@@ -1732,7 +1733,7 @@ export class MatchSession {
   }
 
   /**
-   * What the freed slot should take next (1.5.27). The fast lane (s5/s6): a short item with a deadline, then the short
+   * What the freed slot should take next (1.5.27). The fast lane (s5-s7): a short item with a deadline, then the short
    * item with the most points (nothing long: it stays free for the next PI). A worker slot: deadline items (least slack
    * first), then a heavy item (one at a time), then an item whose fix the finished worker already made (includedFixes),
    * then long items by points per effort, then short ones. The slot's own agent always does it (`worker: "slot_agent"`).

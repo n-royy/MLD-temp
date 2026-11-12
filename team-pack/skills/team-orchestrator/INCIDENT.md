@@ -2,7 +2,7 @@
 
 A PI (production incident) is a race: the first correct team gets 100 %, later ones 90/75/60 %, a wrong field 0 for
 that field. Every field and the fix are graded on their own. So **exact and complete first, then fast**. The helper
-has already done the slow, mechanical part: Start Work in a slot (the fast lane s5/s6, or a free worker slot),
+has already done the slow, mechanical part: Start Work in a slot (the fast lane s5-s7, or a free worker slot),
 the incident rules, and it is collecting every log entry into `<slotMatchRoot>/.mtm-tmp/<ID>/incident/`.
 
 ## The follow-up you get

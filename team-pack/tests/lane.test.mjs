@@ -108,10 +108,12 @@ test('the fast lane takes PIs and short TASKs only; long items are refused with 
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    assert.equal((await h.call('prepare_slots', { count: 6 })).slots.length, 6);
+    assert.equal((await h.call('prepare_slots', { count: 7 })).slots.length, 7);
     await h.call('configure_session', { descriptors: [prepare, start] });
     const board = await h.call('refresh_match');
-    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'fast-lane', 'fast-lane']);
+    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'fast-lane', 'fast-lane', 'fast-lane']);
+    // 1.5.33: the third fast lane refuses long items like the other two.
+    assert.equal((await h.call('start_work', { backlogItemKey: 'CR-60', slot: 's7' })).error?.code, 'FAST_LANE_SHORT_ONLY');
     const refused = await h.call('start_work', { backlogItemKey: 'CR-60', slot: 's5' });
     assert.equal(refused.error?.code, 'FAST_LANE_SHORT_ONLY', JSON.stringify(refused).slice(0, 300));
     assert.ok(!gm.state.started.has('CR-60'), 'refused before Start Work is sent');
@@ -183,7 +185,7 @@ test('1.5.27: a suite item whose Spec boxes carry a copied proof is not auto-sub
     await h.call('configure_session', { descriptors: [prepare, start] });
     const board = await h.call('refresh_match');
     assert.equal(board.items.find(i => i.key === 'TASK-63').effort?.level ?? 'L', 'L');
-    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6', 's7']) await h.call('release_slot', { slot }).catch(() => null);
     const s = await h.call('start_work', { backlogItemKey: 'TASK-63', slot: 's3' });
     assert.ok(s.briefFile, JSON.stringify(s).slice(0, 300));
     const same = ' - proof: 40 cases pass; 20 mutants detected.';
@@ -209,7 +211,7 @@ test('1.5.29: integration refuses conflict markers and tests that read the slot 
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6', 's7']) await h.call('release_slot', { slot }).catch(() => null);
     const a = await h.call('start_work', { backlogItemKey: 'BUG-70', slot: 's1' });
     const b = await h.call('start_work', { backlogItemKey: 'BUG-71', slot: 's2' });
     const c = await h.call('start_work', { backlogItemKey: 'BUG-72', slot: 's3' });
@@ -241,7 +243,7 @@ test('1.5.29: a rescue in the middle of a conflicted rebase aborts it and submit
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6', 's7']) await h.call('release_slot', { slot }).catch(() => null);
     const a = await h.call('start_work', { backlogItemKey: 'BUG-73', slot: 's1' });
     const b = await h.call('start_work', { backlogItemKey: 'BUG-74', slot: 's2' });
     work(a, 'BUG-73', { content: 'line1\nline2 by 73\nline3\n', done: false });
@@ -271,7 +273,7 @@ test('1.5.31: a test importing a JSON fixture its tsconfig does not include is r
   try {
     await h.call('configure_session', { descriptors: [prepare, start] });
     await h.call('refresh_match');
-    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6', 's7']) await h.call('release_slot', { slot }).catch(() => null);
     const a = await h.call('start_work', { backlogItemKey: 'BUG-75', slot: 's1' });
     const pkg = join(a.slotMatchRoot, 'src', 'pkg');
     mkdirSync(join(pkg, 'tests'), { recursive: true });

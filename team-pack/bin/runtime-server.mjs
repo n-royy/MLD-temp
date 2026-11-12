@@ -32,10 +32,10 @@ const TOOLS = [
       'and the worker\'s answer, or an honest PARTIAL from the template; status RESCUE_FAILED with error = not submitted, fix it and integrate_item now; overlaps[] = busy slots that changed files the branch just received: send_message those agents to rebase now), SLOT_DONE (slotDone[]: a slot ' +
       'wrote its DONE.json and needs your decision; suggestNext, autoIntegrateError when auto-submission failed), DEADLINE_SOON (deadlineSoon[]: a busy item is 6 minutes from its deadline or from the match ' +
       'end - tell its worker to commit and make its answer valid now; the helper rescues it at 2.5 minutes; reported once each), ' +
-      'SLOT_STALLED (stalled[]: a busy slot wrote nothing for 5 minutes - send_message its agent), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - the fast lane s5/s6 first, else any free slot: give it to that slot\'s agent - ' +
+      'SLOT_STALLED (stalled[]: a busy slot wrote nothing for 5 minutes - send_message its agent), NEW_PI (incident{}: a PI was revealed; the helper already started it in a free slot - the fast lane s5-s7 first, else any free slot: give it to that slot\'s agent - ' +
       'and fetched the incident rules (kb.md) into incident.dir; logsComplete false: the logs are still being collected ' +
       '(digest.md, logs.json, entities.json, collection.json follow; the PI agent waits with wait_incident_data); ' +
-      'it outranks every other reason and arrives once per PI; piAgents[] = the fast-lane slots s5/s6 with their item), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
+      'it outranks every other reason and arrives once per PI; piAgents[] = the fast-lane slots s5-s7 with their item), JOBS_DONE (jobs[]: a background job from preparation - slot install, baseline run - ended; ' +
       'reported once each), MATCH_UPDATED (new item or status change; newItems[]) or MATCH_<status> (pause/end). ' +
       'Returns within about 5 s of the event, with a compact board (items carry minutesLeft to their deadline, match.minutesLeft; ' +
       'effort S/M/L/XL ' +
@@ -50,13 +50,13 @@ const TOOLS = [
         'used between steps of a multi-step handling.' } }) },
   { name: 'prepare_incident', handler: a => session.prepareIncident(a),
     description: 'Incident fast path by hand (normally automatic: wait_for_update reason NEW_PI). Starts the PI in a free slot ' +
-      '(s5/s6 first, or `slot`) if not started, pages every Company Tools log query to its total and fetches the incident rules ' +
+      '(s5-s7 first, or `slot`) if not started, pages every Company Tools log query to its total and fetches the incident rules ' +
       '(plus every KB article they reference) into <slotMatchRoot>/.mtm-tmp/<ID>/incident/: digest.md (coverage, services, ' +
       'releases, flags, entities), logs.json (all entries, by time), entities.json (timeline per invoice/ticket id), kb.md. ' +
       'Returns slot, briefFile, answerFile, validateCommand, doneFile and the coverage. refresh re-collects.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7'] }, refresh: { type: 'boolean' } }, ['backlogItemKey']) },
   { name: 'prepare_slots', handler: a => session.prepareSlots(a),
-    description: 'Create (or keep, on resume) up to 6 slots (s1-s4 for the 4 workers, s5-s6 for the two PI agents: PIs first, items while no PI is open): Git worktrees of the assigned repository at ' +
+    description: 'Create (or keep, on resume) up to 7 slots (s1-s4 for the 4 workers, s5-s7 for the three fast-lane agents: PIs first, items while no PI is open): Git worktrees of the assigned repository at ' +
       '<checkoutRoot>.slots/sN on local-only branches mtm-slot/sN (never pushed). copyFiles copies git-ignored local files ' +
       '(e.g. src/.env) from matchRoot into each slot; replace {"find":"with {slot}"} makes per-slot values such as database ' +
       'names or ports. Does not change tracked files of the checkout.',
@@ -68,8 +68,8 @@ const TOOLS = [
       'startInstruction, submitTemplate, MVS and requiredTestCases; creates <matchRoot>/answers/<ID>/submit.json from the ' +
       'template and the evidence/ folder; logs IN_PROGRESS and BACKLOG_TESTS NOT_RUN. No get_backlog_item call is needed ' +
       'afterwards. Calling again for a started item is a harmless replay.',
-    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'],
-      description: 'Slot (s1-s4 for workers: any item; s5-s6 the fast lane: PIs and short TASKs only, FAST_LANE_SHORT_ONLY otherwise). The tree is synced to the checkout HEAD before Start Work is sent; the slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
+    inputSchema: obj({ backlogItemKey: key, slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7'],
+      description: 'Slot (s1-s4 for workers: any item; s5-s7 the fast lane: PIs and short TASKs only, FAST_LANE_SHORT_ONLY otherwise). The tree is synced to the checkout HEAD before Start Work is sent; the slot is reset to the checkout HEAD, the answer folder is created there, and the full brief, ' +
         'organizer files, schema and a validator are written to <slotMatchRoot>/.mtm-tmp/<ID>/; the result is then a short ' +
         'summary with briefFile/doneFile for the worker instead of the whole brief.' },
       force: { type: 'boolean', description: 'Start an item without a deadline although a deadline item waits for a slot ' +
@@ -94,7 +94,7 @@ const TOOLS = [
     inputSchema: obj({ backlogItemKey: key, summary: { type: 'string', description: 'One line: failing test, cause, fix.' } }, ['backlogItemKey']) },
   { name: 'release_slot', handler: a => session.releaseSlot(a),
     description: 'Free a slot without submitting (item dropped). Its worktree is reset at the next start_work.',
-    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6'] } }, ['slot']) },
+    inputSchema: obj({ slot: { type: 'string', enum: ['s1', 's2', 's3', 's4', 's5', 's6', 's7'] } }, ['slot']) },
   { name: 'validate_answer', handler: a => session.validateAnswer(a),
     description: 'Check the working-tree answers/<ID>/submit.json against the submit schema delivered at Start Work, ' +
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',

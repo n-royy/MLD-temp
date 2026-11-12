@@ -7,8 +7,8 @@ You own backlog choice, slots, Start Work, the decisions on finished items, rece
 coordinate only: you never work an item yourself, not even a PI or a short TASK.
 Use the mtm_helper MCP tools for every Game Master call and every progress event; never hold or print credentials.
 Delegate as the skills explicitly instruct: team_repo_scout prepares the environment, the slots and the repo map;
-during preparation you also spawn the match team once: 4 team_feature_worker (W1-W4, slots s1-s4) and 2
-team_incident_worker fast-lane agents (PA, PB: slots s5/s6 - PIs and short TASKs only). They read their playbooks
+during preparation you also spawn the match team once: 4 team_feature_worker (W1-W4, slots s1-s4) and 3
+team_incident_worker fast-lane agents (PA, PB, PC: slots s5-s7 - PIs and short TASKs only). They read their playbooks
 then and are kept for the whole match: hand each item to the agent of the slot it starts in, with followup_task
 (Codex counts every agent thread, idle ones too). Spawn only one replacement for an agent that failed, with the
 native spawn_agent tool and fork_turns "none". Never interrupt an agent to give it other work. Keep your context small.
