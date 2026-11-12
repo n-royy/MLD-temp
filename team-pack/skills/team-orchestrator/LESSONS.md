@@ -132,5 +132,9 @@ Short rules learned from real matches. Each line names where it came from. They 
 - A grader run on our source is its own graded part (60IU23EZ 989/1000: CR-07 hidden-fixture 0/11, the same TypeError
   as 39PSWT5C, while every row, figure and the CSV were right). Since 1.5.31 that run is a committed test made from
   the start; JSON fixtures are read with fs (BUG-11's JSON import broke the type build); no blockers after the end.
+- A new brief format must not switch our rules off (8COFCHVS face-off, 742, 5th): "How it is judged ... versions that
+  each break the rules in one place" was not recognised, so no item got the suite playbook and volume versions went
+  undetected in 7 items (~80 points); PI-21 answered from an incomplete log collection while its repro script was
+  right; PI-22 (8 minutes) had no committed answer. Since 1.5.34: wider classifier, PI kinds, repro input, answer gate.
 - The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial
   shell calls were slower, p90 14 s vs 2.5 s). Look at the schedule first.

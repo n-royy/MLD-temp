@@ -117,7 +117,8 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
         if (body?.method === 'notifications/initialized') { res.writeHead(202); return res.end(); }
         if (state.company && body?.method === 'tools/list') return send(res, 200, { jsonrpc: '2.0', id: body.id, result: { tools: [
           { name: 'kb_search', description: 'KB', inputSchema: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'integer', maximum: 10 } }, required: ['query'] } },
-          { name: 'search_logs', description: 'Logs, 20 per page', inputSchema: { type: 'object', properties: { query: { type: 'string' }, service: { type: 'string' }, offset: { type: 'integer' }, limit: { type: 'integer', maximum: 20 } } } }] } });
+          { name: 'search_logs', description: 'Logs, 20 per page', inputSchema: { type: 'object', properties: { query: { type: 'string' }, service: { type: 'string' }, offset: { type: 'integer' }, limit: { type: 'integer', maximum: 20 } } } },
+          { name: 'get_test_data', description: 'Test data of a backlog item', inputSchema: { type: 'object', properties: { backlogId: { type: 'string' } }, required: ['backlogId'] } }] } });
         if (state.company && body?.method === 'tools/call') {
           // Company Tools with real shapes: logs paged 20 at a time with a total; KB articles by word match.
           const a = body.params.arguments ?? {};
@@ -131,6 +132,8 @@ export function startMockGm({ matchId = 'ABCD1234', teamCode = 'MLD', apiKey = '
           } else if (body.params.name === 'kb_search') {
             const q = String(a.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
             out = { mode: 'search', articles: state.company.kb.filter(k => q.some(t => `${k.id} ${k.title} ${k.body}`.toLowerCase().includes(t))) };
+          } else if (body.params.name === 'get_test_data') {
+            out = { backlogId: a.backlogId, data: { catalog: [{ sku: 'X-1', location: 'L-1' }] } };
           } else if (body.params.name === 'export_logs') {
             out = { entries: state.company.logs }; // one large answer (no paging)
           } else return send(res, 200, { jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: 'unknown tool' }] } });

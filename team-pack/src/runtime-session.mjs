@@ -398,10 +398,12 @@ export class MatchSession {
   #gradingKind(item) {
     const text = [item?.descriptionMd, item?.description].filter(t => typeof t === 'string').join('\n');
     if (!text) return null;
-    const m = text.match(/#+\s*Grading\b([\s\S]*?)(?=\n#+\s|$)/i);
+    // 1.5.34: any judging heading (8COFCHVS: "How it is judged"), and any wording of "your tests run on versions that
+    // each break something" - that set graded CR, BUG and PI items alike by detection and the old regex saw none.
+    const m = text.match(/#+\s*(?:Grading|How it is (?:judged|graded|scored)|Scoring|Judging|Evaluation|Assessment)\b([\s\S]*?)(?=\n#+\s|$)/i);
     const g = m ? m[1] : text;
-    if (/\b(broken|mutant|mutated)\b|break(s)?\s+one\s+part|detection\s+share|fails?\s+on\s+(applications|builds|versions)/i.test(g)
-      && /\b(suite|test cases?|cases)\b/i.test(text)) return 'SUITE_DETECTION';
+    if (/\b(broken|mutant|mutated)\b|break(s)?\s+(?:one\s+part|the\s+rules?|a\s+rule|one\s+rule)|each\s+break|detection\s+share|fails?\s+on\s+(?:each|applications|builds|versions)|versions?\s+that\s+(?:each\s+)?break/i.test(g)
+      && /\b(suite|test cases?|cases|tests)\b/i.test(text)) return 'SUITE_DETECTION';
     if (/\b(manifest|dataset|data\s+pack|statement\s+pack|pack)\b/i.test(text)
       && /\b(volume|mix|overlap|at\s+(most|least)|requirement|threshold)\b/i.test(g + text)) return 'DATA_REQUIREMENTS';
     if (/official\s+test\s+data|hidden\s+tests?/i.test(g)) return 'OFFICIAL_DATA';
@@ -580,7 +582,14 @@ export class MatchSession {
           worktreeRoot: start?.worktreeRoot ?? null, slotMatchRoot: start?.slotMatchRoot ?? null, briefFile: start?.briefFile ?? null,
           checklistFile: brief?.checklistFile ?? null,
           answerFile: brief?.answerFile ?? join(root, 'answers', key, 'submit.json'), validateCommand: brief?.validateCommand ?? null,
-          doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item) };
+          doneFile: start?.doneFile ?? null, deadlineMinutes: item.deadlineMinutes ?? null, minutesLeft: this.#minutesLeft(item),
+          // 1.5.34: a PI is either an investigation (figures from the logs, often a repro script) or a fix with
+          // verification scenarios and a test suite of our own (8COFCHVS PI-23/PI-24): the latter is worked like an
+          // item, with the playbooks its brief lists.
+          piKind: (() => { const t = brief?.submitTemplate ?? {}; const meta = /^(schemaVersion|backlogId|status|evidenceFiles|testResults|incidentRecord|engineeringRecord|gitRevision)$/;
+            return Object.keys(t).some(k => !meta.test(k)) ? 'investigation' : 'fix'; })(),
+          playbooks: brief?.playbooks ?? [],
+          repro: String(item.descriptionMd ?? item.description ?? '').match(/answers\/[A-Z]+-\d+\/[\w.-]+\.(?:mjs|js|cjs|py)/)?.[0] ?? null };
         // NEW_PI is reported as soon as the rules are in (phase 1); the logs keep being collected and collection.json
         // appears when they are complete (the PI agent waits for it with wait_incident_data).
         let ready;
@@ -1786,6 +1795,24 @@ export class MatchSession {
     if (!s) fail('NOT_IN_SLOT', `${key} is not started in a slot: start_work first`);
     const answerDir = join(s.matchRoot, 'answers', key);
     const submitPath = join(answerDir, 'submit.json');
+    // 1.5.34: a PI answered from an incomplete log collection, or without the repro script its brief requires, loses
+    // the figures (8COFCHVS PI-21: 32/35 lines and 186/205 units "from currently collected logs, collection still in
+    // progress", while the same script on the grader's full second data set scored every figure). Refused while more
+    // than 3 minutes remain; after that the answer goes as it is.
+    if (/^PI-/.test(key)) {
+      const item = this.#items().find(i => i.key === key);
+      const left = Math.min(...[this.#minutesLeft(item), this.#matchMinutesLeft()].filter(v => v !== null && v !== undefined), Infinity);
+      if (left > 3) {
+        const col = join(s.matchRoot, SCRATCH, key, 'incident', 'collection.json');
+        let summary = null;
+        try { summary = existsSync(col) ? JSON.parse(readFileSync(col, 'utf8')) : null; } catch { summary = null; }
+        if (!summary && existsSync(join(s.matchRoot, SCRATCH, key, 'incident', 'kb.md'))) fail('INCIDENT_DATA_PENDING', `${key}: the helper is still collecting the logs; wait_incident_data first (an answer from part of the logs loses the figures). ${left.toFixed(1)} minutes left.`);
+        if (summary && summary.complete === false && !summary.completedByAgent) fail('INCIDENT_DATA_INCOMPLETE', `${key}: the log collection is incomplete (collection.json complete=false: ${clip(JSON.stringify((summary.coverage ?? []).filter(c => !c.complete && !c.superseded).map(c => c.args)), 200)}). Page the missing queries with company_tool_call into the incident folder, rerun your script on all of it, set "completedByAgent": true in collection.json, then answer. ${left.toFixed(1)} minutes left.`);
+        const desc = String(item?.descriptionMd ?? item?.description ?? '');
+        const repro = desc.match(/answers\/[A-Z]+-\d+\/([\w.-]+\.(?:mjs|js|cjs|py))/)?.[1];
+        if (repro && !existsSync(join(answerDir, repro))) fail('REPRO_MISSING', `${key}: the brief requires answers/${key}/${repro} (the grader reruns it on a second data set for half of every figure); write it, run it on <incident>/repro-input exactly as the grader will, answer with its output.`);
+      }
+    }
     let tpl;
     try { tpl = JSON.parse(readFileSync(submitPath, 'utf8').replace(/^\uFEFF/, '')); }
     catch (error) { fail('NO_TEMPLATE', `answers/${key}/submit.json is missing or not JSON: ${clip(String(error.message), 120)}`); }

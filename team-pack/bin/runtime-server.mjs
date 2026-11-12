@@ -100,7 +100,7 @@ const TOOLS = [
       'PASS rows having evidence arrays, and every evidence/<file> existing. Run it before committing; fix until valid.',
     inputSchema: obj({ backlogItemKey: key }, ['backlogItemKey']) },
   { name: 'answer_item', handler: a => session.answerItem(a),
-    description: 'Value answers in ONE call (PI, TASK questions; items without source changes). Fills the started item\'s ' +
+    description: 'Value answers in ONE call (PI, TASK questions; items without source changes). A PI is refused while more than 3 minutes remain and its logs are still being collected (INCIDENT_DATA_PENDING), incomplete (INCIDENT_DATA_INCOMPLETE) or the repro script its brief requires is missing (REPRO_MISSING). Fills the started item\'s ' +
       'answers/<ID>/submit.json template with `values` (template keys only, exactly as found), merges `record` into the ' +
       'template\'s *Record object, writes `evidence` files ({"name.json": content | {from: absolutePath}}) and lists them, ' +
       'sets status, validates (returns INVALID with problems, nothing committed), commits answers/<ID> in the slot and writes ' +
