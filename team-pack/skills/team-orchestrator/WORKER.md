@@ -25,8 +25,10 @@ If `slotInstallState` is not `DONE`: read and edit code first, then before the f
 2. **Graded files exist from the first commit**: every checklist "Output files" entry (a manifest, report, CSV) as
    a valid skeleton, filled as you go; computed answer fields written from your script as soon as they exist.
    Committed tests carry their own fixtures (inside the assigned folder or built in the test): never read `.mtm-tmp`
-   or a path of this machine. Read a JSON fixture with `fs.readFileSync` + `JSON.parse` (or write it as a `.ts`
-   module); `import x from './f.json'` breaks the project's type build when its tsconfig does not include the file.
+   or a path of this machine. Tests use the project's own test runner and language, like its existing tests. Load a
+   data fixture at run time (TS/JS: `fs.readFileSync` + `JSON.parse`, or a `.ts` module; Python: `json.load`), never
+   by a static import of a data file the project's build/type config does not include (TS: `import x from
+   './f.json'` outside the tsconfig `include` breaks the type build).
 3. **First checkpoint at the first PASS**: answer from the template, status `PARTIAL`, that row PASS with evidence,
    the others NOT_RUN, what you know filled; `validateCommand`; commit. After every further PASS: update, validate,
    commit. A valid answer is always committed: at 2.5 minutes before the deadline or the match end the helper

@@ -25,6 +25,13 @@ after the last submission.
 - `BLOCKER_OPENED` only for something that stops an open item now; findings after the last submission go into the
   final summary; a blocker whose item is submitted is resolved at once (SKILL.md, orchestrator agent).
 
+## 4. Not tied to one stack
+- The checklist box and playbook `hidden-tests` say "a test case in the project's own test runner" instead of
+  "vitest"; the MVS test is `<ID>-mvs.*`; WORKER.md: tests in the project's own runner and language, data fixtures
+  loaded at run time (TS/JS `fs` + `JSON.parse`, Python `json.load`), never a static import of an unincluded data file.
+- Volume sizing searches stack-neutral names (`page_size`, `batch_size`, `limit`, `offset`, `max_rows`, slices).
+- The helper's test-file pattern also covers Go (`_test.go`), Python `_test.py`, Kotlin/PHP `*Test`, Ruby `_spec.rb`.
+
 ## Cost
 No effect on PIs. One extra committed test on items with a grader run (about 1-3 minutes, replacing the separate
 official-data script); no extra build or type check.
