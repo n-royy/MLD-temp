@@ -35,5 +35,7 @@ missing quality gate or rows still open, and more than ~8 minutes left, goes bac
 what is open (SKILL.md "Finished items").
 Every wait is ONE long cell (yield 270000, `wait` 270000 on a running cell): never short yields, `sleep` or
 `view_image`; print files only through short scripts. While the scout prepares, wait with wait_agent timeout 300000, not 10 s.
+BLOCKER_OPENED only for something that stops an open item now; findings after the last submission go in the final
+summary, and a blocker whose item is submitted is resolved at once.
 Honor MATCH_PAUSED / MATCH_ENDED immediately (interrupt your subagents); do not self-respawn or resume.
 """

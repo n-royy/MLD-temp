@@ -14,6 +14,10 @@ const ASKS = /\b(must|should|need|needs|required?|expected|exactly|only|never|do
 // of lines in one import"). R7WFBQBT TASK-08 lost 16 of 100 on exactly such a sentence: no case used more than a
 // few lines, the planted batch-volume bug was neither fixed nor detected.
 const GLOBAL = /\b(every rule|all (?:the )?rules|any number of|any (?:size|volume|amount of)|no matter how many|regardless of (?:the )?(?:number|size|order|count)|in (?:one|a single) (?:call|change|import|batch|request)|however many)\b/i;
+// 1.5.31: a sentence saying the grader itself runs something with the submitted source ("The grader loads the official
+// test data with the source of your submission itself, posts the schedule there, and audits it there"). 39PSWT5C and
+// 60IU23EZ CR-07 lost hidden-fixture (11 points) twice: that run crashed, and no test of ours had ever made it.
+const GRADER_RUN = /\b(?:grader|organizer)s?\b[^.]{0,80}\b(?:loads?|posts?|runs?|replays?|imports?|builds?|audits?|executes?)\b[^.]{0,120}\b(?:your|the)\s+(?:submitted\s+source|submission|source of your)/i;
 const SPEC_FILE = /\.(md|txt)$/i;
 const NOT_SPEC = /minimum-verification|submit|README/i;
 
@@ -134,6 +138,12 @@ export function buildChecklist({ key, item = {}, mvs = null, template = null, sc
   const evidence = [...new Set(sc.flatMap(s => s.evidence))];
   for (const e of evidence) add('Evidence', `evidence/${e}: exists, shows what its row expects, referenced by the row and listed in evidenceFiles`);
 
+  // 3a'. 1.5.31: the grader's own run on our source becomes one committed test.
+  for (const s of sections(description)) for (const t of blocks(s.lines).paras.flatMap(sentences).concat(blocks(s.lines).items)) {
+    const text = t.replace(/\*\*/g, '').replace(/^>\s*/, '');
+    if (GRADER_RUN.test(text)) add('Grader run on your source', `${text} -> one committed vitest case that does exactly this on a FRESH test database through your own handlers, in the brief's order (load the data, every step it names, then the call it grades), with the fixture committed next to the test; it passes before DONE (playbook hidden-tests)`);
+  }
+
   // 3a. 1.5.29: files the brief asks to produce (a manifest, a report, a CSV, a pack). The grader reads them first;
   // without them nothing else counts (39PSWT5C TASK-07 0/45: twelve statement files committed by the rescue, the
   // manifest written last never existed - "manifest.json not found" on all six criteria).
@@ -235,7 +245,9 @@ export function playbooksFor({ key = '', item = {}, mvs = null, files = {}, grad
   const text = `${item?.descriptionMd ?? item?.description ?? ''}\n${mvs ?? ''}`;
   const out = [];
   if (/\b(browser|screenshot|viewport|desktop|page|screen|sidebar|button|click)\b/i.test(text) && /\b(evidence|scenario|replay|serve|build)\b/i.test(text)) out.push('ui-evidence');
-  if (gradingKind === 'OFFICIAL_DATA' || /\b(hidden|organizer)\s+(?:unit\s+)?tests?\b|official test data|company standard|knowledge base/i.test(text)) out.push('hidden-tests');
+  // 1.5.31: only when unseen tests or the grader's own run on our source are announced (not every KB lookup); never a
+  // PI (its agent follows INCIDENT.md).
+  if (!/^PI-/.test(key) && (gradingKind === 'OFFICIAL_DATA' || /\b(hidden|organizer)\s+(?:unit\s+)?tests?\b|official test data/i.test(text) || GRADER_RUN.test(text))) out.push('hidden-tests');
   const others = [...text.matchAll(/\b(?:BUG|CR|TASK|PI)-\d+\b/g)].map(m => m[0]).filter(k => k !== key);
   if (others.length) out.push('other-items');
   if (gradingKind === 'SUITE_DETECTION') out.push('suite-spec');

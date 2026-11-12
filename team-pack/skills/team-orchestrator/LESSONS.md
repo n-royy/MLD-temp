@@ -129,5 +129,8 @@ Short rules learned from real matches. Each line names where it came from. They 
 - Token cost per item decides how many items a team finishes (39PSWT5C: BAN ~13 credits per item, MLD ~20, out of
   tokens after 8). Since 1.5.30 workers carry a 10 KB core plus their item's playbooks instead of 58 KB of playbook
   and lessons on every turn, and verification is budgeted (no double regressions, no home-made mutants).
+- A grader run on our source is its own graded part (60IU23EZ 989/1000: CR-07 hidden-fixture 0/11, the same TypeError
+  as 39PSWT5C, while every row, figure and the CSV were right). Since 1.5.31 that run is a committed test made from
+  the start; JSON fixtures are read with fs (BUG-11's JSON import broke the type build); no blockers after the end.
 - The machine was not the main cause (R7WFBQBT vs 6QYJQAVJ: same 5-8 s per model turn, same job waits; only trivial
   shell calls were slower, p90 14 s vs 2.5 s). Look at the schedule first.

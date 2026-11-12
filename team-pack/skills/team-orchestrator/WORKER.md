@@ -25,7 +25,8 @@ If `slotInstallState` is not `DONE`: read and edit code first, then before the f
 2. **Graded files exist from the first commit**: every checklist "Output files" entry (a manifest, report, CSV) as
    a valid skeleton, filled as you go; computed answer fields written from your script as soon as they exist.
    Committed tests carry their own fixtures (inside the assigned folder or built in the test): never read `.mtm-tmp`
-   or a path of this machine.
+   or a path of this machine. Read a JSON fixture with `fs.readFileSync` + `JSON.parse` (or write it as a `.ts`
+   module); `import x from './f.json'` breaks the project's type build when its tsconfig does not include the file.
 3. **First checkpoint at the first PASS**: answer from the template, status `PARTIAL`, that row PASS with evidence,
    the others NOT_RUN, what you know filled; `validateCommand`; commit. After every further PASS: update, validate,
    commit. A valid answer is always committed: at 2.5 minutes before the deadline or the match end the helper
@@ -74,7 +75,7 @@ box keeps the helper from submitting it.
 
 A follow-up (a rejected integration or gate): fix exactly that, rerun only the affected rows, commit, rewrite
 doneFile, one line. `INTEGRATION_CONFLICT`: rebase as in step 5. `CONFLICT_MARKERS`: remove them. `TEST_USES_LOCAL_FILES`:
-commit the fixture next to the test.
+commit the fixture next to the test. `TEST_TYPECHECK_RISK`: read the JSON fixture with `fs` instead of importing it.
 
 ## Rules that always hold
 - Existing tests: never weaken, skip, delete or rewrite one; fix the product code. Only when the brief explicitly

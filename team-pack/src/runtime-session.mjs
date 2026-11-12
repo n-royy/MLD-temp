@@ -31,6 +31,36 @@ const markerFiles = diff => diffFiles(diff).filter(f => MARKER_LINE.test(f.body)
 const LOCAL_REF = /^\+.*(?:\.mtm-tmp|[A-Za-z]:[\\/](?:Users|mtm)|\/home\/|\/Users\/)/m;
 const localRefFiles = diff => diffFiles(diff).filter(f => TEST_PATH.test(f.file) && LOCAL_REF.test(f.body)).map(f => f.file);
 
+// 1.5.31: a committed test that imports a JSON fixture its tsconfig does not include passes vitest but breaks the
+// project's type build (60IU23EZ BUG-11: `import fixture from './bug-11-fixture.json'`, loot-core includes only
+// mockData.json; a whole-app build failed after the match and BUG-12 spent a commit on another such fixture).
+const JSON_IMPORT = /^\+\s*import\s+[^;]*?from\s+['"](\.{1,2}\/[^'"]+\.json)['"]/gm;
+function jsonTypecheckRisks(diff, root) {
+  const out = [];
+  for (const f of diffFiles(diff)) {
+    if (!TEST_PATH.test(f.file)) continue;
+    for (const m of f.body.matchAll(JSON_IMPORT)) {
+      const json = join(dirname(join(root, f.file)), m[1]);
+      let dir = dirname(join(root, f.file)), cfg = null;
+      while (dir.startsWith(root) && dir.length >= root.length) {
+        if (existsSync(join(dir, 'tsconfig.json'))) { cfg = join(dir, 'tsconfig.json'); break; }
+        const up = dirname(dir); if (up === dir) break; dir = up;
+      }
+      if (!cfg) continue;
+      let include = [];
+      try { include = JSON.parse(readFileSync(cfg, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"'])\/\/.*$/gm, '$1').replace(/,(\s*[\]}])/g, '$1')).include ?? []; } catch { continue; }
+      const rel = relative(dirname(cfg), json).split(sep).join('/');
+      const covered = include.some(p => {
+        if (!/\.json$/i.test(p) && !/\*$/.test(p)) return false;
+        const rx = new RegExp('^' + p.replace(/^\.\//, '').replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '(?:.*/)?').replace(/\*/g, '[^/]*') + '$');
+        return rx.test(rel);
+      });
+      if (!covered) out.push(`${f.file} imports ${m[1]}`);
+    }
+  }
+  return out;
+}
+
 const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e)\/|\.(test|spec)\.[cm]?[jt]sx?$|Tests?\.(cs|java|py)$|(^|\/)test_[^/]+\.py$/;
 const SCRATCH = '.mtm-tmp';
 const SLOT_NAME = /^s[1-6]$/;
@@ -1843,6 +1873,8 @@ export class MatchSession {
       const marked = markerFiles(diff);
       if (marked.length) fail('CONFLICT_MARKERS', `${backlogItemKey}: the slot commits add git conflict markers; the worker resolves them (no <<<<<<< ======= >>>>>>> lines), reruns its tests, commits, then integrate again.`, { files: marked.slice(0, 10), worktreeRoot: s.path });
       const local = rescue ? [] : localRefFiles(diff);
+      const typing = rescue ? [] : jsonTypecheckRisks(diff, s.path);
+      if (typing.length) fail('TEST_TYPECHECK_RISK', `${backlogItemKey}: a committed test imports a JSON fixture its tsconfig does not include; the project's type build fails on it. Read it with fs.readFileSync + JSON.parse (or make the fixture a .ts module), then integrate again.`, { files: typing.slice(0, 10), worktreeRoot: s.path });
       if (local.length) fail('TEST_USES_LOCAL_FILES', `${backlogItemKey}: committed tests read the slot scratch (.mtm-tmp) or a path of this machine; the grader has neither. Commit the fixture next to the test (inside the assigned folder) or build it in the test, then integrate again.`, { files: local.slice(0, 10), worktreeRoot: s.path });
       const before = (await gitOk(c.checkoutRoot, ['rev-parse', 'HEAD'])).trim();
       let pick = await git(c.checkoutRoot, ['-c', 'core.safecrlf=false', 'cherry-pick', ...commits], { timeoutMs: 120000 });

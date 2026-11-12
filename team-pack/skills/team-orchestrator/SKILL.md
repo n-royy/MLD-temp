@@ -126,7 +126,7 @@ Each `slotDone[]` entry has `status`, `tests`, `summary`, `doubts`, `qualityGate
    `acknowledgeTestChanges` only when DONE.json gives that reason and the brief allows it). It checks the slot,
    rebases, cherry-picks, pushes (never force), submits with every gate and logs `SUBMITTED`.
 3. Integration answers:
-   - `INTEGRATION_CONFLICT`, `CONFLICT_MARKERS`, `TEST_USES_LOCAL_FILES`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`,
+   - `INTEGRATION_CONFLICT`, `CONFLICT_MARKERS`, `TEST_USES_LOCAL_FILES`, `TEST_TYPECHECK_RISK`, `SLOT_UNCOMMITTED`, `OUTSIDE_FOLDER`,
      `ANSWER_SCHEMA_INVALID`, `EVIDENCE_*`, `SCRATCH_COMMITTED`, `EXISTING_TESTS_MODIFIED`: `followup_task` the worker
      with the code and message; integrate again on its next `SLOT_DONE` (picked commits are not picked twice). Never
      weaken a test.
@@ -172,7 +172,10 @@ Single-agent fallback: `start_work` without `slot`, work the item in the main ch
 `git -C <checkoutRoot> pull --rebase origin <branch>`, `git push origin HEAD:<branch>` (never force), `submit_work`.
 
 ## Progress log
-`report_progress` only for `BLOCKER_OPENED`/`BLOCKER_RESOLVED` (stable `blockerId`), `BACKLOG_STATUS`
+`report_progress` only for `BLOCKER_OPENED`/`BLOCKER_RESOLVED` (stable `blockerId`) - a blocker is something that
+stops work on an open item now; a finding after every item is submitted (a build warning, typing diagnostics) is
+not one: put it in the final summary, never open a blocker for it, and resolve at once any blocker whose item is
+already submitted (60IU23EZ: `POST_INTEGRATION_TEST_TYPING` left open on the board after the last submission) - `BACKLOG_STATUS`
 `BLOCKED`/`FAILED` (`revision: null, receiptId: null`) and `ORCHESTRATOR_ENDED`. The helper logs everything else.
 One short line, no secrets, no newlines.
 

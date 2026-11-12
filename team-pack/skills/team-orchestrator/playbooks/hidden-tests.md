@@ -16,4 +16,14 @@ points are cases you never see, taken from the company standard.
    from the brief and the current standard (a small script); they must agree. When the official data also needs a
    behaviour another open item fixes (a standard's rounding, a parser rule), apply that standard yourself in your
    branch rather than waiting.
-5. A value the code computes ("which value does the source give") is RUN on the real code and data, never reasoned.
+5. **The grader's own run on your source** (checklist "Grader run on your source": "the grader loads the official
+   data with your submitted source, posts the schedule there and audits it there"): that run is graded on its own and
+   any crash in it scores 0 (39PSWT5C and 60IU23EZ CR-07: hidden-fixture `TypeError` twice, 11 points each time).
+   Make it ONE committed vitest case, written from the start as the script that produces your official figures (no
+   second script): a FRESH test database as the existing tests set it up, the data loaded through your own handlers,
+   every step the brief names in its order (import, rules, transfer edits, posting the schedule...), then the graded
+   call through its registered handler; assert the figures. It passes before DONE; it outranks screenshots.
+6. **Read data the way the existing code does**: the base tables and the helpers that similar existing handlers use,
+   not internal views or the loaded budget's state (spreadsheet cells, caches) unless existing handlers of the same
+   kind use them - the grader's fixture database may not have them. The test of step 5 proves it.
+7. A value the code computes ("which value does the source give") is RUN on the real code and data, never reasoned.
