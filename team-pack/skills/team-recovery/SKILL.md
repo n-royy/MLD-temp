@@ -31,8 +31,8 @@ MTM Player started a replacement orchestrator with fresh access. The previous se
 - Queued items live only in the previous orchestrator's context: re-plan the remaining items ("Assigning work") after
   handling the busy slots below. `<checkoutRoot>/.git/mtm/baseline.json` tells whether the baseline repair is in.
 - Slots: the board's `slots` (from `<checkoutRoot>/.git/mtm/slots.json`) survive the restart, workers do not.
-  First spawn the match team again (`fork_turns: "none"`): W1-W4 `team_feature_worker` for s1-s4, PA and PB
-  `team_incident_worker` for s5/s6, who take every PI (team-orchestrator SKILL.md "The team").
+  First spawn the match team again (`fork_turns: "none"`): W1-W4 `team_feature_worker` for s1-s4, PA, PB and PC
+  `team_incident_worker` for s5-s7, who take every PI (team-orchestrator SKILL.md "The team").
   For each slot with an item: if `<slotMatchRoot>/.mtm-tmp/<ID>/DONE.json` exists and the slot is committed, call
   `integrate_item`; otherwise `start_work` with the same `slot` (a replay that keeps the slot's work) and give it to
   that slot's agent (a PI: PA or PB, with the PI message after `prepare_incident`) with a message that adds:

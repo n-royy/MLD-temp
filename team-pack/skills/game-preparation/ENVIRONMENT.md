@@ -20,7 +20,7 @@ only the orchestrator writes progress events.
   the helper tool `start_jobs` (`dir` = `<matchRoot>/.mtm-tmp/jobs`, each job `{name, cwd, command}`), then call
   `wait_jobs` once (it blocks up to 280 s inside the helper and returns states and log tails; call again only if
   `done` is false). Job names: `prep-*` for what READY needs (install, migrate-seed, build, doctor),
-  `install-s1`..`install-s6` for the six slots, `baseline` for the baseline test run.
+  `install-s1`..`install-s7` for the seven slots, `baseline` for the baseline test run.
 - **A job-runner problem never blocks preparation** (CVNXDTQY: the scout reported BLOCKED because jobs came back
   LOST). start_jobs already retries a lost job as a direct child (`mode: "direct"`). If a job is still LOST or exits
   127 with "start failed", run that command directly with exec_command instead (accept the ~30 s returns), and say so
@@ -34,9 +34,9 @@ only the orchestrator writes progress events.
   - anything else: read the README first, then start it.
   Never set Yarn hard-link options (`YARN_NM_MODE`): on Windows they made every link step 2-5 times slower
   (YH6OAYMZ: 2 m instead of 1 m 17 s alone, 22-34 minutes per slot beside other work).
-- **Slot installs: one at a time, all six before READY** (IPZ0U79E: five installs at once took 13 m 25 s each, one
+- **Slot installs: one at a time, all seven before READY** (IPZ0U79E: five installs at once took 13 m 25 s each, one
   alone 1 m 17 s; YH6OAYMZ: installs that ran on into the game made every git call and test run take minutes, and
-  the first submission never came). One chain `install-s1` → `install-s2` → ... → `install-s6`, started right after
+  the first submission never came). One chain `install-s1` → `install-s2` → ... → `install-s7`, started right after
   the main install, beside the build (part A). Nothing installs during the game.
 - **Install with the warm store:** `pnpm install --frozen-lockfile --prefer-offline`.
 - **Cache by source tree.** `key = git -C <checkoutRoot> rev-parse HEAD:<folder>` (the exact content of the match
@@ -62,14 +62,14 @@ Read `matchRoot/README.md`, then any `env-require/README.md`, `env-require/requi
      runs, then `wait_jobs` for it.
    - Then in parallel, in ONE `start_jobs` call: job `prep-build` (the documented build, e.g. `prepare-source.ps1`
      or `pnpm run build`), job `prep-db` (the provided migration and seed steps, then the `doctor`/check script) and
-     the slot installs `install-s1`..`install-s6` (in each slot's app folder from your task, the same locked install
+     the slot installs `install-s1`..`install-s7` (in each slot's app folder from your task, the same locked install
      command as `prep-install`), as ONE chain with the wait prefix of part B: `install-s1` starts at once,
-     `install-s2` waits for `install-s1`, ..., `install-s6` for `install-s5`. A failed install does not stop the chain
+     `install-s2` waits for `install-s1`, ..., `install-s7` for `install-s6`. A failed install does not stop the chain
      (the next one waits for the exit file, not for success); restart a failed one at the end of the chain.
      The orchestrator creates the slot worktrees while the main install runs; a slot folder still missing when you
      start the chain: wait for `<slot>\.git` in the same prefix (`Test-Path`), never skip the slot.
      Then one `wait_jobs` for `prep-build` and `prep-db` only: the slot installs keep running while you finish part A
-     and all six are awaited by the orchestrator before READY.
+     and all seven are awaited by the orchestrator before READY.
      The build result belongs in your reply (BUILD gate); `COMPLETED` only if it succeeds. Then confirm
      `git status --porcelain` shows no tracked changes.
    - Missing toolchain or service: install it yourself, see "Toolchain installs" below. No human can help
@@ -114,7 +114,7 @@ Rules for installs:
 
 ## B. BACKGROUND JOBS (the baseline run; start it, do not wait)
 The slot installs were started in part A. Start the `baseline` job now (the full test suite in the main checkout,
-output to its log) with the same wait prefix for `install-s6` so it never competes with the installs, plus the slot
+output to its log) with the same wait prefix for `install-s7` so it never competes with the installs, plus the slot
 databases of part C when the env-require README needs one per working copy (the orchestrator has copied the slot env
 files by now), and go on with D and E while they run. The game stops a baseline run that is still going at its start.
 **One install at a time.** Installs share the disk: five at once all finished after 12-13 minutes (5FLQMNAA,

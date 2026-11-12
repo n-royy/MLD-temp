@@ -81,7 +81,7 @@ before(async () => {
 
 after(async () => { await gm?.close?.(); rmSync(tmp, { recursive: true, force: true }); });
 
-test('DEADLINE_SOON wakes once per busy item, board is compact, six slots: 4 workers, 2 PI agents', async () => {
+test('DEADLINE_SOON wakes once per busy item, board is compact, seven slots: 4 workers, 3 fast-lane agents', async () => {
   gm.state.backlog = [
     { key: 'BUG-09', backlogType: 'BUG', title: 'Status badge wrong', deadlineMinutes: 10, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'x'.repeat(2000), submission: null },
     { key: 'CR-09', backlogType: 'CR', title: 'Aging report', deadlineMinutes: null, revealedElapsedSec: 0, revisionNo: 1, workStatus: 'NOT_STARTED', description: 'long text' }
@@ -90,8 +90,8 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, six slots: 4 wor
   const h = new Helper();
   try {
     await h.call('configure_session', { descriptors: [prepare] });
-    const slots = await h.call('prepare_slots', { count: 6, copyFiles: ['src/.env'] });
-    assert.equal(slots.slots?.length ?? slots.length ?? 6, 6);
+    const slots = await h.call('prepare_slots', { count: 7, copyFiles: ['src/.env'] });
+    assert.equal(slots.slots?.length ?? slots.length ?? 7, 7);
     await h.call('configure_session', { descriptors: [prepare, start] });
     const board = await h.call('refresh_match');
     const bug = board.items.find(i => i.key === 'BUG-09');
@@ -99,9 +99,9 @@ test('DEADLINE_SOON wakes once per busy item, board is compact, six slots: 4 wor
     assert.ok(Math.abs(bug.minutesLeft - 2.5) < 0.2, `minutesLeft ${bug.minutesLeft}`);
     assert.equal(board.items.find(i => i.key === 'CR-09').minutesLeft, undefined);
     assert.ok(Math.abs(board.match.minutesLeft - 32.5) < 0.2);
-    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'fast-lane', 'fast-lane']);
+    assert.deepEqual(board.slots.map(s => s.role), ['worker', 'worker', 'worker', 'worker', 'fast-lane', 'fast-lane', 'fast-lane']);
     assert.ok(JSON.stringify(board).length < 2500, `board ${JSON.stringify(board).length} chars`);
-    assert.equal((await h.call('prepare_slots', { count: 7 })).error?.code, 'INVALID_SLOT_COUNT');
+    assert.equal((await h.call('prepare_slots', { count: 8 })).error?.code, 'INVALID_SLOT_COUNT');
     const s = await h.call('start_work', { backlogItemKey: 'BUG-09', slot: 's1' });
     assert.ok(s.briefFile, JSON.stringify(s));
     const t0 = Date.now();
