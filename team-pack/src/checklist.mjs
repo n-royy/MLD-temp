@@ -6,7 +6,7 @@
 
 const META = new Set(['schemaVersion', 'backlogId', 'status', 'evidenceFiles', 'testResults', 'engineeringRecord', 'incidentRecord']);
 const NOT_ASKED = /^(context|background|scoring by completion order|story|overview)$/i;
-const OUT_OF_SCOPE = /out of scope|not in scope|non-goals?/i;
+const OUT_OF_SCOPE = /out of scope|not in scope|non-goals?|not part of this|not included|excluded/i;
 const GRADING = /\b(grad(e|er|ed|ing)|hidden|replay|official|scor(e|ed|es|ing)|compared exactly|no ai|judg|points?\b|counts? only|scores? 0|validat)/i;
 const ASKS = /\b(must|should|need|needs|required?|expected|exactly|only|never|do not|don't|then fix|fix\b|add\b|support|show|export|keep|create|copy|commit|report|record|set\b|include|list\b|use\b|run\b)/i;
 
@@ -247,7 +247,7 @@ export function playbooksFor({ key = '', item = {}, mvs = null, files = {}, grad
   if (/\b(browser|screenshot|viewport|desktop|page|screen|sidebar|button|click)\b/i.test(text) && /\b(evidence|scenario|replay|serve|build)\b/i.test(text)) out.push('ui-evidence');
   // 1.5.31: only when unseen tests or the grader's own run on our source are announced (not every KB lookup); never a
   // PI (its agent follows INCIDENT.md).
-  if (!/^PI-/.test(key) && (gradingKind === 'OFFICIAL_DATA' || /\b(hidden|organizer)\s+(?:unit\s+)?tests?\b|official test data/i.test(text) || GRADER_RUN.test(text))) out.push('hidden-tests');
+  if ((!/^PI-/.test(key) || mvs) && (gradingKind === 'OFFICIAL_DATA' || /\b(hidden|organizer)\s+(?:unit\s+)?tests?\b|official test data/i.test(text) || GRADER_RUN.test(text))) out.push('hidden-tests');
   const others = [...text.matchAll(/\b(?:BUG|CR|TASK|PI)-\d+\b/g)].map(m => m[0]).filter(k => k !== key);
   if (others.length) out.push('other-items');
   if (gradingKind === 'SUITE_DETECTION') out.push('suite-spec');

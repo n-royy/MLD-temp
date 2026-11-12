@@ -7,8 +7,25 @@ the incident rules, and it is collecting every log entry into `<slotMatchRoot>/.
 
 ## The follow-up you get
 `PI <ID> in slot <sN>. incident.dir <path>. briefFile <path>. answerFile <path>. validateCommand <cmd>.
-worktreeRoot <path>. slotMatchRoot <path>.` Work in the slot it
-names (the slot is installed: tests and builds run there).
+worktreeRoot <path>. slotMatchRoot <path>. piKind <investigation|fix>. Playbooks <...>. Repro <path or none>.`
+Work in the slot it names (the slot is installed: tests and builds run there).
+
+## Two kinds of PI (1.5.34)
+- **`piKind: fix`** - no figures to find in the logs; the brief asks to remove a fault and judges it with
+  verification scenarios, hidden tests and **a test suite of your own run on versions that each break a rule**
+  (8COFCHVS PI-23/PI-24: lost 6 and 14 points on volume versions alone). Work it like an item: WORKER.md and the
+  playbooks the message lists (`suite-spec` for the suite: the brief's own sizes - "a few hundred lines, a few
+  thousand units" - are the volume to go past, by 10x), the MVS run as the brief says, a valid answer committed from
+  the first PASS. Skip the log steps below.
+- **`piKind: investigation`** - figures from the logs (and usually a fix): the steps below.
+
+## The repro script (when the brief asks for one)
+`Repro answers/<ID>/repro.mjs` = the grader reruns your script on a second data set of the same kind, and half of
+every figure is for that run (8COFCHVS PI-21: the script was right on the second set, the answer - computed before
+the collection was complete - was not). So the solver IS that file, from the start:
+`node answers/<ID>/repro.mjs --input <dir> --output <file> --src <folder>`; it reads only `<dir>/logs.json`
+(`{ "entries": [...] }`) and `<dir>/data.json`, no other path, no network, under the brief's time limit. The helper
+writes exactly that input to `<incident.dir>/repro-input/`; run your script on it and answer with ITS output.
 
 ## Steps
 1. **Read while the logs are collected** (they take up to a few minutes): the brief (`briefFile`: description,
@@ -23,7 +40,8 @@ names (the slot is installed: tests and builds run there).
      without paging is narrowed with more words (a day `2025-10-18`, then an hour `2025-10-18T22`, a release, an id)
      until each answer's `total` equals its `returned`; save every answer to a file and merge them by script. A set
      built from a first page is incomplete and scores 0 (5APIQYXW: "total": 38, "returned": 20).
-3. **One Node script** `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` (start from `incident/solve-starter.mjs`: data loaded
+3. **One Node script** - the repro file when the brief asks for one (above), else
+   `<slotMatchRoot>/.mtm-tmp/<ID>/solve.mjs` (start from `incident/solve-starter.mjs`: data loaded
    and indexed; copy it to `../solve.mjs`) over `incident/logs.json` / `entities.json` (plus anything you collected)
    computes **every** field the brief asks for, exactly by the definitions in the rules and the brief, and prints each
    value with the log rows that prove it:
@@ -35,6 +53,10 @@ names (the slot is installed: tests and builds run there).
    - a value the data does not determine: say so in the record, never invent it.
    The script asserts its own coverage (e.g. "expected 755 entries, got N") and fails when it is short.
    Write its output to `solve-output.json`. Never pick values by eye.
+   **Checkpoint at once**: as soon as the script gives every figure, write them into `answerFile` (template keys,
+   status PARTIAL), run `validateCommand`, commit the answer and the script. Not submitted yet (the fix may still
+   come), but the helper submits it 2.5 minutes before the deadline if you are not done (8COFCHVS PI-22: an 8-minute
+   deadline and no committed answer = 0 of 65).
 4. **Check the values** (this is where the points are won): every template field filled from the script output with
    the schema's type; re-read every rule once against your values; each set's size equals the count the script
    printed and contains nothing the definition excludes; a second, independent way to compute the key field

@@ -296,3 +296,40 @@ test('1.5.31: a test importing a JSON fixture its tsconfig does not include is r
     await h.call('release_slot', { slot: 's1' });
   } finally { h.close(); }
 });
+
+test('1.5.34: "How it is judged ... versions that each break the rules" is a suite item; a PI answer waits for complete logs and its repro script', async () => {
+  const judged = '# Pricing\n## What we want\nPrices.\n## Please make sure\n- A test suite of your own that pins every pricing decision.\n## How it is judged\nUp to 65 points. It also runs your test suite on what you deliver, on a correct version, and on several versions that each break the rules in one place: your suite must pass on the first two and fail on each of the others.\n## Not part of this\nScreens.';
+  gm.state.backlog = [item('CR-80', 'CR', { description: judged }), item('PI-80', 'PI', { deadlineMinutes: 20, revealedElapsedSec: 600,
+    description: '# Incident\n## What we need from you\n1. **rootCauseRelease**\n## Technical requirement\ndeliver a script `answers/PI-80/repro.mjs` that works your answer out from the data.' })];
+  gm.state.clock = { elapsedSec: 700, remainingSec: 1700 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6', 's7']) await h.call('release_slot', { slot }).catch(() => null);
+    const cr = await h.call('start_work', { backlogItemKey: 'CR-80', slot: 's1' });
+    const brief = JSON.parse(readFileSync(cr.briefFile, 'utf8'));
+    assert.equal(brief.qualityGate?.kind, 'SUITE_DETECTION', JSON.stringify(brief.qualityGate));
+    assert.ok(brief.playbooks.includes('suite-spec'), JSON.stringify(brief.playbooks));
+    assert.ok(!readFileSync(cr.checklistFile, 'utf8').includes('Screens.') || /Out of scope/.test(readFileSync(cr.checklistFile, 'utf8')));
+    const pi = await h.call('start_work', { backlogItemKey: 'PI-80', slot: 's5' });
+    const inc = join(pi.slotMatchRoot, '.mtm-tmp', 'PI-80', 'incident');
+    mkdirSync(inc, { recursive: true });
+    writeFileSync(join(inc, 'kb.md'), '# rules\n');
+    rmSync(join(inc, 'collection.json'), { force: true });
+    const pending = await h.call('answer_item', { backlogItemKey: 'PI-80', values: {} });
+    assert.equal(pending.error?.code, 'INCIDENT_DATA_PENDING', JSON.stringify(pending).slice(0, 300));
+    writeFileSync(join(inc, 'collection.json'), JSON.stringify({ complete: false, coverage: [{ args: { service: 'stock' }, complete: false }] }));
+    assert.equal((await h.call('answer_item', { backlogItemKey: 'PI-80', values: {} })).error?.code, 'INCIDENT_DATA_INCOMPLETE');
+    writeFileSync(join(inc, 'collection.json'), JSON.stringify({ complete: true, coverage: [] }));
+    assert.equal((await h.call('answer_item', { backlogItemKey: 'PI-80', values: {} })).error?.code, 'REPRO_MISSING');
+    writeFileSync(join(pi.slotMatchRoot, 'answers', 'PI-80', 'repro.mjs'), 'console.log("{}")\n');
+    const r = await h.call('answer_item', { backlogItemKey: 'PI-80', values: {} });
+    assert.ok(!['INCIDENT_DATA_PENDING', 'INCIDENT_DATA_INCOMPLETE', 'REPRO_MISSING'].includes(r.error?.code), JSON.stringify(r).slice(0, 300));
+    // With 3 minutes or less left the answer goes as it is.
+    gm.state.clock = { elapsedSec: 1650, remainingSec: 750 };
+    await h.call('refresh_match');
+    writeFileSync(join(inc, 'collection.json'), JSON.stringify({ complete: false, coverage: [] }));
+    assert.notEqual((await h.call('answer_item', { backlogItemKey: 'PI-80', values: {} })).error?.code, 'INCIDENT_DATA_INCOMPLETE');
+  } finally { h.close(); }
+});

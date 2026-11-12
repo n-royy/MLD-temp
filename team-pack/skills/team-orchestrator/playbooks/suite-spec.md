@@ -1,4 +1,8 @@
-# Playbook: a test suite against a specification (`qualityGate` SUITE_DETECTION)
+# Playbook: a test suite run on broken versions (`qualityGate` SUITE_DETECTION)
+
+Any item - TASK, CR, BUG or PI - whose judging runs your test suite "on a correct version and on several versions
+that each break the rules in one place". The rules are the specification file when there is one, otherwise the
+company standards the brief names.
 
 How it is scored: the organizer plants a few defects in the application, each against one statement of the
 specification; each is worth its fix plus its detection by your suite (R7WFBQBT TASK-08: 5 planted, 12 + 4 points
@@ -9,6 +13,10 @@ each). The organizer's own suite checks the application; your suite must pass on
    (the handler, not only the function, when both are listed).
 2. **Where planted defects hide** - test these axes for every rule before anything else:
    - boundaries on both sides (on, one before, one after);
+   - **sizes the brief states** ("orders with a few hundred lines and lines of a few thousand units", "large
+     amounts", "long text"): go past each by 10x - lines, units, amounts, string length, nesting depth, number of
+     locations - one case each (8COFCHVS: `many-lines`, `large-quantity`, `large-amounts`, `long-line`,
+     `deep-fields`, `many-locations` versions undetected in 7 items, ~80 points);
    - **volume sized from the code**: `rg -n -i "page_?count|page_?size|chunk|batch_?size|limit|offset|max_?rows|\.slice\(|\[[^]]*:" <the modules the
      spec names and the db/query helpers they call>`, then more records in ONE call than the largest size found and
      over 1,000, in every kind of call (import lines; added, updated and deleted together). A volume case checks

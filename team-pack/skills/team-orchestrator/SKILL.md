@@ -48,7 +48,8 @@ submitted **once** and graded per criterion; submitting a non-PI item early earn
   ```
 - **PI message** (`followup_task` to the agent of `incident.slot`): `PI <ID> in slot <sN>. incident.dir <path>.
   briefFile <path>. checklistFile <path>. answerFile <path>. validateCommand <cmd>. worktreeRoot <path>.
-  slotMatchRoot <path>. Logs: wait_incident_data first. Playbook <teamWorkspace>/.agents/skills/team-orchestrator/INCIDENT.md.`
+  slotMatchRoot <path>. piKind <incident.piKind>. Playbooks <incident.playbooks>. Repro <incident.repro or none>.
+  Logs: wait_incident_data first (investigation). Playbook <teamWorkspace>/.agents/skills/team-orchestrator/INCIDENT.md.`
 - Mid-work messages (`send_message`) only: the blocker/overlap note, the baseline-owner note, the safety net.
   `followup_task` only to hand over work, to send back a rejected gate or open rows, or to replace a
   placeholder value. Never credentials, keys or descriptors in any message.

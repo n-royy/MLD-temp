@@ -204,6 +204,11 @@ test('a revealed PI is started in a PI agent slot (s5) and its data collected be
     assert.equal(data.ready, true); assert.equal(data.logEntries, fixture.logs.length); assert.equal(data.complete, true);
     const inc = { ...p1, ...data };
     for (const f of Object.values(inc.files)) assert.ok(existsSync(f), f);
+    // 1.5.34: the grader's repro input shape, ready to run a repro script on.
+    const ri = JSON.parse(readFileSync(join(inc.files.reproInput, 'logs.json'), 'utf8'));
+    assert.equal(ri.entries.length, fixture.logs.length);
+    assert.deepEqual(JSON.parse(readFileSync(join(inc.files.reproInput, 'data.json'), 'utf8')), { catalog: [{ sku: 'X-1', location: 'L-1' }] });
+    assert.ok(['investigation', 'fix'].includes(p1.piKind) && Array.isArray(p1.playbooks));
     assert.ok(inc.files.digest.startsWith(inc.slotMatchRoot), 'data lives in the slot');
     assert.ok(existsSync(inc.answerFile) && existsSync(inc.briefFile));
     assert.match(inc.validateCommand, /validate\.mjs/);

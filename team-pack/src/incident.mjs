@@ -29,6 +29,7 @@ export function pickTools(defs = []) {
   const byName = re => defs.find(d => re.test(d.name ?? '')) ?? null;
   const logTool = byName(/^search_logs$/i) ?? byName(/log/i);
   const kbTool = byName(/^kb_search$/i) ?? byName(/kb|knowledge|wiki|standard/i);
+  const dataTool = byName(/^get_test_data$/i) ?? byName(/test.?data|dataset|fixture/i);
   const p = props(logTool);
   const offsetKey = OFFSET_KEYS.find(k => k in p) ?? null;
   const limitKey = LIMIT_KEYS.find(k => k in p) ?? null;
@@ -36,7 +37,7 @@ export function pickTools(defs = []) {
   // Services named in the tool's own description ("services include a, b, c").
   const listed = String(logTool?.description ?? '').match(/services?\s+(?:include|are|:)\s*([a-z0-9][a-z0-9 ,/-]+)/i)?.[1] ?? '';
   const services = listed.split(/[,/]|\band\b/).map(x => x.trim()).filter(x => /^[a-z0-9][a-z0-9-]*$/.test(x));
-  return { logTool, kbTool, offsetKey, limitKey, limitMax, services,
+  return { logTool, kbTool, dataTool, offsetKey, limitKey, limitMax, services,
     serviceKey: ['service', 'services', 'component', 'source'].find(k => k in p) ?? null,
     queryKey: ['query', 'q', 'text', 'search'].find(k => k in p) ?? null,
     kbQueryKey: ['query', 'q', 'text', 'search'].find(k => k in props(kbTool)) ?? null,
@@ -313,7 +314,8 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
         // A service neither the brief nor the rules name: its newest page only (it rarely decides a PI; the agent can
         // sweep it with company_tool_call). Optional for completeness.
         const optional = anyNamed && !named2(svc);
-        const c = await pageAll(call, t, a, seen, budget, { noSweep: optional });
+        // 1.5.34: every service in full (named ones first); a partial service left 8COFCHVS PI-21 three lines short.
+        const c = await pageAll(call, t, a, seen, budget);
         if (optional) c.optional = true;
         coverage.push(c);
       }
@@ -326,6 +328,19 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
   writeFileSync(join(dir, 'entities.json'), JSON.stringify(d.entities, null, 1));
   writeFileSync(join(dir, 'kb.md'), kb.map(a => `## ${a.id ?? ''} ${a.title ?? ''}\n\n${a.body ?? a.content ?? JSON.stringify(a)}\n`).join('\n'));
   writeFileSync(join(dir, 'digest.md'), d.markdown);
+  // 1.5.34: the grader's input shape for a repro script ("--input holds logs.json, every log entry as { entries: [...] },
+  // and data.json, the data of the test data of this item"): the agent runs its script exactly as the grader will.
+  mkdirSync(join(dir, 'repro-input'), { recursive: true });
+  writeFileSync(join(dir, 'repro-input', 'logs.json'), JSON.stringify({ entries: [...seen.values()] }, null, 1));
+  if (t.dataTool && brief.key) {
+    try {
+      const args = {}; for (const k of required(t.dataTool)) args[k] = brief.key;
+      if (!Object.keys(args).length) for (const k of ['backlogId', 'backlogItemKey', 'itemId', 'id', 'key', 'item']) if (k in props(t.dataTool)) { args[k] = brief.key; break; }
+      const r = await call(t.dataTool.name, args);
+      const j = parse(r?.text);
+      writeFileSync(join(dir, 'repro-input', 'data.json'), JSON.stringify(j && typeof j === 'object' && 'data' in j ? j.data : j, null, 1));
+    } catch (error) { problems.push(`test data: ${String(error.message ?? error).slice(0, 120)}`); }
+  }
   // Starter for the solving script: data loaded and joined, nothing decided (the KB rules decide).
   writeFileSync(join(dir, 'solve-starter.mjs'), [
     "// Copy to ../solve.mjs and complete. Prints facts; every answer field must follow the KB definitions (kb.md).",
@@ -346,9 +361,9 @@ export async function collectIncident({ call, defs, dir, brief = {}, maxCalls = 
     "console.log(JSON.stringify({ result, proof }, null, 2));",
     "writeFileSync(join(here, '..', 'investigation.json'), JSON.stringify({ result, proof }, null, 2));",
     "export { logs, entities, kb, by, service, firstOf, before };", ''].join('\n'));
-  const counted = coverage.filter(c => !c.superseded && !c.optional);
+  const counted = coverage.filter(c => !c.superseded);
   const complete = counted.length > 0 && counted.some(c => c.complete) && !counted.some(c => c.error && c.returned > 0 && !c.complete);
-  const summary = { dir, files: { digest: join(dir, 'digest.md'), logs: join(dir, 'logs.json'), entities: join(dir, 'entities.json'), kb: join(dir, 'kb.md') },
+  const summary = { dir, files: { digest: join(dir, 'digest.md'), logs: join(dir, 'logs.json'), entities: join(dir, 'entities.json'), kb: join(dir, 'kb.md'), reproInput: join(dir, 'repro-input') },
     logEntries: d.logs.length, kbArticles: kb.map(a => a.id ?? a.title), complete, calls: maxCalls - budget.calls,
     ms: Date.now() - started, coverage: coverage.map(c => ({ args: c.args, total: c.total, collected: c.returned, complete: c.complete, ...(c.error ? { error: c.error } : {}), ...(c.superseded ? { superseded: true } : {}), ...(c.optional ? { optional: true } : {}) })),
     problems };
