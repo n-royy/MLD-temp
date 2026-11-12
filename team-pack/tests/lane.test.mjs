@@ -263,3 +263,34 @@ test('1.5.29: a rescue in the middle of a conflicted rebase aborts it and submit
     assert.match(text, /line2 by 74/, 'the branch side of the conflicting line is kept');
   } finally { h.close(); }
 });
+
+test('1.5.31: a test importing a JSON fixture its tsconfig does not include is refused (TEST_TYPECHECK_RISK)', async () => {
+  gm.state.backlog = [item('BUG-75', 'BUG'), item('BUG-76', 'BUG')];
+  gm.state.clock = { elapsedSec: 900, remainingSec: 1500 };
+  const h = new Helper();
+  try {
+    await h.call('configure_session', { descriptors: [prepare, start] });
+    await h.call('refresh_match');
+    for (const slot of ['s1', 's2', 's3', 's4', 's5', 's6']) await h.call('release_slot', { slot }).catch(() => null);
+    const a = await h.call('start_work', { backlogItemKey: 'BUG-75', slot: 's1' });
+    const pkg = join(a.slotMatchRoot, 'src', 'pkg');
+    mkdirSync(join(pkg, 'tests'), { recursive: true });
+    writeFileSync(join(pkg, 'tsconfig.json'), '{\n  // project\n  "include": ["tests/**/*.ts", "tests/mockData.json"],\n}\n');
+    writeFileSync(join(pkg, 'tests', 'fixture.json'), '{"a":1}\n');
+    writeFileSync(join(pkg, 'tests', 'bug.test.ts'), "import fixture from './fixture.json';\nexport const x = fixture;\n");
+    work(a, 'BUG-75', { content: 'line1\nline2 by 75\nline3\n' });
+    const r = await h.call('integrate_item', { backlogItemKey: 'BUG-75' });
+    assert.equal(r.error?.code, 'TEST_TYPECHECK_RISK', JSON.stringify(r).slice(0, 300));
+    // The same test reading the fixture with fs passes the gate.
+    const b = await h.call('start_work', { backlogItemKey: 'BUG-76', slot: 's2' });
+    const pkg2 = join(b.slotMatchRoot, 'src', 'pkg');
+    mkdirSync(join(pkg2, 'tests'), { recursive: true });
+    writeFileSync(join(pkg2, 'tsconfig.json'), '{ "include": ["tests/**/*.ts"] }\n');
+    writeFileSync(join(pkg2, 'tests', 'fixture.json'), '{"a":1}\n');
+    writeFileSync(join(pkg2, 'tests', 'bug.test.ts'), "import * as fs from 'node:fs';\nexport const x = JSON.parse(fs.readFileSync(new URL('./fixture.json', import.meta.url), 'utf8'));\n");
+    work(b, 'BUG-76', { content: 'line1\nline2 by 76\nline3\n' });
+    const ok = await h.call('integrate_item', { backlogItemKey: 'BUG-76' });
+    assert.equal(ok.status, 'SUBMITTED', JSON.stringify(ok).slice(0, 300));
+    await h.call('release_slot', { slot: 's1' });
+  } finally { h.close(); }
+});

@@ -78,7 +78,7 @@ const TOOLS = [
     description: "Bring a worker's committed slot work onto the assigned branch and submit it: checks the slot is committed, " +
       'only the assigned folder changed and no credential is in the diff; git pull --rebase, cherry-pick the slot commits, ' +
       'push (never force); then runs submit_work unchanged (all its gates) with the counts from the slot DONE.json unless ' +
-      '`tests` is given. INTEGRATION_CONFLICT, CONFLICT_MARKERS (the commits add <<<<<<< / >>>>>>> lines) and TEST_USES_LOCAL_FILES (a committed test reads .mtm-tmp or a machine path) abort cleanly and nothing is pushed or sent. ' +
+      '`tests` is given. INTEGRATION_CONFLICT, CONFLICT_MARKERS (the commits add <<<<<<< / >>>>>>> lines) and TEST_USES_LOCAL_FILES (a committed test reads .mtm-tmp or a machine path), TEST_TYPECHECK_RISK (a committed test imports a JSON file its tsconfig does not include) abort cleanly and nothing is pushed or sent. ' +
       'The result names overlaps[] (busy slots that changed the same files): tell those agents to rebase now. Frees the slot when submitted.',
     inputSchema: obj({ backlogItemKey: key,
       tests: obj({ required: { type: 'integer' }, executed: { type: 'integer' }, passed: { type: 'integer' }, failed: { type: 'integer' },

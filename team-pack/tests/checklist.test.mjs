@@ -138,3 +138,13 @@ test('1.5.30: playbooksFor picks only the playbooks an item needs', () => {
   assert.deepEqual(playbooksFor({ key: 'TASK-10', item: { descriptionMd: 'Report the totals.' }, heavy: true }), ['data-values', 'heavy']);
   assert.deepEqual(playbooksFor({ key: 'BUG-09', item: { descriptionMd: 'Fix the status rule. Add automated tests.' } }), []);
 });
+
+test('1.5.31: a sentence where the grader runs something on our source becomes a box; PI never gets hidden-tests', () => {
+  const d = `# CR\n## Context\n> **Note on the official test data.** The audit of that data is right only on source that also contains the \`BUG-11\` fixes. The grader loads the official test data with the source of your \`CR-07\` submission itself, posts the schedule there, and audits it there: figures produced on another branch do not count.\n## Requirements\n1. Add the handler.`;
+  const r = buildChecklist({ key: 'CR-07', item: { descriptionMd: d } });
+  const g = r.boxes.filter(b => b.section === 'Grader run on your source');
+  assert.equal(g.length, 1); assert.match(g[0].text, /^The grader loads the official test data/); assert.match(g[0].text, /FRESH test database/);
+  assert.deepEqual(playbooksFor({ key: 'CR-07', item: { descriptionMd: d } }), ['hidden-tests', 'other-items']);
+  assert.deepEqual(playbooksFor({ key: 'PI-02', item: { descriptionMd: 'The rules are documented in the internal knowledge base. Hidden tests.' } }), ['data-values']);
+  assert.deepEqual(playbooksFor({ key: 'BUG-12', item: { descriptionMd: 'Follow the rule standard in the knowledge base.' } }), []);
+});
