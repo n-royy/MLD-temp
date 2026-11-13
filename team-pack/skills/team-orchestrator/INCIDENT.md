@@ -17,7 +17,7 @@ Work in the slot it names (the slot is installed: tests and builds run there).
   playbooks the message lists (`suite-spec` for the suite: the brief's own sizes - "a few hundred lines, a few
   thousand units" - are the volume to go past, by 10x), the MVS run as the brief says, a valid answer committed from
   the first PASS. Skip the log steps below.
-- **`piKind: investigation`** - figures from the logs (and usually a fix): the steps below.
+- **`piKind: investigation`** - figures from the logs (and usually a fix): the steps below, without tests.
 
 ## The repro script (when the brief asks for one)
 `Repro answers/<ID>/repro.mjs` = the grader reruns your script on a second data set of the same kind, and half of
@@ -27,12 +27,17 @@ the collection was complete - was not). So the solver IS that file, from the sta
 (`{ "entries": [...] }`) and `<dir>/data.json`, no other path, no network, under the brief's time limit. The helper
 writes exactly that input to `<incident.dir>/repro-input/`; run your script on it and answer with ITS output.
 
-## Steps
+## Steps (investigation: read, list, compute, fix, answer - no tests of your own, 1.5.35)
+The figures come from your script over all the data, and the fix is judged by the organizer's own hidden tests: no
+test file of yours earns a point here, so you write none and run none. Speed goes into reading the brief and the
+rules thoroughly.
 1. **Read while the logs are collected** (they take up to a few minutes): the brief (`briefFile`: description,
    answer fields, acceptance criteria, whether a **fix in the source** is asked), `incident/kb.md` **in full** (naming
    and scope rules decide the answer: which release counts as the cause, which component name, what an "affected"
    record is, how to rank or compute), and, when a fix is asked, the code the brief and the rules point to (rg in
-   `<slotMatchRoot>`). Note the definition of every field in your own words in `.mtm-tmp/<ID>/plan.md`.
+   `<slotMatchRoot>`). Write `.mtm-tmp/<ID>/plan.md`: **the list of tasks** - every field with its definition in your
+   own words (scope, filters, dedup key, order, units), the repro script if the brief asks for one, and the fix (which
+   file, which change, which rule it restores). Every task in the brief is on that list before you compute anything.
 2. **Wait for the logs**: `wait_incident_data({ dir: incident.dir })` (blocks up to 280 s; call again while
    `ready` is false). Then read `incident/digest.md` and the coverage it returns:
    - `complete` false, or a query you need marked incomplete or `optional`: collect the rest yourself with
@@ -57,26 +62,19 @@ writes exactly that input to `<incident.dir>/repro-input/`; run your script on i
    status PARTIAL), run `validateCommand`, commit the answer and the script. Not submitted yet (the fix may still
    come), but the helper submits it 2.5 minutes before the deadline if you are not done (8COFCHVS PI-22: an 8-minute
    deadline and no committed answer = 0 of 65).
-4. **Check the values** (this is where the points are won): every template field filled from the script output with
-   the schema's type; re-read every rule once against your values; each set's size equals the count the script
-   printed and contains nothing the definition excludes; a second, independent way to compute the key field
-   (another join, the other order, the code itself on the logged inputs) agrees. When a check fails, fix the script
-   and run it again; never patch values by hand.
-5. **The fix, when the brief asks for one** (YH6OAYMZ PI-02: "Then fix the fault in the application source"):
-   - reproduce the fault with a test first: one new test file with the logged cases (the wrong inputs and the
-     expected right result from step 3), failing on the issued code;
-   - fix the **root cause** the rules and the logs point to (the faulty release's change), not the symptom; keep the
-     change minimal and inside the assigned folder;
-   - run the new test, the existing tests of that module and any test the brief names; all must pass. Never weaken
-     or delete an existing test;
-   - commit in the slot (`git -C <worktreeRoot> add -- <folder>` then `commit -m "<ID>: <fix>"`).
-   Speed matters, but a fix that is not verified loses its points: keep it to what the brief asks.
+4. **Check the values against the list** (by reading, not by tests): every template field filled from the script
+   output with the schema's type; re-read every rule once against your values; each set's size equals the count the
+   script printed and contains nothing the definition excludes. A wrong value: fix the script, run it again; never
+   patch values by hand.
+5. **The fix, when the brief asks for one**: read the faulty release's change and the rule it breaks, fix the **root
+   cause** (not the symptom) with the smallest change inside the assigned folder, re-read the diff once against the
+   rule, commit in the slot (`git -C <worktreeRoot> add -- <folder>` then `commit -m "<ID>: <fix>"`). No new test, no
+   test run; never touch an existing test.
 6. **One pass over the checklist** (`checklistFile`) before `answer_item`: every box met by a value from the script
-   or the fix and its test; an open box is work still to do, not a note to write.
+   or the fix; an open box is work still to do, not a note to write.
 7. **One call answers it**: `answer_item` with `backlogItemKey`, `values` (the fields exactly as printed), `record` (a
-   short incident record: impact, timeline, root cause, containment, recovery, prevention; name the fix commit and
-   its test), `evidence` (`{"investigation.json": {"from": "<solve-output.json>"}}`, plus the test output when a fix
-   was made) and **no** `integrate`. It fills the template, validates (INVALID returns the problems: fix and call
+   short incident record: impact, timeline, root cause, containment, recovery, prevention; name the fix commit),
+   `evidence` (`{"investigation.json": {"from": "<solve-output.json>"}}`) and **no** `integrate`. It fills the template, validates (INVALID returns the problems: fix and call
    again), commits the answer in the slot and writes DONE.json. The orchestrator's helper submits it within seconds.
    Put a real doubt in DONE.json `doubts` only when a value is truly uncertain (the orchestrator then decides).
 8. Final answer: one line (`<ID> answered: <the key values>; fix <commit or none>`). Nothing else.
